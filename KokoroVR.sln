@@ -1,0 +1,61 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 16
+VisualStudioVersion = 16.0.29123.88
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "KokoroVR", "KokoroVR\KokoroVR.csproj", "{9A80E78B-BF2B-4A0A-AD6C-5CC4794DAA0C}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Kokoro.Math", "Kokoro.Math\Kokoro.Math.csproj", "{043ECD5D-E71C-4954-8886-0418727AB661}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{BB0BC4EB-9FB4-430C-B917-5B6D8DCD5626}"
+	ProjectSection(SolutionItems) = preProject
+		OpenTK.dll = OpenTK.dll
+		OpenTK.GLControl.dll = OpenTK.GLControl.dll
+	EndProjectSection
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Valve.VR", "Valve.VR\Valve.VR.csproj", "{37821157-6EA9-4F18-9069-AA4C0880442E}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Kokoro.Physics", "Kokoro.Physics\Kokoro.Physics.csproj", "{26ADADBB-B175-47CE-A80F-DAA034C98B82}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Kokoro.Graphics", "Kokoro.Graphics\Kokoro.Graphics.csproj", "{357295C3-64CF-43DF-A56F-99CD133B44A0}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Kokoro.Common", "Kokoro.Common\Kokoro.Common.csproj", "{D768F549-CFF8-4022-A542-D4C0FCB90623}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{9A80E78B-BF2B-4A0A-AD6C-5CC4794DAA0C}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{9A80E78B-BF2B-4A0A-AD6C-5CC4794DAA0C}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{9A80E78B-BF2B-4A0A-AD6C-5CC4794DAA0C}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{9A80E78B-BF2B-4A0A-AD6C-5CC4794DAA0C}.Release|Any CPU.Build.0 = Release|Any CPU
+		{043ECD5D-E71C-4954-8886-0418727AB661}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{043ECD5D-E71C-4954-8886-0418727AB661}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{043ECD5D-E71C-4954-8886-0418727AB661}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{043ECD5D-E71C-4954-8886-0418727AB661}.Release|Any CPU.Build.0 = Release|Any CPU
+		{37821157-6EA9-4F18-9069-AA4C0880442E}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{37821157-6EA9-4F18-9069-AA4C0880442E}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{37821157-6EA9-4F18-9069-AA4C0880442E}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{37821157-6EA9-4F18-9069-AA4C0880442E}.Release|Any CPU.Build.0 = Release|Any CPU
+		{26ADADBB-B175-47CE-A80F-DAA034C98B82}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{26ADADBB-B175-47CE-A80F-DAA034C98B82}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{26ADADBB-B175-47CE-A80F-DAA034C98B82}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{26ADADBB-B175-47CE-A80F-DAA034C98B82}.Release|Any CPU.Build.0 = Release|Any CPU
+		{357295C3-64CF-43DF-A56F-99CD133B44A0}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{357295C3-64CF-43DF-A56F-99CD133B44A0}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{357295C3-64CF-43DF-A56F-99CD133B44A0}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{357295C3-64CF-43DF-A56F-99CD133B44A0}.Release|Any CPU.Build.0 = Release|Any CPU
+		{D768F549-CFF8-4022-A542-D4C0FCB90623}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{D768F549-CFF8-4022-A542-D4C0FCB90623}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{D768F549-CFF8-4022-A542-D4C0FCB90623}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{D768F549-CFF8-4022-A542-D4C0FCB90623}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {92BD8A1C-D309-46B8-AF35-C835627C0313}
+	EndGlobalSection
+EndGlobal
