@@ -4,7 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace KokoroVR
+namespace Kokoro.Network.Server
 {
     public class Class1
     {

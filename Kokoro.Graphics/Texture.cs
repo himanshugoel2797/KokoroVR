@@ -297,6 +297,11 @@ namespace Kokoro.Graphics
             GL.TextureParameter(id, (TextureParameterName)All.TextureMaxAnisotropyExt, taps);
         }
 
+        public static explicit operator IntPtr(Texture t)
+        {
+            return (IntPtr)t.id;
+        }
+
         #region IDisposable Support
         private bool disposedValue = false; // To detect redundant calls
 

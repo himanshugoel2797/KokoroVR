@@ -8,7 +8,7 @@ namespace Kokoro.Common.StateMachine
 {
     public interface IState
     {
-        void Enter(IState prev);
+        void Enter(StateManager man, IState prev);
         void Exit(IState next);
 
         void Update(double interval);

@@ -4,7 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Kokoro.Engine.Graphics
+namespace Kokoro.Graphics
 {
     public static class InverseDepth
     {

@@ -28,8 +28,6 @@ namespace Kokoro.Graphics
         static VertexArray curVarray;
         static ShaderProgram curProg;
         static Framebuffer curFramebuffer;
-        static GameWindow game;
-
         static FaceWinding winding;
         public static FaceWinding Winding
         {
@@ -51,12 +49,12 @@ namespace Kokoro.Graphics
         {
             get
             {
-                return new Size(game.Width, game.Height);
+                return new Size(Window.Width, Window.Height);
             }
             set
             {
-                game.Width = value.Width;
-                game.Height = value.Height;
+                Window.Width = value.Width;
+                Window.Height = value.Height;
             }
         }
 
@@ -118,15 +116,9 @@ namespace Kokoro.Graphics
         }
         public static WeakAction Cleanup { get; set; }
         public static Action CleanupStrong { get; set; }
-        public static OpenTK.Input.KeyboardDevice Keyboard { get { return game.Keyboard; } }
-        public static OpenTK.Input.MouseDevice Mouse { get { return game.Mouse; } }
-        public static GameWindow Window
-        {
-            get
-            {
-                return game;
-            }
-        }
+        public static OpenTK.Input.KeyboardDevice Keyboard { get { return Window.Keyboard; } }
+        public static OpenTK.Input.MouseDevice Mouse { get { return Window.Mouse; } }
+        public static GameWindow Window { get; private set; }
         public static int PatchCount
         {
             set
@@ -361,11 +353,13 @@ namespace Kokoro.Graphics
             }
         }
 
-        private static ConcurrentQueue<Tuple<int, GLObjectType>> DeletionQueue;
+        public static MeshGroup CurrentMeshGroup { get; private set; }
+
+        private static readonly ConcurrentQueue<Tuple<int, GLObjectType>> DeletionQueue;
 
         [System.Security.SuppressUnmanagedCodeSecurity]
         [System.Runtime.InteropServices.DllImport("opengl32.dll", EntryPoint = "wglGetCurrentDC")]
-        extern static IntPtr wglGetCurrentDC();
+        extern static IntPtr WglGetCurrentDC();
 
         static GraphicsDevice()
         {
@@ -375,12 +369,12 @@ namespace Kokoro.Graphics
 #else
             flags |= GraphicsContextFlags.Debug;
 #endif
-            game = new GameWindow(1280, 720, GraphicsMode.Default, "Game Window", OpenTK.GameWindowFlags.Default, OpenTK.DisplayDevice.Default, 0, 0, flags);
+            Window = new GameWindow(1280, 720, GraphicsMode.Default, "Game Window", OpenTK.GameWindowFlags.Default, OpenTK.DisplayDevice.Default, 0, 0, flags);
 
-            game.Resize += Window_Resize;
-            game.Load += Game_Load;
-            game.RenderFrame += InitRender;
-            game.UpdateFrame += Game_UpdateFrame;
+            Window.Resize += Window_Resize;
+            Window.Load += Game_Load;
+            Window.RenderFrame += InitRender;
+            Window.UpdateFrame += Game_UpdateFrame;
 
             GameLoop = new StateGroup();
             Cleanup = new WeakAction();
@@ -395,9 +389,75 @@ namespace Kokoro.Graphics
             DeletionQueue.Enqueue(new Tuple<int, GLObjectType>(o, t));
         }
 
+        public static void SetRenderState(RenderState state)
+        {
+            GraphicsDevice.CullMode = state.CullMode;
+            GraphicsDevice.ClearColor = state.ClearColor;
+            GraphicsDevice.DepthTest = state.DepthTest;
+            GraphicsDevice.DepthWriteEnabled = state.DepthWrite;
+            GraphicsDevice.ColorWriteEnabled = state.ColorWrite;
+            GraphicsDevice.ClearDepth = state.ClearDepth;
+            GraphicsDevice.AlphaSrc = state.Src;
+            GraphicsDevice.AlphaDst = state.Dst;
+            GraphicsDevice.Framebuffer = state.Framebuffer;
+            GraphicsDevice.SetDepthRange(state.NearPlane, state.FarPlane);
+
+            for (int i = 0; i < state.Viewports.Length; i++)
+                GraphicsDevice.SetViewport(i, state.Viewports[i].X, state.Viewports[i].Y, state.Viewports[i].Z, state.Viewports[i].W);
+
+            if (state.ShaderStorageBufferBindings != null)
+            {
+                ShaderStorageBuffer[] pendingBindings = new ShaderStorageBuffer[state.ShaderStorageBufferBindings.Length];
+                Array.Copy(state.ShaderStorageBufferBindings, pendingBindings, pendingBindings.Length);
+                int pendingCnt = pendingBindings.Length;
+                while (pendingCnt > 0)
+                {
+                    for (int i = 0; i < pendingBindings.Length; i++)
+                    {
+                        if (pendingBindings[i] != null && pendingBindings[i].IsReady)
+                        {
+                            GraphicsDevice.SetShaderStorageBufferBinding(pendingBindings[i], i);
+                            pendingBindings[i] = null;
+                            pendingCnt--;
+                        }
+                    }
+                }
+            }
+
+            if (state.UniformBufferBindings != null)
+            {
+                UniformBuffer[] pendingBindings = new UniformBuffer[state.UniformBufferBindings.Length];
+                Array.Copy(state.UniformBufferBindings, pendingBindings, pendingBindings.Length);
+                int pendingCnt = pendingBindings.Length;
+                while (pendingCnt > 0)
+                {
+                    for (int i = 0; i < pendingBindings.Length; i++)
+                    {
+                        if (pendingBindings[i] != null && pendingBindings[i].IsReady)
+                        {
+                            GraphicsDevice.SetUniformBufferBinding(pendingBindings[i], i);
+                            pendingBindings[i] = null;
+                            pendingCnt--;
+                        }
+                    }
+                }
+            }
+
+            if (state.ShaderProgram != null)
+                GraphicsDevice.ShaderProgram = state.ShaderProgram;
+        }
+
+        public static void SetCurrentMeshGroup(MeshGroup grp)
+        {
+            BackgroundTaskManager.ExecuteBackgroundTasksUntil(() => grp.IsReady);
+            while (!grp.IsReady) ;
+            CurrentMeshGroup = grp;
+            SetVertexArray(grp.varray);
+        }
+
         public static void Run(double ups, double fps)
         {
-            game.Title = gameName;
+            Window.Title = gameName;
 #if DEBUG
             if (renderer_name == "")
                 renderer_name = GL.GetString(StringName.Renderer);
@@ -405,11 +465,11 @@ namespace Kokoro.Graphics
             if (gl_name == "")
                 gl_name = GL.GetString(StringName.Version);
 
-            game.Title = gameName + $" | {renderer_name} | { gl_name }";
+            Window.Title = gameName + $" | {renderer_name} | { gl_name }";
             GL.Enable(EnableCap.DebugOutput);
             GL.DebugMessageInsert(DebugSourceExternal.DebugSourceApplication, DebugType.DebugTypePortability, 1, DebugSeverity.DebugSeverityNotification, 5, "test");
 #endif
-            game.Run(ups, fps);
+            Window.Run(ups, fps);
         }
 
         static string gl_name = "";
@@ -429,12 +489,12 @@ namespace Kokoro.Graphics
             renderCnt++;
             if ((DateTime.Now - startTime) > TimeSpan.FromMilliseconds(500))
             {
-                game.Title = gameName + $" | {renderer_name} | {gl_name} | FPS : {(renderCnt * 2):F2}, UPS : {(updateCnt * 2):F2}";
+                Window.Title = gameName + $" | {renderer_name} | {gl_name} | FPS : {(renderCnt * 2):F2}, UPS : {(updateCnt * 2):F2}";
                 renderCnt = 0;
                 updateCnt = 0;
             }
 #endif
-            game.SwapBuffers();
+            Window.SwapBuffers();
         }
 
         private static void DeleteObject(int o, GLObjectType t)
@@ -487,7 +547,7 @@ namespace Kokoro.Graphics
                 if (DeletionQueue.TryDequeue(out var a))
                     DeleteObject(a.Item1, a.Item2);
             }
-            game.Exit();
+            Window.Exit();
         }
 
         private static void Game_UpdateFrame(object sender, FrameEventArgs e)
@@ -525,9 +585,9 @@ namespace Kokoro.Graphics
         private static void InitRender(object sender, FrameEventArgs e)
         {
 
-            game.VSync = VSyncMode.Off;
-            game.TargetRenderFrequency = 0;
-            game.TargetUpdateFrequency = 0;
+            Window.VSync = VSyncMode.Off;
+            Window.TargetRenderFrequency = 0;
+            Window.TargetUpdateFrequency = 0;
 
             //Verify opengl functionality, check for required extensions
             int major_v = GL.GetInteger(GetPName.MajorVersion);
@@ -538,8 +598,8 @@ namespace Kokoro.Graphics
             }
 
             Game_RenderFrame(sender, e);
-            game.RenderFrame -= InitRender;
-            game.RenderFrame += Game_RenderFrame;
+            Window.RenderFrame -= InitRender;
+            Window.RenderFrame += Game_RenderFrame;
         }
 
         private static void Game_RenderFrame(object sender, FrameEventArgs e)
@@ -559,7 +619,7 @@ namespace Kokoro.Graphics
 
         private static void Window_Resize(object sender, EventArgs e)
         {
-            GPUStateMachine.SetViewport(0, 0, 0, game.ClientSize.Width, game.ClientSize.Height);
+            GPUStateMachine.SetViewport(0, 0, 0, Window.ClientSize.Width, Window.ClientSize.Height);
             GL.ClipControl(ClipOrigin.LowerLeft, ClipDepthMode.ZeroToOne);
             //Input.LowLevel.InputLL.SetWinXY(game.Location.X, game.Location.Y, game.ClientSize.Width, game.ClientSize.Height);
             Framebuffer.RecreateDefaultFramebuffer();
@@ -587,10 +647,6 @@ namespace Kokoro.Graphics
         public static void SetUniformBufferBinding(UniformBuffer buf, int index)
         {
             if (buf == null) return;
-
-            int rd_rung = buf.curRung - 1;
-            if (rd_rung < 0) rd_rung = 3;
-
             GPUStateMachine.BindBuffer(OpenTK.Graphics.OpenGL4.BufferTarget.UniformBuffer, buf.buf.id, index, (IntPtr)(buf.GetReadyOffset()), (IntPtr)buf.Size);
         }
 
@@ -630,7 +686,7 @@ namespace Kokoro.Graphics
         #endregion
 
         #region Draw calls
-        public static void Draw(Engine.Graphics.PrimitiveType type, int first, int count, bool indexed)
+        public static void Draw(PrimitiveType type, int first, int count, bool indexed)
         {
             if (count == 0) return;
 
@@ -640,7 +696,7 @@ namespace Kokoro.Graphics
             else GL.DrawArrays((OpenTK.Graphics.OpenGL4.PrimitiveType)type, first, count);
         }
 
-        public static void MultiDraw(Engine.Graphics.PrimitiveType type, bool indexed, params MultiDrawParameters[] dParams)
+        public static void MultiDraw(PrimitiveType type, bool indexed, params MultiDrawParameters[] dParams)
         {
             if (dParams.Length == 0) return;
 
@@ -655,7 +711,7 @@ namespace Kokoro.Graphics
                 GL.MultiDrawArrays((OpenTK.Graphics.OpenGL4.PrimitiveType)type, first, count, drawCount);
         }
 
-        public static void MultiDrawIndirect(Engine.Graphics.PrimitiveType type, uint byteOffset, int count, bool indexed)
+        public static void MultiDrawIndirect(PrimitiveType type, uint byteOffset, int count, bool indexed)
         {
             if (count == 0) return;
 
@@ -665,7 +721,7 @@ namespace Kokoro.Graphics
                 GL.MultiDrawArraysIndirect((OpenTK.Graphics.OpenGL4.PrimitiveType)type, (IntPtr)byteOffset, count, 0);
         }
 
-        public static void MultiDrawIndirectCount(Engine.Graphics.PrimitiveType type, uint byteOffset, uint countOffset, int maxCount, bool indexed)
+        public static void MultiDrawIndirectCount(PrimitiveType type, uint byteOffset, uint countOffset, int maxCount, bool indexed)
         {
             GL.MemoryBarrier(MemoryBarrierFlags.ShaderImageAccessBarrierBit);
             if (indexed)

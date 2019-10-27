@@ -26,9 +26,9 @@ namespace Kokoro.Common.StateMachine
                 var prevState = CurrentState;
                 var nextState = States[name];
 
-                Exit(nextState);        //Call exit on the previous State
+                Exit(prevState);        //Call exit on the previous State
                 CurrentState = nextState;   //Change the current State
-                Enter(prevState);       //Call enter on the new State
+                Enter(this, nextState);       //Call enter on the new State
             }
             else
             {
@@ -61,9 +61,9 @@ namespace Kokoro.Common.StateMachine
             CurrentState?.Render(interval);
         }
 
-        public void Enter(IState prev)
+        public void Enter(StateManager man, IState prev)
         {
-            CurrentState?.Enter(prev);
+            CurrentState?.Enter(this, prev);
         }
 
         public void Exit(IState next)

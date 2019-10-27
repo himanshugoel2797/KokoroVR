@@ -10,7 +10,7 @@ namespace Kokoro.Common.StateMachine
     {
         public Action<double> Update { get; set; }
         public Action<double> Render { get; set; }
-        public Action<IState> Enter { get; set; }
+        public Action<StateManager, IState> Enter { get; set; }
         public Action<IState> Exit { get; set; }
 
         public void RegisterIState(IState scene)

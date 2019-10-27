@@ -4,7 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Kokoro.Physics
+namespace Kokoro.Network.Client
 {
     public class Class1
     {
