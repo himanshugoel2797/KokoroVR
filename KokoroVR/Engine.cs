@@ -12,6 +12,7 @@ namespace KokoroVR
     public static class Engine
     {
         static VRClient client;
+        internal static MeshGroup iMeshGroup; 
         private static StateManager stateMachine;
 
         public static Framebuffer[] Framebuffers { get; private set; }
@@ -43,6 +44,7 @@ namespace KokoroVR
                 client.LeftFramebuffer,
                 client.RightFramebuffer
             };
+            iMeshGroup = new MeshGroup(MeshGroupVertexFormat.X32F_Y32F_Z32F, 256, 256);
             CurrentPlayer = new LocalPlayer(client);
         }
 

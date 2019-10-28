@@ -66,6 +66,14 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Engine.cs" />
+    <Compile Include="Graphics\DeferredRenderer.cs" />
+    <Compile Include="Graphics\LightManager.cs" />
+    <Compile Include="Graphics\Lights\DirectionalLight.cs" />
+    <Compile Include="Graphics\Lights\PointLight.cs" />
+    <Compile Include="Graphics\Lights\SpotLight.cs" />
+    <Compile Include="Graphics\Materials\PBRMaterial.cs" />
+    <Compile Include="Graphics\MeshRenderer.cs" />
+    <Compile Include="Input\ControlInterpreter.cs" />
     <Compile Include="LocalPlayer.cs" />
     <Compile Include="Player.cs" />
     <Compile Include="Interactable.cs" />
