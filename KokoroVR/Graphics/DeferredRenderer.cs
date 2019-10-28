@@ -24,10 +24,11 @@ namespace KokoroVR.Graphics
         private RenderState[] _direcL_state;
         private RenderState[] _state;
         private RenderQueue[] _queue;
-        private ShaderProgram _pointLightShader;
-        private ShaderProgram _spotLightShader;
-        private ShaderProgram _directionalLightShader;
-        private ShaderProgram _outputShader;
+        private RenderQueue[] _queue_final;
+        private ShaderProgram[] _pointLightShader;
+        private ShaderProgram[] _spotLightShader;
+        private ShaderProgram[] _directionalLightShader;
+        private ShaderProgram[] _outputShader;
         private Mesh _fst;
 
         public Framebuffer[] Framebuffers { get; private set; }
@@ -39,23 +40,10 @@ namespace KokoroVR.Graphics
             _destFramebuffers = dest;
             Lights = lights;
 
-            _pointLightShader = new ShaderProgram(
-                        ShaderSource.Load(ShaderType.VertexShader, "Shaders/Deferred/Point/vertex.glsl"),
-                        ShaderSource.Load(ShaderType.FragmentShader, "Shaders/Deferred/Point/fragment.glsl"));
-            _spotLightShader = new ShaderProgram(
-                        ShaderSource.Load(ShaderType.VertexShader, "Shaders/Deferred/Spot/vertex.glsl"),
-                        ShaderSource.Load(ShaderType.FragmentShader, "Shaders/Deferred/Spot/fragment.glsl"));
-            _directionalLightShader = new ShaderProgram(
-                        ShaderSource.Load(ShaderType.VertexShader, "Shaders/Deferred/Directional/vertex.glsl"),
-                        ShaderSource.Load(ShaderType.FragmentShader, "Shaders/Deferred/Directional/fragment.glsl"));
-            _outputShader = new ShaderProgram(
-                        ShaderSource.Load(ShaderType.VertexShader, "Shaders/Deferred/Output/vertex.glsl"),
-                        ShaderSource.Load(ShaderType.FragmentShader, "Shaders/Deferred/Output/fragment.glsl"));
-
             _fst = Kokoro.Graphics.Prefabs.FullScreenTriangleFactory.Create(Engine.iMeshGroup);
 
             //Color: 16DiffR:16DiffG:16DiffB:16Roughness
-            //Normal: 16NX:16NY:16DerivX:16DerivY
+            //Normal: 16NX|16NY:32WX:32WY:32WZ
             //Specular: 16SpecR:16SpecG:16SpecB
             //Depth: 32D
 
@@ -65,11 +53,15 @@ namespace KokoroVR.Graphics
             _spotL_state = new RenderState[_targetCount];
             _direcL_state = new RenderState[_targetCount];
             _state = new RenderState[_targetCount];
-            _queue = new RenderQueue[_targetCount];
+            _queue_final = new RenderQueue[_targetCount];
             _colorMaps = new Texture[_targetCount];
             _normalMaps = new Texture[_targetCount];
             _specMaps = new Texture[_targetCount];
             _depthMaps = new Texture[_targetCount];
+            _pointLightShader = new ShaderProgram[_targetCount];
+            _spotLightShader = new ShaderProgram[_targetCount];
+            _directionalLightShader = new ShaderProgram[_targetCount];
+            _outputShader = new ShaderProgram[_targetCount];
             for (int i = 0; i < _targetCount; i++)
             {
                 var colorSrc = new FramebufferTextureSource(dest[i].Width, dest[i].Height, 1)
@@ -85,8 +77,8 @@ namespace KokoroVR.Graphics
                 var normalSrc = new FramebufferTextureSource(dest[i].Width, dest[i].Height, 1)
                 {
                     Format = PixelFormat.Bgra,
-                    InternalFormat = PixelInternalFormat.Rgba16f,
-                    PixelType = PixelType.HalfFloat
+                    InternalFormat = PixelInternalFormat.Rgba32f,
+                    PixelType = PixelType.Float
                 };
                 var normal = new Texture();
                 normal.SetData(normalSrc, 0);
@@ -128,54 +120,73 @@ namespace KokoroVR.Graphics
                 _accumulators[i] = new Framebuffer(dest[i].Width, dest[i].Height);
                 _accumulators[i][FramebufferAttachment.ColorAttachment0] = accumulator;
 
-                _pointL_state[i] = new RenderState(_accumulators[i], _pointLightShader, new ShaderStorageBuffer[] { Lights.pointLights_buffer }, null, false, true, DepthFunc.Always, InverseDepth.Far, InverseDepth.Near, BlendFactor.One, BlendFactor.One, Vector4.Zero, InverseDepth.ClearDepth, CullFaceMode.Back);
-                _spotL_state[i] = new RenderState(_accumulators[i], _spotLightShader, new ShaderStorageBuffer[] { Lights.spotLights_buffer }, null, false, true, DepthFunc.Always, InverseDepth.Far, InverseDepth.Near, BlendFactor.One, BlendFactor.One, Vector4.Zero, InverseDepth.ClearDepth, CullFaceMode.Back);
-                _direcL_state[i] = new RenderState(_accumulators[i], _directionalLightShader, new ShaderStorageBuffer[] { Lights.direcLights_buffer }, null, false, true, DepthFunc.Always, InverseDepth.Far, InverseDepth.Near, BlendFactor.One, BlendFactor.One, Vector4.Zero, InverseDepth.ClearDepth, CullFaceMode.Back);
-                _state[i] = new RenderState(_destFramebuffers[i], _outputShader, null, null, false, true, DepthFunc.Always, InverseDepth.Far, InverseDepth.Near, BlendFactor.One, BlendFactor.Zero, Vector4.Zero, InverseDepth.ClearDepth, CullFaceMode.Back);
+                _pointLightShader[i] = new ShaderProgram(
+                            ShaderSource.Load(ShaderType.VertexShader, "Shaders/Deferred/vertex.glsl"),
+                            ShaderSource.Load(ShaderType.FragmentShader, "Shaders/Deferred/Point/fragment.glsl"));
+                _spotLightShader[i] = new ShaderProgram(
+                            ShaderSource.Load(ShaderType.VertexShader, "Shaders/Deferred/vertex.glsl"),
+                            ShaderSource.Load(ShaderType.FragmentShader, "Shaders/Deferred/Spot/fragment.glsl"));
+                _directionalLightShader[i] = new ShaderProgram(
+                            ShaderSource.Load(ShaderType.VertexShader, "Shaders/Deferred/vertex.glsl"),
+                            ShaderSource.Load(ShaderType.FragmentShader, "Shaders/Deferred/Directional/fragment.glsl"));
+                _outputShader[i] = new ShaderProgram(
+                            ShaderSource.Load(ShaderType.VertexShader, "Shaders/Deferred/vertex.glsl"),
+                            ShaderSource.Load(ShaderType.FragmentShader, "Shaders/Deferred/Output/fragment.glsl"));
 
-                _queue[i] = new RenderQueue(1, true);
-                _queue[i].ClearFramebufferBeforeSubmit = true;
+                _pointL_state[i] = new RenderState(_accumulators[i], _pointLightShader[i], new ShaderStorageBuffer[] { Lights.pointLights_buffer }, null, false, true, DepthFunc.Always, InverseDepth.Far, InverseDepth.Near, BlendFactor.One, BlendFactor.One, Vector4.Zero, InverseDepth.ClearDepth, CullFaceMode.None);
+                _spotL_state[i] = new RenderState(_accumulators[i], _spotLightShader[i], new ShaderStorageBuffer[] { Lights.spotLights_buffer }, null, false, true, DepthFunc.Always, InverseDepth.Far, InverseDepth.Near, BlendFactor.One, BlendFactor.One, Vector4.Zero, InverseDepth.ClearDepth, CullFaceMode.None);
+                _direcL_state[i] = new RenderState(_accumulators[i], _directionalLightShader[i], new ShaderStorageBuffer[] { Lights.direcLights_buffer }, null, false, true, DepthFunc.Always, InverseDepth.Far, InverseDepth.Near, BlendFactor.One, BlendFactor.One, Vector4.Zero, InverseDepth.ClearDepth, CullFaceMode.None);
+                _state[i] = new RenderState(_destFramebuffers[i], _outputShader[i], null, null, false, true, DepthFunc.Always, InverseDepth.Far, InverseDepth.Near, BlendFactor.One, BlendFactor.Zero, Vector4.Zero, InverseDepth.ClearDepth, CullFaceMode.None);
+
+                _queue_final[i] = new RenderQueue(4, true);
+                _queue_final[i].ClearFramebufferBeforeSubmit = false;
 
                 {
                     var colorHandle = _colorMaps[i].GetHandle(TextureSampler.Default);
                     colorHandle.SetResidency(Residency.Resident);
-                    _pointLightShader.Set("ColorMap", colorHandle);
+                    _pointLightShader[i].Set("ColorMap", colorHandle);
 
                     var normalHandle = _normalMaps[i].GetHandle(TextureSampler.Default);
                     normalHandle.SetResidency(Residency.Resident);
-                    _pointLightShader.Set("NormalMap", normalHandle);
+                    _pointLightShader[i].Set("NormalMap", normalHandle);
 
                     var specHandle = _specMaps[i].GetHandle(TextureSampler.Default);
                     specHandle.SetResidency(Residency.Resident);
-                    _pointLightShader.Set("SpecularMap", specHandle);
-
-                    var depthHandle = _depthMaps[i].GetHandle(TextureSampler.Default);
-                    depthHandle.SetResidency(Residency.Resident);
-                    _pointLightShader.Set("DepthMap", depthHandle);
+                    _pointLightShader[i].Set("SpecularMap", specHandle);
                 }
 
                 {
                     var colorHandle = _colorMaps[i].GetHandle(TextureSampler.Default);
                     colorHandle.SetResidency(Residency.Resident);
-                    _spotLightShader.Set("ColorMap", colorHandle);
+                    _spotLightShader[i].Set("ColorMap", colorHandle);
 
                     var normalHandle = _normalMaps[i].GetHandle(TextureSampler.Default);
                     normalHandle.SetResidency(Residency.Resident);
-                    _spotLightShader.Set("NormalMap", normalHandle);
+                    _spotLightShader[i].Set("NormalMap", normalHandle);
 
                     var specHandle = _specMaps[i].GetHandle(TextureSampler.Default);
                     specHandle.SetResidency(Residency.Resident);
-                    _spotLightShader.Set("SpecularMap", specHandle);
+                    _spotLightShader[i].Set("SpecularMap", specHandle);
+                }
 
-                    var depthHandle = _depthMaps[i].GetHandle(TextureSampler.Default);
-                    depthHandle.SetResidency(Residency.Resident);
-                    _spotLightShader.Set("DepthMap", depthHandle);
+                {
+                    var colorHandle = _colorMaps[i].GetHandle(TextureSampler.Default);
+                    colorHandle.SetResidency(Residency.Resident);
+                    _directionalLightShader[i].Set("ColorMap", colorHandle);
+
+                    var normalHandle = _normalMaps[i].GetHandle(TextureSampler.Default);
+                    normalHandle.SetResidency(Residency.Resident);
+                    _directionalLightShader[i].Set("NormalMap", normalHandle);
+
+                    var specHandle = _specMaps[i].GetHandle(TextureSampler.Default);
+                    specHandle.SetResidency(Residency.Resident);
+                    _directionalLightShader[i].Set("SpecularMap", specHandle);
                 }
 
                 {
                     var accumHandle = accumulator.GetHandle(TextureSampler.Default);
                     accumHandle.SetResidency(Residency.Resident);
-                    _outputShader.Set("Accumulator", accumHandle);
+                    _outputShader[i].Set("Accumulator", accumHandle);
                 }
             }
         }
@@ -183,12 +194,22 @@ namespace KokoroVR.Graphics
         public void Clear()
         {
             var fbuf = GraphicsDevice.Framebuffer;
+            var clearDepth = GraphicsDevice.ClearDepth;
+            var dWrite = GraphicsDevice.DepthWriteEnabled;
             for (int i = 0; i < _targetCount; i++)
             {
+                GraphicsDevice.DepthWriteEnabled = true;
+                GraphicsDevice.ClearDepth = InverseDepth.ClearDepth;
                 GraphicsDevice.Framebuffer = Framebuffers[i];
-                GraphicsDevice.ClearDepthBuffer();
+                GraphicsDevice.Clear();
+
+                GraphicsDevice.DepthWriteEnabled = true;
+                GraphicsDevice.ClearDepth = InverseDepth.ClearDepth;
+                GraphicsDevice.Framebuffer = _accumulators[i];
                 GraphicsDevice.Clear();
             }
+            GraphicsDevice.DepthWriteEnabled = dWrite;
+            GraphicsDevice.ClearDepth = clearDepth;
             GraphicsDevice.Framebuffer = fbuf;
         }
 
@@ -200,20 +221,21 @@ namespace KokoroVR.Graphics
                 Matrix4 v = View[i];
                 Matrix4 p = Proj[i];
 
-                _pointLightShader.Set("View", v);
-                _pointLightShader.Set("Proj", p);
-                _pointLightShader.Set("EyePos", pos);
+                _pointLightShader[i].Set("View", v);
+                _pointLightShader[i].Set("Proj", p);
+                _pointLightShader[i].Set("EyePos", pos);
 
-                _spotLightShader.Set("View", v);
-                _spotLightShader.Set("Proj", p);
-                _spotLightShader.Set("EyePos", pos);
+                _spotLightShader[i].Set("View", v);
+                _spotLightShader[i].Set("Proj", p);
+                _spotLightShader[i].Set("EyePos", pos);
 
-                _directionalLightShader.Set("View", v);
-                _directionalLightShader.Set("Proj", p);
-                _directionalLightShader.Set("EyePos", pos);
+                _directionalLightShader[i].Set("View", v);
+                _directionalLightShader[i].Set("Proj", p);
+                _directionalLightShader[i].Set("EyePos", pos);
 
-                _queue[i].ClearAndBeginRecording();
-                _queue[i].RecordDraw(new RenderQueue.DrawData()
+                //TODO apply shadow
+                _queue_final[i].ClearAndBeginRecording();
+                _queue_final[i].RecordDraw(new RenderQueue.DrawData()
                 {
                     State = _pointL_state[i],
                     Meshes = new RenderQueue.MeshData[]{
@@ -225,7 +247,7 @@ namespace KokoroVR.Graphics
                         }
                     }
                 });
-                _queue[i].RecordDraw(new RenderQueue.DrawData()
+                _queue_final[i].RecordDraw(new RenderQueue.DrawData()
                 {
                     State = _spotL_state[i],
                     Meshes = new RenderQueue.MeshData[]{
@@ -237,7 +259,7 @@ namespace KokoroVR.Graphics
                         }
                     }
                 });
-                _queue[i].RecordDraw(new RenderQueue.DrawData()
+                _queue_final[i].RecordDraw(new RenderQueue.DrawData()
                 {
                     State = _direcL_state[i],
                     Meshes = new RenderQueue.MeshData[]{
@@ -249,7 +271,7 @@ namespace KokoroVR.Graphics
                         }
                     }
                 });
-                _queue[i].RecordDraw(new RenderQueue.DrawData()
+                _queue_final[i].RecordDraw(new RenderQueue.DrawData()
                 {
                     State = _state[i],
                     Meshes = new RenderQueue.MeshData[]
@@ -262,8 +284,9 @@ namespace KokoroVR.Graphics
                         }
                     }
                 });
-                _queue[i].EndRecording();
-                _queue[i].Submit();
+                _queue_final[i].EndRecording();
+                _queue_final[i].Submit();
+
             }
         }
 

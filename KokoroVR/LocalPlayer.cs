@@ -40,6 +40,7 @@ namespace KokoroVR
 
         public override void Update(double time)
         {
+            client.Update();
             var pose = client.GetPose();
 
             Pose = pose.PoseMatrix;

@@ -72,7 +72,7 @@ namespace Kokoro.Graphics
                         .OrderBy((a) => (int)a).Cast<DrawBuffersEnum>().ToArray());
                 } 
 
-                if (GL.CheckNamedFramebufferStatus(id, FramebufferTarget.Framebuffer) != (All)FramebufferErrorCode.FramebufferComplete)
+                if (GL.CheckNamedFramebufferStatus(id, FramebufferTarget.Framebuffer) != FramebufferStatus.FramebufferComplete)
                 {
                     throw new Exception(GL.CheckNamedFramebufferStatus(id, FramebufferTarget.Framebuffer).ToString());
                 }

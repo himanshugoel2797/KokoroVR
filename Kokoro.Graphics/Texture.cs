@@ -166,9 +166,9 @@ namespace Kokoro.Graphics
         {
             long hndl = 0;
             if (layer < 0)
-                hndl = GL.Arb.GetImageHandle(id, level, true, 0, (All)iFormat);
+                hndl = GL.Arb.GetImageHandle(id, level, true, 0, (OpenTK.Graphics.OpenGL4.PixelFormat)iFormat);
             else
-                hndl = GL.Arb.GetImageHandle(id, level, false, layer, (All)iFormat);
+                hndl = GL.Arb.GetImageHandle(id, level, false, layer, (OpenTK.Graphics.OpenGL4.PixelFormat)iFormat);
             return new ImageHandle(hndl, this);
         }
 

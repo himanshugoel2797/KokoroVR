@@ -6,10 +6,8 @@ using System.Threading.Tasks;
 
 namespace KokoroVR.Graphics
 {
-    public class MeshRenderer
+    public class DynamicMeshRenderer
     {
-        //Static Mesh Renderer
-
         //Dynamic Mesh Renderer
     }
 }

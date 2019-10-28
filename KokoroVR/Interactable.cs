@@ -1,5 +1,6 @@
 ﻿using Kokoro.Graphics;
 using Kokoro.Math;
+using KokoroVR.Graphics;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -11,7 +12,7 @@ namespace KokoroVR
 {
     public abstract class Interactable
     {
-        public abstract void Update(double time);
-        public abstract void Render(double time, Framebuffer fbuf, Matrix4 p, Matrix4 v, VREye eye);
+        public abstract void Update(double time, World parent);
+        public abstract void Render(double time, Framebuffer fbuf, StaticMeshRenderer staticMesh, DynamicMeshRenderer dynamicMesh, Matrix4 p, Matrix4 v, VREye eye);
     }
 }

@@ -18,6 +18,6 @@ namespace KokoroVR.Graphics.Lights
         private Vector3 color;
         private float intensity;
 
-        public const int Size = (3 * 4) + (3 * 4) + 4;
+        public const int Size = (3 * 4) + (3 * 4) + 4 + 4;
     }
 }

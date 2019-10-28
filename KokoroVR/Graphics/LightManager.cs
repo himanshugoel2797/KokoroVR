@@ -70,6 +70,11 @@ namespace KokoroVR.Graphics
             direcLights.Remove(light);
         }
 
+        public void Render()
+        {
+            //Render out shadows for casting lights
+        }
+
         public void Update()
         {
             unsafe
@@ -82,17 +87,15 @@ namespace KokoroVR.Graphics
                 for (int i = 0; i < pointLights.Count; i++)
                     if (pointLights[i].Dirty)
                     {
-                        f_ptr[PointLight.Size * i + 0] = pointLights[i].Position.X;
-                        f_ptr[PointLight.Size * i + 1] = pointLights[i].Position.Y;
-                        f_ptr[PointLight.Size * i + 2] = pointLights[i].Position.Z;
+                        f_ptr[(PointLight.Size * i) / sizeof(float) + 0] = pointLights[i].Position.X;
+                        f_ptr[(PointLight.Size * i) / sizeof(float) + 1] = pointLights[i].Position.Y;
+                        f_ptr[(PointLight.Size * i) / sizeof(float) + 2] = pointLights[i].Position.Z;
 
-                        f_ptr[PointLight.Size * i + 3] = pointLights[i].Radius;
+                        f_ptr[(PointLight.Size * i) / sizeof(float) + 3] = pointLights[i].Color.X;
+                        f_ptr[(PointLight.Size * i) / sizeof(float) + 4] = pointLights[i].Color.Y;
+                        f_ptr[(PointLight.Size * i) / sizeof(float) + 5] = pointLights[i].Color.Z;
 
-                        f_ptr[PointLight.Size * i + 4] = pointLights[i].Color.X;
-                        f_ptr[PointLight.Size * i + 5] = pointLights[i].Color.Y;
-                        f_ptr[PointLight.Size * i + 6] = pointLights[i].Color.Z;
-
-                        f_ptr[PointLight.Size * i + 7] = pointLights[i].Intensity;
+                        f_ptr[(PointLight.Size * i) / sizeof(float) + 6] = pointLights[i].Intensity;
 
                         pointLights[i].Dirty = false;
                     }
@@ -104,18 +107,21 @@ namespace KokoroVR.Graphics
                 for (int i = 0; i < spotLights.Count; i++)
                     if (spotLights[i].Dirty)
                     {
-                        f_ptr[SpotLight.Size * i + 0] = spotLights[i].Position.X;
-                        f_ptr[SpotLight.Size * i + 1] = spotLights[i].Position.Y;
-                        f_ptr[SpotLight.Size * i + 2] = spotLights[i].Position.Z;
+                        f_ptr[(SpotLight.Size * i) / sizeof(float) + 0] = spotLights[i].Position.X;
+                        f_ptr[(SpotLight.Size * i) / sizeof(float) + 1] = spotLights[i].Position.Y;
+                        f_ptr[(SpotLight.Size * i) / sizeof(float) + 2] = spotLights[i].Position.Z;
 
-                        f_ptr[SpotLight.Size * i + 3] = spotLights[i].Radius;
+                        f_ptr[(SpotLight.Size * i) / sizeof(float) + 3] = spotLights[i].Intensity;
 
-                        f_ptr[SpotLight.Size * i + 4] = spotLights[i].Color.X;
-                        f_ptr[SpotLight.Size * i + 5] = spotLights[i].Color.Y;
-                        f_ptr[SpotLight.Size * i + 6] = spotLights[i].Color.Z;
+                        f_ptr[(SpotLight.Size * i) / sizeof(float) + 4] = spotLights[i].Direction.X;
+                        f_ptr[(SpotLight.Size * i) / sizeof(float) + 5] = spotLights[i].Direction.Y;
+                        f_ptr[(SpotLight.Size * i) / sizeof(float) + 6] = spotLights[i].Direction.Z;
 
-                        f_ptr[SpotLight.Size * i + 7] = spotLights[i].Intensity;
-                        f_ptr[SpotLight.Size * i + 8] = spotLights[i].Angle;
+                        f_ptr[(SpotLight.Size * i) / sizeof(float) + 7] = (float)Math.Cos(spotLights[i].Angle);
+
+                        f_ptr[(SpotLight.Size * i) / sizeof(float) + 8] = spotLights[i].Color.X;
+                        f_ptr[(SpotLight.Size * i) / sizeof(float) + 9] = spotLights[i].Color.Y;
+                        f_ptr[(SpotLight.Size * i) / sizeof(float) + 10] = spotLights[i].Color.Z;
 
                         spotLights[i].Dirty = false;
                     }
@@ -127,15 +133,16 @@ namespace KokoroVR.Graphics
                 for (int i = 0; i < direcLights.Count; i++)
                     if (direcLights[i].Dirty)
                     {
-                        f_ptr[PointLight.Size * i + 0] = direcLights[i].Direction.X;
-                        f_ptr[PointLight.Size * i + 1] = direcLights[i].Direction.Y;
-                        f_ptr[PointLight.Size * i + 2] = direcLights[i].Direction.Z;
+                        f_ptr[(DirectionalLight.Size * i) / sizeof(float) + 0] = direcLights[i].Direction.X;
+                        f_ptr[(DirectionalLight.Size * i) / sizeof(float) + 1] = direcLights[i].Direction.Y;
+                        f_ptr[(DirectionalLight.Size * i) / sizeof(float) + 2] = direcLights[i].Direction.Z;
 
-                        f_ptr[PointLight.Size * i + 3] = direcLights[i].Color.X;
-                        f_ptr[PointLight.Size * i + 4] = direcLights[i].Color.Y;
-                        f_ptr[PointLight.Size * i + 5] = direcLights[i].Color.Z;
+                        f_ptr[(DirectionalLight.Size * i) / sizeof(float) + 3] = direcLights[i].Intensity;
 
-                        f_ptr[PointLight.Size * i + 6] = direcLights[i].Intensity;
+                        f_ptr[(DirectionalLight.Size * i) / sizeof(float) + 4] = direcLights[i].Color.X;
+                        f_ptr[(DirectionalLight.Size * i) / sizeof(float) + 5] = direcLights[i].Color.Y;
+                        f_ptr[(DirectionalLight.Size * i) / sizeof(float) + 6] = direcLights[i].Color.Z;
+
 
                         direcLights[i].Dirty = false;
                     }

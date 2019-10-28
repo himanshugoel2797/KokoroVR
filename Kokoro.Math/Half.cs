@@ -292,6 +292,11 @@ namespace Kokoro.Math
 
         #region Conversions
 
+        public static explicit operator ushort(Half f)
+        {
+            return f.bits;
+        }
+
         /// <summary>
         /// Converts a System.Single to a Kokoro.Math.Half.
         /// </summary>

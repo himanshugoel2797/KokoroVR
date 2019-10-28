@@ -50,6 +50,11 @@ namespace KokoroVR
             return (hand == Left) ? EVREye.Eye_Left : EVREye.Eye_Right;
         }
 
+        public static implicit operator int(VRHand hand)
+        {
+            return hand.Value;
+        }
+
         public static bool operator ==(VRHand a, VRHand b)
         {
             return a.Value == b.Value;
@@ -257,15 +262,6 @@ namespace KokoroVR
                 Texture colorTex = new Texture();
                 colorTex.SetData(color, 0);
                 LeftColorTexture = colorTex;
-
-                DepthTextureSource depth = new DepthTextureSource((int)width, (int)height)
-                {
-                    InternalFormat = PixelInternalFormat.DepthComponent32
-                };
-                Texture depthTex = new Texture();
-                depthTex.SetData(depth, 0);
-
-                LeftFramebuffer[FramebufferAttachment.DepthAttachment] = depthTex;
                 LeftFramebuffer[FramebufferAttachment.ColorAttachment0] = colorTex;
             }
 
@@ -279,15 +275,6 @@ namespace KokoroVR
                 Texture colorTex = new Texture();
                 colorTex.SetData(color, 0);
                 RightColorTexture = colorTex;
-
-                DepthTextureSource depth = new DepthTextureSource((int)width, (int)height)
-                {
-                    InternalFormat = PixelInternalFormat.DepthComponent32
-                };
-                Texture depthTex = new Texture();
-                depthTex.SetData(depth, 0);
-
-                RightFramebuffer[FramebufferAttachment.DepthAttachment] = depthTex;
                 RightFramebuffer[FramebufferAttachment.ColorAttachment0] = colorTex;
             }
 
@@ -474,7 +461,7 @@ namespace KokoroVR
                         throw new ArgumentException("Specified action is not pose.");
 
                     InputPoseActionData_t actionData = new InputPoseActionData_t();
-                    var err = OpenVR.Input.GetPoseActionDataForNextFrame(ActionSets[i].actionHandles[j].handle, (experienceKind == ExperienceKind.Seated) ? ETrackingUniverseOrigin.TrackingUniverseSeated : ETrackingUniverseOrigin.TrackingUniverseStanding, ref actionData, (uint)Marshal.SizeOf(typeof(InputPoseActionData_t)), OpenVR.k_ulInvalidInputValueHandle);
+                    var err = OpenVR.Input.GetPoseActionDataRelativeToNow(ActionSets[i].actionHandles[j].handle, (experienceKind == ExperienceKind.Seated) ? ETrackingUniverseOrigin.TrackingUniverseSeated : ETrackingUniverseOrigin.TrackingUniverseStanding, 0, ref actionData, (uint)Marshal.SizeOf(typeof(InputPoseActionData_t)), OpenVR.k_ulInvalidInputValueHandle);
                     if (err != EVRInputError.None) throw new Exception(err.ToString());
 
                     return new PoseData(actionData.pose.mDeviceToAbsoluteTracking, false, timeOff, actionData.pose.vVelocity, actionData.pose.vAngularVelocity, actionData.activeOrigin);
@@ -543,7 +530,7 @@ namespace KokoroVR
         {
             InputOriginInfo_t info = new InputOriginInfo_t();
             var err = OpenVR.Input.GetOriginTrackedDeviceInfo(activeOrigin, ref info, (uint)Marshal.SizeOf(typeof(InputOriginInfo_t)));
-            if (err != EVRInputError.None) throw new Exception(err.ToString());
+            //if (err != EVRInputError.None) throw new Exception(err.ToString());
 
             StringBuilder builder = new StringBuilder(1024);
             ETrackedPropertyError track_prop_err = ETrackedPropertyError.TrackedProp_Success;

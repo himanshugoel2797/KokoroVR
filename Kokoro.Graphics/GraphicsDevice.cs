@@ -116,8 +116,8 @@ namespace Kokoro.Graphics
         }
         public static WeakAction Cleanup { get; set; }
         public static Action CleanupStrong { get; set; }
-        public static OpenTK.Input.KeyboardDevice Keyboard { get { return Window.Keyboard; } }
-        public static OpenTK.Input.MouseDevice Mouse { get { return Window.Mouse; } }
+        //public static OpenTK.Input.KeyboardDevice Keyboard { get { return Window.Keyboard; } }
+        //public static OpenTK.Input.MouseDevice Mouse { get { return Window.Mouse; } }
         public static GameWindow Window { get; private set; }
         public static int PatchCount
         {
@@ -159,7 +159,7 @@ namespace Kokoro.Graphics
                     if (aEnabled)
                     {
                         GL.Enable(EnableCap.Blend);
-                        GL.BlendFunc(BlendingFactorSrc.SrcAlpha, BlendingFactorDest.OneMinusSrcAlpha);
+                        GL.BlendFunc(BlendingFactor.SrcAlpha, BlendingFactor.OneMinusSrcAlpha);
                     }
                     else
                     {
@@ -258,7 +258,7 @@ namespace Kokoro.Graphics
                 if (alphaSrc != value)
                 {
                     alphaSrc = value;
-                    GL.BlendFunc((BlendingFactorSrc)alphaSrc, (BlendingFactorDest)alphaDst);
+                    GL.BlendFunc((BlendingFactor)alphaSrc, (BlendingFactor)alphaDst);
                 }
             }
         }
@@ -275,7 +275,7 @@ namespace Kokoro.Graphics
                 if (alphaDst != value)
                 {
                     alphaDst = value;
-                    GL.BlendFunc((BlendingFactorSrc)alphaSrc, (BlendingFactorDest)alphaDst);
+                    GL.BlendFunc((BlendingFactor)alphaSrc, (BlendingFactor)alphaDst);
                 }
             }
         }
@@ -555,8 +555,7 @@ namespace Kokoro.Graphics
 #if DEBUG
             updateCnt++;
             int len = GL.GetInteger((GetPName)All.MaxDebugMessageLength);
-            StringBuilder str = new StringBuilder(len);
-            if (GL.GetDebugMessageLog(1, len, out var source, out var type, out var id, out var severity, out var strlen, str) > 0)
+            if (GL.GetDebugMessageLog(1, len, out var source, out var type, out var id, out var severity, out var strlen, out var str) > 0)
             {
                 var consoleCol = Console.ForegroundColor;
                 switch (severity)
@@ -725,9 +724,9 @@ namespace Kokoro.Graphics
         {
             GL.MemoryBarrier(MemoryBarrierFlags.ShaderImageAccessBarrierBit);
             if (indexed)
-                GL.Arb.MultiDrawElementsIndirectCount((All)type, (All)DrawElementsType.UnsignedShort, (IntPtr)byteOffset, (IntPtr)countOffset, maxCount, 0);
+                GL.Arb.MultiDrawElementsIndirectCount((OpenTK.Graphics.OpenGL4.PrimitiveType)type, DrawElementsType.UnsignedShort, (IntPtr)byteOffset, (IntPtr)countOffset, maxCount, 0);
             else
-                GL.Arb.MultiDrawArraysIndirectCount((All)type, (IntPtr)byteOffset, (IntPtr)countOffset, maxCount, 5 * sizeof(int) /*Each entry is formatted as index data, so work accordingly*/);
+                GL.Arb.MultiDrawArraysIndirectCount((OpenTK.Graphics.OpenGL4.PrimitiveType)type, (IntPtr)byteOffset, (IntPtr)countOffset, maxCount, 5 * sizeof(int) /*Each entry is formatted as index data, so work accordingly*/);
         }
         #endregion
 

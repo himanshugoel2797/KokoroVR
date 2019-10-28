@@ -11,14 +11,12 @@ namespace KokoroVR.Graphics.Lights
     {
         public Vector3 Position { get => position; set { if (value != position) Dirty = true; position = value; } }
         public Vector3 Color { get => color; set { if (value != color) Dirty = true; color = value; } }
-        public float Radius { get => radius; set { if (value != radius) Dirty = true; radius = value; } }
         public float Intensity { get => intensity; set { if (value != intensity) Dirty = true; intensity = value; } }
-        public float MaxEffectiveRadius { get { return (float)(Radius * (System.Math.Sqrt(Intensity / Threshold) - 1)); } }
+        public float MaxEffectiveRadius { get { return (float)((System.Math.Sqrt(Intensity / Threshold) - 1)); } }
 
         internal bool Dirty = true;
         private Vector3 position;
         private Vector3 color;
-        private float radius;
         private float intensity;
 
         public const float Threshold = 0.001f;

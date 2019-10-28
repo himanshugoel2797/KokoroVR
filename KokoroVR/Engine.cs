@@ -11,8 +11,8 @@ namespace KokoroVR
 {
     public static class Engine
     {
-        static VRClient client;
-        internal static MeshGroup iMeshGroup; 
+        public static VRClient HMDClient { get; private set; }
+        internal static MeshGroup iMeshGroup;
         private static StateManager stateMachine;
 
         public static Framebuffer[] Framebuffers { get; private set; }
@@ -28,29 +28,29 @@ namespace KokoroVR
 
         public static void Initialize(ExperienceKind kind)
         {
-            client = VRClient.Create(kind);
+            HMDClient = VRClient.Create(kind);
             Projection = new Matrix4[]
             {
-                client.GetEyeProjection(VRHand.Left, 0.001f),
-                client.GetEyeProjection(VRHand.Right, 0.001f),
+                HMDClient.GetEyeProjection(VRHand.Left, 0.01f),
+                HMDClient.GetEyeProjection(VRHand.Right, 0.01f),
             };
             View = new Matrix4[]
             {
-                client.GetEyeView(VRHand.Left),
-                client.GetEyeView(VRHand.Right)
+                HMDClient.GetEyeView(VRHand.Left),
+                HMDClient.GetEyeView(VRHand.Right)
             };
             Framebuffers = new Framebuffer[]
             {
-                client.LeftFramebuffer,
-                client.RightFramebuffer
+                HMDClient.LeftFramebuffer,
+                HMDClient.RightFramebuffer
             };
             iMeshGroup = new MeshGroup(MeshGroupVertexFormat.X32F_Y32F_Z32F, 256, 256);
-            CurrentPlayer = new LocalPlayer(client);
+            CurrentPlayer = new LocalPlayer(HMDClient);
         }
 
         public static void SetupControllers(string file, params VRActionSet[] actions)
         {
-            client.InitializeControllers(file, actions);
+            HMDClient.InitializeControllers(file, actions);
         }
 
         public static void Start()
@@ -63,25 +63,13 @@ namespace KokoroVR
 
         public static void Clear()
         {
-            var clearCol = GraphicsDevice.ClearColor;
-            var clearDepth = GraphicsDevice.ClearDepth;
-
-            GraphicsDevice.ClearColor = new Vector4(0, 0.5f, 1.0f, 0.0f);
-            GraphicsDevice.ClearDepth = InverseDepth.ClearDepth;
-            for (int i = 0; i < 2; i++)
-            {
-                GraphicsDevice.Framebuffer = Framebuffers[i];
-                GraphicsDevice.ClearDepthBuffer();
-                GraphicsDevice.Clear();
-            }
-            GraphicsDevice.ClearColor = clearCol;
-            GraphicsDevice.ClearDepth = clearDepth;
+            HMDClient.Clear();
         }
 
         public static void Submit()
         {
-            client.Submit(VRHand.Left);
-            client.Submit(VRHand.Right);
+            HMDClient.Submit(VRHand.Left);
+            HMDClient.Submit(VRHand.Right);
         }
 
         public static void AddWorld(World w)
