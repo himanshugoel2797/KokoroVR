@@ -16,8 +16,8 @@ layout(bindless_sampler) uniform sampler2D SpecularMap; //SR:SG:SB
 
 struct light_t {
     vec3 pos;
-    vec3 color;
     float intensity;
+    vec3 color;
 };
 
 layout(std430, binding = 0) buffer Lights_t {
@@ -65,7 +65,7 @@ void main(){
     vec3 view_dir = normalize(EyePos - obj_wPos);
     vec3 l_half = normalize(l_dir + view_dir);
     float dist = length(l_pos - obj_wPos);
-        
+
     float falloff = l_inten / (dist * dist);
     if(falloff < 0.001f)discard;
     

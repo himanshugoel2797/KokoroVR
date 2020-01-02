@@ -25,10 +25,7 @@ void main(){
 
 	UV = vs_uv;
 	vec2 n = vs_normal / 100.0f * PI/180.0f;
-	normal.x = cos(n.x) * sin(n.y);
-	normal.y = sin(n.x) * sin(n.y);
-	normal.z = cos(n.y);
-	normal = (Transforms.w[gl_BaseInstance + gl_InstanceID ] * vec4(normal, 0)).xyz;
+	normal = normalize((Transforms.w[gl_BaseInstance + gl_InstanceID ] * vec4(cos(n.x) * sin(n.y), sin(n.x) * sin(n.y), cos(n.y), 0)).xyz);
 
     pos = wPos.xyz;
 	drawID = gl_BaseInstance + gl_InstanceID;

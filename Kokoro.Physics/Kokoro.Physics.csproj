@@ -59,8 +59,29 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="BroadphaseSolver.cs" />
+    <Compile Include="Entities\FixedPlane.cs" />
+    <Compile Include="Entities\OrientedBoundingBox.cs" />
+    <Compile Include="Entities\Point.cs" />
+    <Compile Include="Entities\Sphere.cs" />
+    <Compile Include="Entities\Triangle.cs" />
+    <Compile Include="EntityType.cs" />
+    <Compile Include="ForceField.cs" />
+    <Compile Include="IntersectionTests.cs" />
+    <Compile Include="NarrowphaseSolver.cs" />
+    <Compile Include="PhysicsBody.cs" />
+    <Compile Include="PhysicsOptions.cs" />
     <Compile Include="PhysicsWorld.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Kokoro.Math\Kokoro.Math.csproj">
+      <Project>{043ECD5D-E71C-4954-8886-0418727AB661}</Project>
+      <Name>Kokoro.Math</Name>
+    </ProjectReference>
+  </ItemGroup>
+  <ItemGroup>
+    <Folder Include="Forces\" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>

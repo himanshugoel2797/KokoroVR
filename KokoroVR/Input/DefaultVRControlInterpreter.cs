@@ -9,7 +9,8 @@ using KokoroVR.Graphics;
 
 namespace KokoroVR.Input
 {
-    public class DefaultControlInterpreter : ControlInterpreter
+#if VR
+    public class DefaultVRControlInterpreter : ControlInterpreter
     {
         private string[] hndl;
         private Mesh[][] mesh;
@@ -18,7 +19,7 @@ namespace KokoroVR.Input
         private MeshGroup meshGroup;
         private VRClient.PoseData[] poses;
 
-        public DefaultControlInterpreter(string left, string right, MeshGroup grp)
+        public DefaultVRControlInterpreter(string left, string right, MeshGroup grp)
         {
             hndl = new string[] { left, right };
             mesh = new Mesh[2][];
@@ -59,4 +60,5 @@ namespace KokoroVR.Input
 
         }
     }
+#endif
 }

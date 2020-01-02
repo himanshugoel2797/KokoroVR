@@ -33,6 +33,6 @@ void main(){
     vec2 n_enc = encode(normal);
 
     Color = _colorMap;
-    Normal = vec4(n_enc.x, pos.x, pos.y, pos.z);    //TODO: Perturb normals
+    Normal = vec4(n_enc.x, pos.x, pos.y, pos.z);
     Specular = vec4(_specularMap.rgb, n_enc.y);
 }

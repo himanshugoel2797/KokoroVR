@@ -133,6 +133,7 @@ namespace KokoroVR.Graphics
                             ShaderSource.Load(ShaderType.VertexShader, "Shaders/Deferred/vertex.glsl"),
                             ShaderSource.Load(ShaderType.FragmentShader, "Shaders/Deferred/Output/fragment.glsl"));
 
+                GraphicsDevice.AlphaEnabled = true;
                 _pointL_state[i] = new RenderState(_accumulators[i], _pointLightShader[i], new ShaderStorageBuffer[] { Lights.pointLights_buffer }, null, false, true, DepthFunc.Always, InverseDepth.Far, InverseDepth.Near, BlendFactor.One, BlendFactor.One, Vector4.Zero, InverseDepth.ClearDepth, CullFaceMode.None);
                 _spotL_state[i] = new RenderState(_accumulators[i], _spotLightShader[i], new ShaderStorageBuffer[] { Lights.spotLights_buffer }, null, false, true, DepthFunc.Always, InverseDepth.Far, InverseDepth.Near, BlendFactor.One, BlendFactor.One, Vector4.Zero, InverseDepth.ClearDepth, CullFaceMode.None);
                 _direcL_state[i] = new RenderState(_accumulators[i], _directionalLightShader[i], new ShaderStorageBuffer[] { Lights.direcLights_buffer }, null, false, true, DepthFunc.Always, InverseDepth.Far, InverseDepth.Near, BlendFactor.One, BlendFactor.One, Vector4.Zero, InverseDepth.ClearDepth, CullFaceMode.None);

@@ -26,13 +26,44 @@ vec2 encode (vec3 n)
     return enc;
 }
 
+vec3 CalculateSurfaceGradient(vec3 n, vec3 dpdx, vec3 dpdy, float dhdx, float dhdy)
+{
+    vec3 r1 = cross(dpdy, n);
+    vec3 r2 = cross(n, dpdx);
+ 
+    return (r1 * dhdx + r2 * dhdy) / dot(dpdx, r1);
+}
+ 
+// Move the normal away from the surface normal in the opposite surface gradient direction
+vec3 PerturbNormal(vec3 n, vec3 dpdx, vec3 dpdy, float dhdx, float dhdy)
+{
+    return normalize(normal - CalculateSurfaceGradient(normal, dpdx, dpdy, dhdx, dhdy));
+}
+
+float ApplyChainRule(float dhdu, float dhdv, float dud_, float dvd_)
+{
+    return dhdu * dud_ + dhdv * dvd_;
+}
+
+// Calculate the surface normal using the uv-space gradient (dhdu, dhdv)
+vec3 CalculateSurfaceNormal(vec3 position, vec3 normal, vec2 gradient)
+{
+    vec3 dpdx = dFdx(position);
+    vec3 dpdy = dFdy(position);
+ 
+    float dhdx = ApplyChainRule(gradient.x, gradient.y, dFdx(UV.x), dFdx(UV.y));
+    float dhdy = ApplyChainRule(gradient.x, gradient.y, dFdy(UV.x), dFdy(UV.y));
+ 
+    return PerturbNormal(normal, dpdx, dpdy, dhdx, dhdy);
+}
+
 void main(){
     //Read object properties
     vec4 _colorMap = texture(sampler2D(Object.v[drawID].c), UV);
     vec4 _specularMap = texture(sampler2D(Object.v[drawID].s), UV);
     vec4 _normalMap = texture(sampler2D(Object.v[drawID].n), UV);
 
-    vec2 n_enc = encode(normal);
+    vec2 n_enc = encode(CalculateSurfaceNormal(pos, normal, _normalMap.rg));
 
     Color = _colorMap;
     Normal = vec4(n_enc.x, pos.x, pos.y, pos.z);    //TODO: Perturb normals

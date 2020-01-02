@@ -68,7 +68,7 @@ namespace KokoroVR
             var p = Engine.Projection;
 
             StaticMeshRenderer.SetMatrices(p, v);
-            for (int i = 0; i < 2; i++)
+            for (int i = 0; i < Engine.Framebuffers.Length; i++)
             {
                 foreach (var r in ControlInterpreters)
                     r.Render(time, Renderer.Framebuffers[i], StaticMeshRenderer, DynamicMeshRenderer, p[i], v[i], VRHand.Get(i));
@@ -78,12 +78,11 @@ namespace KokoroVR
             }
             StaticMeshRenderer.Submit();
             Renderer.Submit(v, p, Engine.CurrentPlayer.Position);
-
-            //Engine.Framebuffers[0].Blit(Renderer.Framebuffers[0], true, false, true);
-            //Engine.Framebuffers[1].Blit(Renderer.Framebuffers[1], true, false, true);
             Engine.Submit();
 
-            Kokoro.Graphics.Framebuffer.Default.Blit(Engine.Framebuffers[1], true, false, true);
+#if VR
+            Kokoro.Graphics.Framebuffer.Default.Blit(Engine.Framebuffers[0], true, false, true);
+#endif
             Kokoro.Graphics.GraphicsDevice.SwapBuffers();
         }
 

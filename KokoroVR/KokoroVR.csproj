@@ -74,8 +74,10 @@
     <Compile Include="Graphics\Lights\SpotLight.cs" />
     <Compile Include="Graphics\Materials\PBRMaterial.cs" />
     <Compile Include="Graphics\StaticMeshRenderer.cs" />
+    <Compile Include="Graphics\Voxel\Chunk.cs" />
+    <Compile Include="Graphics\Voxel\ChunkStreamer.cs" />
     <Compile Include="Input\ControlInterpreter.cs" />
-    <Compile Include="Input\DefaultControlInterpreter.cs" />
+    <Compile Include="Input\DefaultVRControlInterpreter.cs" />
     <Compile Include="LocalPlayer.cs" />
     <Compile Include="Player.cs" />
     <Compile Include="Interactable.cs" />

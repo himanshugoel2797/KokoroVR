@@ -91,11 +91,11 @@ namespace KokoroVR.Graphics
                         f_ptr[(PointLight.Size * i) / sizeof(float) + 1] = pointLights[i].Position.Y;
                         f_ptr[(PointLight.Size * i) / sizeof(float) + 2] = pointLights[i].Position.Z;
 
-                        f_ptr[(PointLight.Size * i) / sizeof(float) + 3] = pointLights[i].Color.X;
-                        f_ptr[(PointLight.Size * i) / sizeof(float) + 4] = pointLights[i].Color.Y;
-                        f_ptr[(PointLight.Size * i) / sizeof(float) + 5] = pointLights[i].Color.Z;
+                        f_ptr[(PointLight.Size * i) / sizeof(float) + 3] = pointLights[i].Intensity;
 
-                        f_ptr[(PointLight.Size * i) / sizeof(float) + 6] = pointLights[i].Intensity;
+                        f_ptr[(PointLight.Size * i) / sizeof(float) + 4] = pointLights[i].Color.X;
+                        f_ptr[(PointLight.Size * i) / sizeof(float) + 5] = pointLights[i].Color.Y;
+                        f_ptr[(PointLight.Size * i) / sizeof(float) + 6] = pointLights[i].Color.Z;
 
                         pointLights[i].Dirty = false;
                     }

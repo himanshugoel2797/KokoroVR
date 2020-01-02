@@ -9,7 +9,6 @@ namespace KokoroVR
 {
     public class LocalPlayer : Player
     {
-        private VRClient client;
 
         public Matrix4 Pose { get; protected set; }
         public Vector3 Velocity { get; protected set; }
@@ -18,6 +17,8 @@ namespace KokoroVR
         public override Quaternion Orientation { get; protected set; }
         public override float Height { get; protected set; }
 
+#if VR
+        private VRClient client;
         public LocalPlayer(VRClient client)
         {
             this.client = client;
@@ -52,5 +53,31 @@ namespace KokoroVR
             if (Height == 0)
                 Height = Position.Y;
         }
+#else
+        public LocalPlayer()
+        {
+            Pose = Matrix4.Identity;
+        }
+
+        public override void GetControl(string name, out VRClient.AnalogData val)
+        {
+            throw new NotImplementedException();
+        }
+
+        public override void GetControl(string name, out VRClient.DigitalData val)
+        {
+            throw new NotImplementedException();
+        }
+
+        public override void GetControl(string name, out VRClient.PoseData val)
+        {
+            throw new NotImplementedException();
+        }
+
+        public override void Update(double time)
+        {
+
+        }
+#endif
     }
 }
