@@ -20,82 +20,159 @@ namespace KokoroVR.Graphics.Voxel
         Back,
     }
 
-    public class Chunk : Interactable
+    public class Chunk
     {
-        //128x128x128 byte block
         private byte[] data;
         private object data_locker;
-        private bool rebuilding;    //Mesh data is being rebuilt
-        private bool updated;
 
-        public Chunk()
+        internal int id;
+        internal ChunkStreamer streamer;
+        internal bool dirty, update_pending;
+        internal List<byte>[] faces;
+
+        public int VoxelCount { get; private set; }
+
+        internal Chunk(ChunkStreamer streamer, int id)
         {
             data_locker = new object();
-            data = new byte[ChunkStreamer.Side * ChunkStreamer.Side * ChunkStreamer.Side * 2];
+            data = new byte[ChunkConstants.Side * ChunkConstants.Side * ChunkConstants.Side];
+            this.streamer = streamer;
+            this.id = id;
+            RebuildFullMesh();  //Initialize the data block
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static int GetIndex(int x, int y, int z)
         {
-            return (x * (ChunkStreamer.Side * ChunkStreamer.Side) + y * ChunkStreamer.Side + z) * 2;
+            return x * (ChunkConstants.Side * ChunkConstants.Side) + y * ChunkConstants.Side + z;
         }
 
-        public void RebuildMesh()
+        public void RebuildFullMesh()
         {
-            //Deploy a thread to do the update and register an event to push the changes to the gpu when it's done
-            ThreadPool.QueueUserWorkItem((_) =>
-            {
-                if (rebuilding) Thread.Sleep(2);
-                rebuilding = true;
+            VoxelCount = 0;
 
-                for (byte x = 0; x <= ChunkStreamer.Side - 1; x++)
-                    for (byte y = 0; y <= ChunkStreamer.Side - 1; y++)
-                        for (byte z = 0; z <= ChunkStreamer.Side - 1; z++)
+            faces = new List<byte>[6];
+            for (int i = 0; i < faces.Length; i++) faces[i] = new List<byte>();
+
+            //0 - 0, -1, 0
+            //1 - 0, 1, 0
+            //2 - -1, 0, 0
+            //3 - 1, 0, 0
+            //4 - 0, 0, -1
+            //5 - 0, 0, 1
+            for (byte x = 0; x <= ChunkConstants.Side - 1; x++)
+                for (byte y = 0; y <= ChunkConstants.Side - 1; y++)
+                    for (byte z = 0; z <= ChunkConstants.Side - 1; z++)
+                    {
+                        byte cur, top, btm, frt, bck, lft, rgt;
+                        lock (data_locker)
                         {
-                            byte cur, top, btm, frt, bck, lft, rgt;
-                            lock (data_locker)
-                            {
-                                cur = data[GetIndex(x, y, z)];
-                                top = y > 0 ? data[GetIndex(x, y - 1, z)] : cur;
-                                btm = y < ChunkStreamer.Side - 1 ? data[GetIndex(x, y + 1, z)] : cur;
-                                frt = z > 0 ? data[GetIndex(x, y, z - 1)] : cur;
-                                bck = z < ChunkStreamer.Side - 1 ? data[GetIndex(x, y, z + 1)] : cur;
-                                lft = x > 0 ? data[GetIndex(x - 1, y, z)] : cur;
-                                rgt = x < ChunkStreamer.Side - 1 ? data[GetIndex(x + 1, y, z)] : cur;
-                            }
-                            //generate draws per face
-                            //sort chunks front to back 
-                            int bmp = 0;
-                            bmp |= (top == 0) ? 0 : (1 << (int)FaceIndex.Top);
-                            bmp |= (btm == 0) ? 0 : (1 << (int)FaceIndex.Bottom);
-                            bmp |= (frt == 0) ? 0 : (1 << (int)FaceIndex.Front);
-                            bmp |= (bck == 0) ? 0 : (1 << (int)FaceIndex.Back);
-                            bmp |= (lft == 0) ? 0 : (1 << (int)FaceIndex.Left);
-                            bmp |= (rgt == 0) ? 0 : (1 << (int)FaceIndex.Right);
-
-                            data[GetIndex(x, y, z) + 1] = (byte)(~bmp & 0x3f);
+                            cur = data[GetIndex(x, y, z)];
+                            top = y > 0 ? data[GetIndex(x, y - 1, z)] : (byte)0;
+                            btm = y < ChunkConstants.Side - 1 ? data[GetIndex(x, y + 1, z)] : (byte)0;
+                            frt = z > 0 ? data[GetIndex(x, y, z - 1)] : (byte)0;
+                            bck = z < ChunkConstants.Side - 1 ? data[GetIndex(x, y, z + 1)] : (byte)0;
+                            lft = x > 0 ? data[GetIndex(x - 1, y, z)] : (byte)0;
+                            rgt = x < ChunkConstants.Side - 1 ? data[GetIndex(x + 1, y, z)] : (byte)0;
                         }
-                //push these changes to the gpu
-                //Set rebuilding = false when upload is done
-                updated = true;
-            });
+                        //generate draws per face
+                        if (cur == 0)
+                            continue;
+
+                        //emit vertices for each faces based on this data
+                        if (top == 0)
+                            faces[0].AddRange(new byte[]
+                                {
+                                    (byte)(x + 1), y, z, cur,
+                                    x, y, (byte)(z + 1), cur,
+                                    x, y, z, cur,
+                                    (byte)(x + 1), y, z, cur,
+                                    (byte)(x + 1), y, (byte)(z + 1), cur,
+                                    x, y, (byte)(z + 1), cur,
+                                });
+
+                        if (btm == 0)
+                            faces[1].AddRange(new byte[]
+                            {
+                                x, (byte)(y + 1), z, cur,
+                                x, (byte)(y + 1), (byte)(z + 1), cur,
+                                (byte)(x + 1), (byte)(y + 1), z, cur,
+                                x, (byte)(y + 1), (byte)(z + 1), cur,
+                                (byte)(x + 1), (byte)(y + 1), (byte)(z + 1), cur,
+                                (byte)(x + 1), (byte)(y + 1), z, cur,
+                            });
+
+                        if (lft == 0)
+                            faces[2].AddRange(new byte[]
+                            {
+                                x, y, z, cur,
+                                x, y, (byte)(z + 1), cur,
+                                x, (byte)(y + 1), z, cur,
+                                x, y, (byte)(z + 1), cur,
+                                x, (byte)(y + 1), (byte)(z + 1), cur,
+                                x, (byte)(y + 1), z, cur,
+                            });
+
+                        if (rgt == 0)
+                            faces[3].AddRange(new byte[]
+                            {
+                                (byte)(x + 1), (byte)(y + 1), z, cur,
+                                (byte)(x + 1), y, (byte)(z + 1), cur,
+                                (byte)(x + 1), y, z, cur,
+                                (byte)(x + 1), (byte)(y + 1), z, cur,
+                                (byte)(x + 1), (byte)(y + 1), (byte)(z + 1), cur,
+                                (byte)(x + 1), y, (byte)(z + 1), cur,
+                            });
+
+                        if (frt == 0)
+                            faces[4].AddRange(new byte[]
+                            {
+                                x, y, z, cur,
+                                x, (byte)(y + 1), z, cur,
+                                (byte)(x + 1), y, z, cur,
+                                x, (byte)(y + 1), z, cur,
+                                (byte)(x + 1), (byte)(y + 1), z, cur,
+                                (byte)(x + 1), y, z, cur,
+                            });
+
+                        if (bck == 0)
+                            faces[5].AddRange(new byte[]
+                            {
+                                (byte)(x + 1), y, (byte)(z + 1), cur,
+                                x, (byte)(y + 1), (byte)(z + 1), cur,
+                                x, y, (byte)(z + 1), cur,
+                                (byte)(x + 1), y, (byte)(z + 1), cur,
+                                (byte)(x + 1), (byte)(y + 1), (byte)(z + 1), cur,
+                                x, (byte)(y + 1), (byte)(z + 1), cur,
+                            });
+
+                        VoxelCount++;
+                    }
+
+            dirty = false;
+            update_pending = true;
         }
 
-        public override void Render(double time, Framebuffer fbuf, StaticMeshRenderer staticMesh, DynamicMeshRenderer dynamicMesh, Matrix4 p, Matrix4 v, VREye eye)
+        public void EditLocalMesh(int x, int y, int z, byte cur)
         {
-            //passthrough renderer, as rendering is handled by the chunk streamer
-        }
-
-        public override void Update(double time, World parent)
-        {
-            if (updated)
+            //Just edit the current value
+            lock (data_locker)
             {
-                //Upload the data
-                rebuilding = false;
-                updated = false;
-            }
+                var prev_data = data[GetIndex(x, y, z)];
+                if (prev_data != cur) dirty = true;
+                if (cur == 0 && prev_data != 0)
+                    VoxelCount--;
+                else if (cur != 0 && prev_data == 0)
+                    VoxelCount++;
 
-            //TODO: trigger rebuilds when voxel data is dirty
+                data[GetIndex(x, y, z)] = cur;
+            }
+        }
+
+        public void Update()
+        {
+            if (dirty)
+                RebuildFullMesh();
         }
     }
 }

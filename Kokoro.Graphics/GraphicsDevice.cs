@@ -89,6 +89,7 @@ namespace Kokoro.Graphics
 
         public static StateGroup GameLoop { get; set; }
 
+        public static Action<int, int> Resized { get; set; }
         public static Action Load { get; set; }
         public static Action<double> Render
         {
@@ -465,6 +466,27 @@ namespace Kokoro.Graphics
             if (gl_name == "")
                 gl_name = GL.GetString(StringName.Version);
 
+            StreamWriter cntrs = new StreamWriter("cntrs.txt");
+
+            GL.Amd.GetPerfMonitorGroups(out int perfmonGrpCnt, 0, (int[])null);
+            int[] perfmon_grps = new int[perfmonGrpCnt];
+            GL.Amd.GetPerfMonitorGroups(out perfmonGrpCnt, perfmon_grps.Length, perfmon_grps);
+            foreach (int i in perfmon_grps)
+            {
+                GL.Amd.GetPerfMonitorGroupString(i, 200, out int grp_name_len, out string grp_name);
+                cntrs.WriteLine(grp_name);
+
+                GL.Amd.GetPerfMonitorCounters(i, out int cntr_num, out int max_active_cntrs, 0, null);
+                int[] cntr_ids = new int[cntr_num];
+                GL.Amd.GetPerfMonitorCounters(i, out cntr_num, out max_active_cntrs, cntr_ids.Length, cntr_ids);
+
+                foreach(int j in cntr_ids)
+                {
+                    GL.Amd.GetPerfMonitorCounterString(i, j, 200, out int cntr_name_len, out string cntr_name);
+                    cntrs.WriteLine("\t" + cntr_name);
+                }
+            }
+
             Window.Title = gameName + $" | {renderer_name} | { gl_name }";
             GL.Enable(EnableCap.DebugOutput);
             GL.DebugMessageInsert(DebugSourceExternal.DebugSourceApplication, DebugType.DebugTypePortability, 1, DebugSeverity.DebugSeverityNotification, 5, "test");
@@ -622,7 +644,7 @@ namespace Kokoro.Graphics
             GL.ClipControl(ClipOrigin.LowerLeft, ClipDepthMode.ZeroToOne);
             //Input.LowLevel.InputLL.SetWinXY(game.Location.X, game.Location.Y, game.ClientSize.Width, game.ClientSize.Height);
             Framebuffer.RecreateDefaultFramebuffer();
-            //EngineManager.ResolutionChangedHandler(game.ClientSize.Width, game.ClientSize.Height);
+            Resized(Window.ClientSize.Width, Window.ClientSize.Height);
         }
 
         public static void SetViewport(int idx, float x, float y, float width, float height)
@@ -720,13 +742,13 @@ namespace Kokoro.Graphics
                 GL.MultiDrawArraysIndirect((OpenTK.Graphics.OpenGL4.PrimitiveType)type, (IntPtr)byteOffset, count, 0);
         }
 
-        public static void MultiDrawIndirectCount(PrimitiveType type, uint byteOffset, uint countOffset, int maxCount, bool indexed)
+        public static void MultiDrawIndirectCount(PrimitiveType type, ulong byteOffset, ulong countOffset, int maxCount, bool indexed)
         {
             GL.MemoryBarrier(MemoryBarrierFlags.ShaderImageAccessBarrierBit);
             if (indexed)
                 GL.Arb.MultiDrawElementsIndirectCount((OpenTK.Graphics.OpenGL4.PrimitiveType)type, DrawElementsType.UnsignedShort, (IntPtr)byteOffset, (IntPtr)countOffset, maxCount, 0);
             else
-                GL.Arb.MultiDrawArraysIndirectCount((OpenTK.Graphics.OpenGL4.PrimitiveType)type, (IntPtr)byteOffset, (IntPtr)countOffset, maxCount, 5 * sizeof(int) /*Each entry is formatted as index data, so work accordingly*/);
+                GL.Arb.MultiDrawArraysIndirectCount((OpenTK.Graphics.OpenGL4.PrimitiveType)type, (IntPtr)byteOffset, (IntPtr)countOffset, maxCount, 0);
         }
         #endregion
 

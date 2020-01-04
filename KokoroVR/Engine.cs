@@ -22,6 +22,8 @@ namespace KokoroVR
         public static Matrix4[] View { get; private set; }
         public static LocalPlayer CurrentPlayer { get; private set; }
 
+        public static Action<int, int> WindowResized { get { return GraphicsDevice.Resized; } set { GraphicsDevice.Resized = value; } }
+
         static Engine()
         {
             stateMachine = new StateManager();
@@ -50,20 +52,21 @@ namespace KokoroVR
             iMeshGroup = new MeshGroup(MeshGroupVertexFormat.X32F_Y32F_Z32F, 256, 256);
             CurrentPlayer = new LocalPlayer(HMDClient);
 #else
+            CurrentPlayer = new LocalPlayer();
+            CurrentPlayer.Position = new Vector3(0.577f, 0.577f, 0.577f) * 40;
             Projection = new Matrix4[]
             {
                 Matrix4.CreatePerspectiveFieldOfView(MathHelper.DegreesToRadians(90), 16f/9f, 0.001f)
             };
             View = new Matrix4[]
             {
-                Matrix4.LookAt(-Vector3.UnitX, Vector3.Zero, Vector3.UnitY)
+                Matrix4.LookAt(CurrentPlayer.Position, Vector3.Zero, Vector3.UnitY)
             };
             Framebuffers = new Framebuffer[]
             {
                 Framebuffer.Default
             };
             iMeshGroup = new MeshGroup(MeshGroupVertexFormat.X32F_Y32F_Z32F, 256, 256);
-            CurrentPlayer = new LocalPlayer();
 #endif
         }
 

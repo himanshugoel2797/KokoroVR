@@ -264,7 +264,7 @@ namespace Kokoro.Graphics
             }
             else
             {
-                GL.TextureBufferRange(id, (SizedInternalFormat)src.GetInternalFormat(), (int)src.GetPixelData(level), (IntPtr)src.GetBaseWidth(), src.GetWidth());
+                GL.TextureBufferRange(id, (SizedInternalFormat)src.GetInternalFormat(), (int)src.GetPixelData(level), (IntPtr)src.GetBaseWidth(), (IntPtr)(uint)src.GetWidth());
             }
 
 

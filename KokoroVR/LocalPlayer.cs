@@ -13,8 +13,8 @@ namespace KokoroVR
         public Matrix4 Pose { get; protected set; }
         public Vector3 Velocity { get; protected set; }
         public Vector3 AngularVelocity { get; protected set; }
-        public override Vector3 Position { get; protected set; }
-        public override Quaternion Orientation { get; protected set; }
+        public override Vector3 Position { get; internal set; }
+        public override Quaternion Orientation { get; internal set; }
         public override float Height { get; protected set; }
 
 #if VR

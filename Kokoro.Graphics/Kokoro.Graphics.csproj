@@ -91,6 +91,8 @@
     <Compile Include="InverseDepth.cs" />
     <Compile Include="ITextureSource.cs" />
     <Compile Include="Mesh.cs" />
+    <Compile Include="Mesh2.cs" />
+    <Compile Include="MeshGroup2.cs" />
     <Compile Include="MeshGroup.cs" />
     <Compile Include="MultiDrawParameters.cs" />
     <Compile Include="PerfTimer.cs" />
@@ -107,6 +109,7 @@
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="RawTextureSource.cs" />
     <Compile Include="RenderQueue.cs" />
+    <Compile Include="RenderQueue2.cs" />
     <Compile Include="RenderState.cs" />
     <Compile Include="ShaderLibrary.cs" />
     <Compile Include="ShaderProgram.cs" />

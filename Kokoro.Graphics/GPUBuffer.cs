@@ -25,8 +25,10 @@ namespace Kokoro.Graphics
 
             this.size = size;
 
-            GL.NamedBufferStorage(id, (int)size, IntPtr.Zero, BufferStorageFlags.MapPersistentBit | BufferStorageFlags.MapWriteBit | (read ? BufferStorageFlags.MapReadBit : 0));
-            addr = GL.MapNamedBufferRange(id, IntPtr.Zero, (int)size, BufferAccessMask.MapPersistentBit | BufferAccessMask.MapFlushExplicitBit | BufferAccessMask.MapUnsynchronizedBit | BufferAccessMask.MapWriteBit | (read ? BufferAccessMask.MapReadBit : 0));
+            Console.WriteLine(size);
+            Console.WriteLine("\t" + (IntPtr)size);
+            GL.NamedBufferStorage(id, (IntPtr)size, IntPtr.Zero, BufferStorageFlags.MapPersistentBit | BufferStorageFlags.MapWriteBit | (read ? BufferStorageFlags.MapReadBit : 0));
+            addr = GL.MapNamedBufferRange(id, IntPtr.Zero, (IntPtr)size, BufferAccessMask.MapPersistentBit | BufferAccessMask.MapFlushExplicitBit | BufferAccessMask.MapUnsynchronizedBit | BufferAccessMask.MapWriteBit | (read ? BufferAccessMask.MapReadBit : 0));
         }
 
         public void BufferData<T>(ulong offset, T[] data, BufferUsageHint hint) where T : struct

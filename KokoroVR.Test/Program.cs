@@ -1,6 +1,7 @@
 ﻿using Kokoro.Graphics;
 using Kokoro.Math;
 using KokoroVR.Graphics;
+using KokoroVR.Graphics.Voxel;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -58,22 +59,51 @@ namespace KokoroVR.Test
                         new VRAction("haptic_left", ActionHandleDirection.Output, ActionKind.Haptic))
                     });*/
 
+                float m_off = 64;
+                float m_off_h = m_off * 0.5f;
+
                 MeshGroup grp = new MeshGroup(MeshGroupVertexFormat.X32F_Y32F_Z32F, 40000, 40000);
                 w.LightManager.AddLight(new Graphics.Lights.PointLight()
                 {
                     Color = Vector3.UnitX,
-                    Intensity = 10.0f,
-                    Position = Vector3.UnitZ
+                    Intensity = 6400.0f,
+                    Position = Vector3.UnitX * -m_off + Vector3.UnitZ * m_off_h + Vector3.UnitY * m_off_h
                 });
 
-                w.LightManager.AddLight(new Graphics.Lights.DirectionalLight()
+                w.LightManager.AddLight(new Graphics.Lights.PointLight()
                 {
                     Color = Vector3.UnitY,
-                    Direction = -Vector3.UnitY,
-                    Intensity = 10.0f
+                    Intensity = 6400.0f,
+                    Position = Vector3.UnitY * -m_off + Vector3.UnitX * m_off_h + Vector3.UnitZ * m_off_h
                 });
 
-                w.AddRenderable(new StaticRenderable(Kokoro.Graphics.Prefabs.SphereFactory.Create(grp)));
+                w.LightManager.AddLight(new Graphics.Lights.PointLight()
+                {
+                    Color = Vector3.UnitZ,
+                    Intensity = 6400.0f,
+                    Position = Vector3.UnitZ * -m_off + Vector3.UnitX * m_off_h + Vector3.UnitY * m_off_h
+                });
+
+                ChunkStreamer chunkStreamer = new ChunkStreamer(64);
+                var mat_id = chunkStreamer.MaterialMap.Register(Vector3.One, Vector3.One * 0.5f, 1f);
+                ChunkObject obj = new ChunkObject(chunkStreamer);
+
+                Random rng = new Random(0);
+                var updates = new (int, int, int, byte)[ChunkConstants.Side * ChunkConstants.Side * ChunkConstants.Side * 27];
+                int cntr = 0;
+                for (int x = 0; x < ChunkConstants.Side * 2; x ++)
+                    for (int y = 0; y < ChunkConstants.Side * 2; y ++)
+                        for (int z = 0; z < ChunkConstants.Side * 2; z ++)
+                            if (rng.NextDouble() > 0.5f) updates[cntr++] = (x, y, z, mat_id);
+
+                Console.WriteLine(cntr);
+                obj.BulkSet(updates);
+
+                //w.AddRenderable(new StaticRenderable(Kokoro.Graphics.Prefabs.SphereFactory.Create(grp)));
+                w.AddRenderable(chunkStreamer);
+                w.AddRenderable(obj);
+
+                w.AddRenderable(chunkStreamer.Ender);
                 //w.AddInterpreter(new Input.DefaultControlInterpreter("/actions/vrworld/in/hand_left", "/actions/vrworld/in/hand_right", grp));
             };
             Engine.AddWorld(w);

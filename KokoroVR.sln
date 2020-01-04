@@ -9,6 +9,10 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Kokoro.Math", "Kokoro.Math\
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{BB0BC4EB-9FB4-430C-B917-5B6D8DCD5626}"
 	ProjectSection(SolutionItems) = preProject
+		GPUPerfAPICL-x64.dll = GPUPerfAPICL-x64.dll
+		GPUPerfAPICounters-x64.dll = GPUPerfAPICounters-x64.dll
+		GPUPerfAPIDXGetAMDDeviceInfo-x64.dll = GPUPerfAPIDXGetAMDDeviceInfo-x64.dll
+		GPUPerfAPIGL-x64.dll = GPUPerfAPIGL-x64.dll
 		OpenTK.dll = OpenTK.dll
 		OpenTK.GLControl.dll = OpenTK.GLControl.dll
 	EndProjectSection
@@ -28,6 +32,8 @@ EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Kokoro.Network.Client", "Kokoro.Network.Client\Kokoro.Network.Client.csproj", "{A411CB83-41AD-4016-B677-8147BD6A0DA2}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "KokoroVR.Test", "KokoroVR.Test\KokoroVR.Test.csproj", "{B967395B-11AA-4811-8AC7-86DF15A07D95}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GPUPerfAPI.NET", "GPUPerfAPI.NET\GPUPerfAPI.NET.csproj", "{82A8C5A6-543E-4CA9-AC1A-78533ABFF59B}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -109,6 +115,14 @@ Global
 		{B967395B-11AA-4811-8AC7-86DF15A07D95}.Release|Any CPU.Build.0 = Release|Any CPU
 		{B967395B-11AA-4811-8AC7-86DF15A07D95}.Release|x64.ActiveCfg = Release|x64
 		{B967395B-11AA-4811-8AC7-86DF15A07D95}.Release|x64.Build.0 = Release|x64
+		{82A8C5A6-543E-4CA9-AC1A-78533ABFF59B}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{82A8C5A6-543E-4CA9-AC1A-78533ABFF59B}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{82A8C5A6-543E-4CA9-AC1A-78533ABFF59B}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{82A8C5A6-543E-4CA9-AC1A-78533ABFF59B}.Debug|x64.Build.0 = Debug|Any CPU
+		{82A8C5A6-543E-4CA9-AC1A-78533ABFF59B}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{82A8C5A6-543E-4CA9-AC1A-78533ABFF59B}.Release|Any CPU.Build.0 = Release|Any CPU
+		{82A8C5A6-543E-4CA9-AC1A-78533ABFF59B}.Release|x64.ActiveCfg = Release|Any CPU
+		{82A8C5A6-543E-4CA9-AC1A-78533ABFF59B}.Release|x64.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

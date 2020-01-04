@@ -9,6 +9,8 @@ layout(bindless_sampler) uniform sampler2D Accumulator;
 
 void main(){
 	vec3 color = texture(Accumulator, UV).rgb;
+    f_color = vec4(color, 1);
+return;
     color *= 1;  // Hardcoded Exposure Adjustment
     vec3 x = color / (1 + color);
     f_color.rgb = pow(x, vec3(1.0f / 2.2f));

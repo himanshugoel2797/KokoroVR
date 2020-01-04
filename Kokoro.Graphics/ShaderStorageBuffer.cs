@@ -31,6 +31,11 @@ namespace Kokoro.Graphics
             get { return size; }
         }
 
+        public ulong Offset
+        {
+            get { return (ulong)curRung * size; }
+        }
+
         public ShaderStorageBuffer(GPUBuffer buf, bool stream)
         {
             size = buf.size / (ulong)(stream ? rungs : 1);
@@ -46,13 +51,13 @@ namespace Kokoro.Graphics
             }
         }
 
-        private static int AlignSize(int size)
+        private static long AlignSize(long size)
         {
             if (size % alignmentRequirement == 0) return size;
             return size + (alignmentRequirement - (size % alignmentRequirement));
         }
 
-        public ShaderStorageBuffer(int size, bool stream) : this(new GPUBuffer(BufferUsage.StorageBuffer, (ulong)(AlignSize(size) * (stream ? rungs : 1)), false, true), stream)
+        public ShaderStorageBuffer(long size, bool stream) : this(new GPUBuffer(BufferUsage.StorageBuffer, (ulong)(AlignSize(size) * (stream ? rungs : 1)), false, true), stream)
         {
 
         }
@@ -63,7 +68,7 @@ namespace Kokoro.Graphics
                 return 0;
 
             int idx = curRung;
-            for(int i = 0; i < rungs; i++)
+            for (int i = 0; i < rungs; i++)
             {
                 if (readyFence[idx].Raised(1))
                     return (ulong)idx * size;
@@ -87,6 +92,12 @@ namespace Kokoro.Graphics
         public void UpdateDone()
         {
             buf.FlushBuffer((ulong)curRung * size, (ulong)size);
+            readyFence[curRung].PlaceFence();
+        }
+
+        public void UpdateDone(long off, long usize)
+        {
+            buf.FlushBuffer((ulong)curRung * size + (ulong)off, (ulong)usize);
             readyFence[curRung].PlaceFence();
         }
 

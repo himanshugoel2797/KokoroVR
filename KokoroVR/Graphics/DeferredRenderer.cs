@@ -62,6 +62,13 @@ namespace KokoroVR.Graphics
             _spotLightShader = new ShaderProgram[_targetCount];
             _directionalLightShader = new ShaderProgram[_targetCount];
             _outputShader = new ShaderProgram[_targetCount];
+            Resize(dest);
+
+            Engine.WindowResized += (a,b) => Resize(_destFramebuffers);
+        }
+
+        private void Resize(Framebuffer[] dest)
+        {
             for (int i = 0; i < _targetCount; i++)
             {
                 var colorSrc = new FramebufferTextureSource(dest[i].Width, dest[i].Height, 1)
@@ -142,53 +149,29 @@ namespace KokoroVR.Graphics
                 _queue_final[i] = new RenderQueue(4, true);
                 _queue_final[i].ClearFramebufferBeforeSubmit = false;
 
-                {
-                    var colorHandle = _colorMaps[i].GetHandle(TextureSampler.Default);
-                    colorHandle.SetResidency(Residency.Resident);
-                    _pointLightShader[i].Set("ColorMap", colorHandle);
+                var colorHandle = _colorMaps[i].GetHandle(TextureSampler.Default);
+                colorHandle.SetResidency(Residency.Resident);
+                _pointLightShader[i].Set("ColorMap", colorHandle);
 
-                    var normalHandle = _normalMaps[i].GetHandle(TextureSampler.Default);
-                    normalHandle.SetResidency(Residency.Resident);
-                    _pointLightShader[i].Set("NormalMap", normalHandle);
+                var normalHandle = _normalMaps[i].GetHandle(TextureSampler.Default);
+                normalHandle.SetResidency(Residency.Resident);
+                _pointLightShader[i].Set("NormalMap", normalHandle);
 
-                    var specHandle = _specMaps[i].GetHandle(TextureSampler.Default);
-                    specHandle.SetResidency(Residency.Resident);
-                    _pointLightShader[i].Set("SpecularMap", specHandle);
-                }
+                var specHandle = _specMaps[i].GetHandle(TextureSampler.Default);
+                specHandle.SetResidency(Residency.Resident);
+                _pointLightShader[i].Set("SpecularMap", specHandle);
 
-                {
-                    var colorHandle = _colorMaps[i].GetHandle(TextureSampler.Default);
-                    colorHandle.SetResidency(Residency.Resident);
-                    _spotLightShader[i].Set("ColorMap", colorHandle);
+                _spotLightShader[i].Set("ColorMap", colorHandle);
+                _spotLightShader[i].Set("NormalMap", normalHandle);
+                _spotLightShader[i].Set("SpecularMap", specHandle);
 
-                    var normalHandle = _normalMaps[i].GetHandle(TextureSampler.Default);
-                    normalHandle.SetResidency(Residency.Resident);
-                    _spotLightShader[i].Set("NormalMap", normalHandle);
+                _directionalLightShader[i].Set("ColorMap", colorHandle);
+                _directionalLightShader[i].Set("NormalMap", normalHandle);
+                _directionalLightShader[i].Set("SpecularMap", specHandle);
 
-                    var specHandle = _specMaps[i].GetHandle(TextureSampler.Default);
-                    specHandle.SetResidency(Residency.Resident);
-                    _spotLightShader[i].Set("SpecularMap", specHandle);
-                }
-
-                {
-                    var colorHandle = _colorMaps[i].GetHandle(TextureSampler.Default);
-                    colorHandle.SetResidency(Residency.Resident);
-                    _directionalLightShader[i].Set("ColorMap", colorHandle);
-
-                    var normalHandle = _normalMaps[i].GetHandle(TextureSampler.Default);
-                    normalHandle.SetResidency(Residency.Resident);
-                    _directionalLightShader[i].Set("NormalMap", normalHandle);
-
-                    var specHandle = _specMaps[i].GetHandle(TextureSampler.Default);
-                    specHandle.SetResidency(Residency.Resident);
-                    _directionalLightShader[i].Set("SpecularMap", specHandle);
-                }
-
-                {
-                    var accumHandle = accumulator.GetHandle(TextureSampler.Default);
-                    accumHandle.SetResidency(Residency.Resident);
-                    _outputShader[i].Set("Accumulator", accumHandle);
-                }
+                var accumHandle = accumulator.GetHandle(TextureSampler.Default);
+                accumHandle.SetResidency(Residency.Resident);
+                _outputShader[i].Set("Accumulator", accumHandle);
             }
         }
 
@@ -196,20 +179,24 @@ namespace KokoroVR.Graphics
         {
             var fbuf = GraphicsDevice.Framebuffer;
             var clearDepth = GraphicsDevice.ClearDepth;
+            var clearCol = GraphicsDevice.ClearColor;
             var dWrite = GraphicsDevice.DepthWriteEnabled;
             for (int i = 0; i < _targetCount; i++)
             {
                 GraphicsDevice.DepthWriteEnabled = true;
+                //GraphicsDevice.ClearColor = new Vector4(1, 1, 1, 1);
                 GraphicsDevice.ClearDepth = InverseDepth.ClearDepth;
                 GraphicsDevice.Framebuffer = Framebuffers[i];
                 GraphicsDevice.Clear();
 
                 GraphicsDevice.DepthWriteEnabled = true;
+                //GraphicsDevice.ClearColor = new Vector4(0, 1, 1, 1);
                 GraphicsDevice.ClearDepth = InverseDepth.ClearDepth;
                 GraphicsDevice.Framebuffer = _accumulators[i];
                 GraphicsDevice.Clear();
             }
             GraphicsDevice.DepthWriteEnabled = dWrite;
+            GraphicsDevice.ClearColor = clearCol;
             GraphicsDevice.ClearDepth = clearDepth;
             GraphicsDevice.Framebuffer = fbuf;
         }
