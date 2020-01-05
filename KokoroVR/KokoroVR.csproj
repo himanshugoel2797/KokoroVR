@@ -79,6 +79,7 @@
     <Compile Include="Graphics\Voxel\ChunkObject.cs" />
     <Compile Include="Graphics\Voxel\ChunkRenderer.cs" />
     <Compile Include="Graphics\Voxel\ChunkStreamer.cs" />
+    <Compile Include="Graphics\Voxel\MeshOptimizer.cs" />
     <Compile Include="Graphics\Voxel\VoxelDictionary.cs" />
     <Compile Include="Input\ControlInterpreter.cs" />
     <Compile Include="Input\DefaultVRControlInterpreter.cs" />

@@ -56,6 +56,8 @@ namespace KokoroVR.Graphics.Voxel
                 var coord = coord_chunk_pair.Key;
                 var chunk = coord_chunk_pair.Value;
 
+                //Do not submit draw if chunk itself isn't in the view frustum
+                //Use a compute shader to cull everything
                 streamer.RenderChunk(chunk, new Vector3(coord.Item1, coord.Item2, coord.Item3));
             }
             //TODO get view position, submit draws from nearest to farthest

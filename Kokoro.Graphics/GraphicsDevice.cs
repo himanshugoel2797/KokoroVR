@@ -742,13 +742,13 @@ namespace Kokoro.Graphics
                 GL.MultiDrawArraysIndirect((OpenTK.Graphics.OpenGL4.PrimitiveType)type, (IntPtr)byteOffset, count, 0);
         }
 
-        public static void MultiDrawIndirectCount(PrimitiveType type, ulong byteOffset, ulong countOffset, int maxCount, bool indexed)
+        public static void MultiDrawIndirectCount(PrimitiveType type, ulong byteOffset, ulong countOffset, int maxCount, bool indexed, int stride = 0)
         {
             GL.MemoryBarrier(MemoryBarrierFlags.ShaderImageAccessBarrierBit);
             if (indexed)
-                GL.Arb.MultiDrawElementsIndirectCount((OpenTK.Graphics.OpenGL4.PrimitiveType)type, DrawElementsType.UnsignedShort, (IntPtr)byteOffset, (IntPtr)countOffset, maxCount, 0);
+                GL.Arb.MultiDrawElementsIndirectCount((OpenTK.Graphics.OpenGL4.PrimitiveType)type, DrawElementsType.UnsignedShort, (IntPtr)byteOffset, (IntPtr)countOffset, maxCount, stride);
             else
-                GL.Arb.MultiDrawArraysIndirectCount((OpenTK.Graphics.OpenGL4.PrimitiveType)type, (IntPtr)byteOffset, (IntPtr)countOffset, maxCount, 0);
+                GL.Arb.MultiDrawArraysIndirectCount((OpenTK.Graphics.OpenGL4.PrimitiveType)type, (IntPtr)byteOffset, (IntPtr)countOffset, maxCount, stride);
         }
         #endregion
 

@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Kokoro.Math;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -13,6 +14,8 @@ namespace Kokoro.Graphics
         private ShaderStorageBuffer vertSSBO, propSSBO, indexSSBO;
         private Texture vertBO, propBO, indexBO;
         private ImageHandle vertIH, propIH, indexIH;
+
+        internal Vector4[] blk_bounds;
 
         public int BlockSize { get => blk_sz; }
         public int VertexBitWidth { get => vertW; }
@@ -36,6 +39,7 @@ namespace Kokoro.Graphics
             int sts_map_len = blk_cnt / (sizeof(ulong) * 8);
             if (blk_cnt % (sizeof(ulong) * 8) != 0) sts_map_len++;
             this.blk_status = new ulong[sts_map_len];
+            this.blk_bounds = new Vector4[blk_cnt];
             for (int i = 0; i < sts_map_len; i++) blk_status[i] = ~(ulong)0;
 
             //X8i,Y8i,Z8i,MatID8i
@@ -125,6 +129,48 @@ namespace Kokoro.Graphics
             if (verts != null)
             {
                 var v_p = vertSSBO.Update();
+
+                Vector3 min = new Vector3(float.MinValue), max = new Vector3(float.MaxValue);
+                for (int i = 0; i < len; i++)
+                {
+                    if (vertW == 8)
+                    {
+                        float x, y, z;
+                        x = (sbyte)verts[i * 4 + 0];
+                        y = (sbyte)verts[i * 4 + 1];
+                        z = (sbyte)verts[i * 4 + 2];
+
+                        var v = new Vector3(x, y, z);
+                        min = Vector3.ComponentMin(min, v);
+                        max = Vector3.ComponentMax(max, v);
+                    }
+                    else if (vertW == 16)
+                    {
+                        float x, y, z;
+                        x = ((short*)verts)[i * 4 + 0];
+                        y = ((short*)verts)[i * 4 + 1];
+                        z = ((short*)verts)[i * 4 + 2];
+
+                        var v = new Vector3(x, y, z);
+                        min = Vector3.ComponentMin(min, v);
+                        max = Vector3.ComponentMax(max, v);
+                    }
+                    else if (vertW == 32)
+                    {
+                        float x, y, z;
+                        x = ((float*)verts)[i * 4 + 0];
+                        y = ((float*)verts)[i * 4 + 1];
+                        z = ((float*)verts)[i * 4 + 2];
+
+                        var v = new Vector3(x, y, z);
+                        min = Vector3.ComponentMin(min, v);
+                        max = Vector3.ComponentMax(max, v);
+                    }
+                }
+                Vector3 center = (min + max) * 0.5f;
+                float rad = (max - center).Length;
+                blk_bounds[block_idx] = new Vector4(center, rad);
+
                 Buffer.MemoryCopy(verts, v_p + 4 * blk_sz * vertW / 8 * block_idx, 4 * len * vertW / 8, 4 * len * vertW / 8);
                 vertSSBO.UpdateDone(4 * blk_sz * vertW / 8 * block_idx, 4 * len * vertW / 8);
             }

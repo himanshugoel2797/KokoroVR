@@ -41,7 +41,7 @@ namespace Kokoro.Graphics
                 MaxDrawCount = 4096;
 
             maxDrawCount = MaxDrawCount;
-            multiDrawParams = new ShaderStorageBuffer(MaxDrawCount * 5 * sizeof(uint), transient);
+            multiDrawParams = new ShaderStorageBuffer((MaxDrawCount * 8 + 1) * sizeof(uint), transient);
         }
 
         public void Clear()
@@ -105,6 +105,7 @@ namespace Kokoro.Graphics
                 for (int i = 0; i < bkts.Length; i++)
                 {
                     var bkt = bkts[i];
+                    float* data_ui_fp = (float*)data_ui;
 
                     uint net_draw_cnt = 0;
                     for (int j = 0; j < MeshGroups[bkt].Item1.Count; j++)
@@ -126,10 +127,16 @@ namespace Kokoro.Graphics
                         int cnt = mesh.Mesh.Length;
                         for (int k = 0; k < mesh.Mesh.allocs.Length; k++)
                         {
-                            data_ui[(idx * 4) + 1] = (uint)System.Math.Min(cnt, mesh.Mesh.Parent.BlockSize);   //count
-                            data_ui[(idx * 4) + 2] = (uint)mesh.InstanceCount;   //instanceCount
-                            data_ui[(idx * 4) + 3] = (uint)(mesh.Mesh.allocs[k] * mesh.Mesh.Parent.BlockSize);   //baseVertex
-                            data_ui[(idx * 4) + 4] = (uint)mesh.BaseInstance;   //baseInstance
+                            data_ui[(idx * 8) + 1] = (uint)System.Math.Min(cnt, mesh.Mesh.Parent.BlockSize);   //count
+                            data_ui[(idx * 8) + 2] = (uint)mesh.InstanceCount;   //instanceCount
+                            data_ui[(idx * 8) + 3] = (uint)(mesh.Mesh.allocs[k] * mesh.Mesh.Parent.BlockSize);   //baseVertex
+                            data_ui[(idx * 8) + 4] = (uint)mesh.BaseInstance;   //baseInstance
+
+                            //insert block bounding sphere
+                            data_ui_fp[(idx * 8) + 5] = mesh.Mesh.Parent.blk_bounds[mesh.Mesh.allocs[k]].X;
+                            data_ui_fp[(idx * 8) + 6] = mesh.Mesh.Parent.blk_bounds[mesh.Mesh.allocs[k]].Y;
+                            data_ui_fp[(idx * 8) + 7] = mesh.Mesh.Parent.blk_bounds[mesh.Mesh.allocs[k]].Z;
+                            data_ui_fp[(idx * 8) + 8] = mesh.Mesh.Parent.blk_bounds[mesh.Mesh.allocs[k]].W;
 
                             idx++;
                             cnt -= mesh.Mesh.Parent.BlockSize;
@@ -137,7 +144,7 @@ namespace Kokoro.Graphics
                     }
 
                     //Move the data pointer forward
-                    data_ui += (1 + 4 * MeshGroups[bkt].Item1.Count);
+                    data_ui += (1 + 8 * MeshGroups[bkt].Item1.Count);
                 }
             }
 
@@ -174,7 +181,7 @@ namespace Kokoro.Graphics
                 GraphicsDevice.SetMultiDrawParameterBuffer(multiDrawParams);
                 GraphicsDevice.SetParameterBuffer(multiDrawParams);
 
-                GraphicsDevice.MultiDrawIndirectCount(PrimitiveType.Triangles, multiDrawParams.Offset + offset + sizeof(uint), multiDrawParams.Offset + offset, maxDrawCount, false);
+                GraphicsDevice.MultiDrawIndirectCount(PrimitiveType.Triangles, multiDrawParams.Offset + offset + sizeof(uint), multiDrawParams.Offset + offset, maxDrawCount, false, 8 * sizeof(uint));
 
                 //Ensure the buffers aren't in use before next update
                 RenderState state = bkts[i];

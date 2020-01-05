@@ -89,15 +89,18 @@ namespace KokoroVR.Test
                 ChunkObject obj = new ChunkObject(chunkStreamer);
 
                 Random rng = new Random(0);
-                var updates = new (int, int, int, byte)[ChunkConstants.Side * ChunkConstants.Side * ChunkConstants.Side * 27];
-                int cntr = 0;
-                for (int x = 0; x < ChunkConstants.Side * 2; x ++)
-                    for (int y = 0; y < ChunkConstants.Side * 2; y ++)
-                        for (int z = 0; z < ChunkConstants.Side * 2; z ++)
-                            if (rng.NextDouble() > 0.5f) updates[cntr++] = (x, y, z, mat_id);
+                var updates = new List<(int, int, int, byte)>();
+                for (int x = 0; x < ChunkConstants.Side; x++)
+                    for (int y = 0; y < ChunkConstants.Side; y++)
+                        for (int z = 0; z < ChunkConstants.Side; z++)
+                        {
+                            if (x == 11 && y == 0 && z == 11) continue;
+                            if (x == 12 && y == 0 && z == 12) continue;
+                            if (rng.NextDouble() > 0f) updates.Add((x, y, z, mat_id));
+                        }
 
-                Console.WriteLine(cntr);
-                obj.BulkSet(updates);
+                Console.WriteLine(updates.Count);
+                obj.BulkSet(updates.ToArray());
 
                 //w.AddRenderable(new StaticRenderable(Kokoro.Graphics.Prefabs.SphereFactory.Create(grp)));
                 w.AddRenderable(chunkStreamer);

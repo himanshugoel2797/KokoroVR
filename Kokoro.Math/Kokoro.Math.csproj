@@ -72,6 +72,7 @@
     <Compile Include="Box2.cs" />
     <Compile Include="ColorTools.cs" />
     <Compile Include="ContainmentType.cs" />
+    <Compile Include="Data\Graph.cs" />
     <Compile Include="Data\Octree.cs" />
     <Compile Include="Data\QuadTree.cs" />
     <Compile Include="Data\SphericalOctree.cs" />

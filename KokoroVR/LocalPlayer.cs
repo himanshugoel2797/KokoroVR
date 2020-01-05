@@ -76,7 +76,7 @@ namespace KokoroVR
 
         public override void Update(double time)
         {
-
+            //extract frustums for cameras
         }
 #endif
     }
