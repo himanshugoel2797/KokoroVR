@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Kokoro.Math;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -83,7 +84,7 @@ namespace Kokoro.Graphics
                     throw new Exception("All draws must have the same MeshGroup2 parent.");
         }
 
-        public void EndRecording()
+        public void EndRecording(Frustum f)
         {
             if (!isRecording) throw new Exception("Not Recording.");
 
@@ -138,7 +139,13 @@ namespace Kokoro.Graphics
                             data_ui_fp[(idx * 8) + 7] = mesh.Mesh.Parent.blk_bounds[mesh.Mesh.allocs[k]].Z;
                             data_ui_fp[(idx * 8) + 8] = mesh.Mesh.Parent.blk_bounds[mesh.Mesh.allocs[k]].W;
 
-                            idx++;
+                            if (f.IsVisible(mesh.Mesh.Parent.blk_bounds[mesh.Mesh.allocs[k]]))
+                                idx++;
+                            else
+                            {
+
+                            }
+
                             cnt -= mesh.Mesh.Parent.BlockSize;
                         }
                     }

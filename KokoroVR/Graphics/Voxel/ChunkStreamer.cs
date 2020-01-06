@@ -14,7 +14,7 @@ namespace KokoroVR.Graphics.Voxel
         public const int VRAMCacheSize = 64;  //TODO make this depend on total available vram
 
         private Chunk[] ChunkList;
-        private (Mesh2[], int, double)[] ChunkCache;
+        private (Mesh2, int, double)[] ChunkCache;
         private MeshGroup2 buffer;
         private RenderQueue2 queue;
         private double cur_time;
@@ -22,30 +22,31 @@ namespace KokoroVR.Graphics.Voxel
         private ShaderProgram voxelShader;
         private ShaderStorageBuffer drawParams;
 
+        private MeshGroup tmpGrp;
+        private Mesh plane;
+
         public VoxelDictionary MaterialMap { get; private set; }
         public int MaxChunkCount { get; private set; }
         public ChunkStreamerEnd Ender { get; private set; }
 
         public ChunkStreamer(int max_count)
         {
-            int blk_cnt = 8192;
-            buffer = new MeshGroup2(8, 0, 0, 3 * 512, blk_cnt);
+            int blk_cnt = 8192 * 36 * 8;
+            buffer = new MeshGroup2(8, 0, 0, 3 /** 36 * 8*/, blk_cnt);
             MaxChunkCount = max_count;
             ChunkList = new Chunk[max_count];
 
             Ender = new ChunkStreamerEnd(this);
 
-            ChunkCache = new (Mesh2[], int, double)[VRAMCacheSize];
+            ChunkCache = new (Mesh2, int, double)[VRAMCacheSize];
             for (int i = 0; i < ChunkCache.Length; i++)
             {
+                ChunkCache[i].Item1 = new Mesh2(buffer);
                 ChunkCache[i].Item2 = -1;
-                ChunkCache[i].Item1 = new Mesh2[6];
-                for (int j = 0; j < 6; j++)
-                    ChunkCache[i].Item1[j] = new Mesh2(buffer);
             }
-            queue = new RenderQueue2(6 * blk_cnt, !false);
+            queue = new RenderQueue2(blk_cnt, !false);
 
-            drawParams = new ShaderStorageBuffer(blk_cnt * 8 * sizeof(uint), false);
+            drawParams = new ShaderStorageBuffer(blk_cnt * 4 * sizeof(uint), false);
 
             voxelShader = new ShaderProgram(ShaderSource.LoadV("Shaders/Deferred/Voxel/vertex.glsl", 8, 0, 0),
                                             ShaderSource.Load(ShaderType.FragmentShader, "Shaders/Deferred/Voxel/fragment.glsl"));
@@ -94,47 +95,18 @@ namespace KokoroVR.Graphics.Voxel
 
                 unsafe
                 {
-                    for (int i = 0; i < 6; i++)
-                    {
-                        var b = c.faces[i].ToArray();
-                        fixed (byte* b_p = b)
-                            ChunkCache[mesh_idx].Item1[i].Reallocate(b_p, null, null, b.Length / 4);
-                    }
+                    var b = c.faces.ToArray();
+                    fixed (byte* b_p = b)
+                        ChunkCache[mesh_idx].Item1.Reallocate(b_p, null, null, 6, b.Length / 4);
 
                     var dP_p = (float*)drawParams.Update();
-                    for (int i = 0; i < 6; i++)
-                        for (int j = 0; j < ChunkCache[mesh_idx].Item1[i].AllocIndices.Length; j++)
-                        {
-                            int idx = ChunkCache[mesh_idx].Item1[i].AllocIndices[j];
-                            dP_p[idx * 8 + 0] = offset.X - ChunkConstants.Side * 0.5f;
-                            dP_p[idx * 8 + 1] = offset.Y - ChunkConstants.Side * 0.5f;
-                            dP_p[idx * 8 + 2] = offset.Z - ChunkConstants.Side * 0.5f;
-                            dP_p[idx * 8 + 4] = 0;
-                            dP_p[idx * 8 + 5] = 0;
-                            dP_p[idx * 8 + 6] = 0;
-
-                            switch (i)
-                            {
-                                case 0:
-                                    dP_p[idx * 8 + 5] = -1;
-                                    break;
-                                case 1:
-                                    dP_p[idx * 8 + 5] = 1;
-                                    break;
-                                case 2:
-                                    dP_p[idx * 8 + 4] = -1;
-                                    break;
-                                case 3:
-                                    dP_p[idx * 8 + 4] = 1;
-                                    break;
-                                case 4:
-                                    dP_p[idx * 8 + 6] = -1;
-                                    break;
-                                case 5:
-                                    dP_p[idx * 8 + 6] = 1;
-                                    break;
-                            }
-                        }
+                    for (int j = 0; j < ChunkCache[mesh_idx].Item1.AllocIndices.Length; j++)
+                    {
+                        int idx = ChunkCache[mesh_idx].Item1.AllocIndices[j];
+                        dP_p[idx * 4 + 0] = offset.X - ChunkConstants.Side * 0.5f;
+                        dP_p[idx * 4 + 1] = offset.Y - ChunkConstants.Side * 0.5f;
+                        dP_p[idx * 4 + 2] = offset.Z - ChunkConstants.Side * 0.5f;
+                    }
                     drawParams.UpdateDone();
                 }
                 c.update_pending = false;
@@ -146,47 +118,18 @@ namespace KokoroVR.Graphics.Voxel
                 {
                     unsafe
                     {
-                        for (int i = 0; i < 6; i++)
-                        {
-                            var b = c.faces[i].ToArray();
-                            fixed (byte* b_p = b)
-                                ChunkCache[mesh_idx].Item1[i].Reallocate(b_p, null, null, b.Length / 4);
-                        }
+                        var b = c.faces.ToArray();
+                        fixed (byte* b_p = b)
+                            ChunkCache[mesh_idx].Item1.Reallocate(b_p, null, null, 6, b.Length / 4);
 
                         var dP_p = (float*)drawParams.Update();
-                        for (int i = 0; i < 6; i++)
-                            for (int j = 0; j < ChunkCache[mesh_idx].Item1[i].AllocIndices.Length; j++)
-                            {
-                                int idx = ChunkCache[mesh_idx].Item1[i].AllocIndices[j];
-                                dP_p[idx * 8 + 0] = offset.X - ChunkConstants.Side * 0.5f;
-                                dP_p[idx * 8 + 1] = offset.Y - ChunkConstants.Side * 0.5f;
-                                dP_p[idx * 8 + 2] = offset.Z - ChunkConstants.Side * 0.5f;
-                                dP_p[idx * 8 + 4] = 0;
-                                dP_p[idx * 8 + 5] = 0;
-                                dP_p[idx * 8 + 6] = 0;
-
-                                switch (i)
-                                {
-                                    case 0:
-                                        dP_p[idx * 8 + 5] = -1;
-                                        break;
-                                    case 1:
-                                        dP_p[idx * 8 + 5] = 1;
-                                        break;
-                                    case 2:
-                                        dP_p[idx * 8 + 4] = -1;
-                                        break;
-                                    case 3:
-                                        dP_p[idx * 8 + 4] = 1;
-                                        break;
-                                    case 4:
-                                        dP_p[idx * 8 + 6] = -1;
-                                        break;
-                                    case 5:
-                                        dP_p[idx * 8 + 6] = 1;
-                                        break;
-                                }
-                            }
+                        for (int j = 0; j < ChunkCache[mesh_idx].Item1.AllocIndices.Length; j++)
+                        {
+                            int idx = ChunkCache[mesh_idx].Item1.AllocIndices[j];
+                            dP_p[idx * 4 + 0] = offset.X - ChunkConstants.Side * 0.5f;
+                            dP_p[idx * 4 + 1] = offset.Y - ChunkConstants.Side * 0.5f;
+                            dP_p[idx * 4 + 2] = offset.Z - ChunkConstants.Side * 0.5f;
+                        }
                         drawParams.UpdateDone();
                     }
                     c.update_pending = false;
@@ -203,37 +146,7 @@ namespace KokoroVR.Graphics.Voxel
                     {
                         BaseInstance = 0,
                         InstanceCount = 1,
-                        Mesh = ChunkCache[mesh_idx].Item1[0]
-                    },
-                    new RenderQueue2.MeshData()
-                    {
-                        BaseInstance = 0,
-                        InstanceCount = 1,
-                        Mesh = ChunkCache[mesh_idx].Item1[1]
-                    },
-                    new RenderQueue2.MeshData()
-                    {
-                        BaseInstance = 0,
-                        InstanceCount = 1,
-                        Mesh = ChunkCache[mesh_idx].Item1[2]
-                    },
-                    new RenderQueue2.MeshData()
-                    {
-                        BaseInstance = 0,
-                        InstanceCount = 1,
-                        Mesh = ChunkCache[mesh_idx].Item1[3]
-                    },
-                    new RenderQueue2.MeshData()
-                    {
-                        BaseInstance = 0,
-                        InstanceCount = 1,
-                        Mesh = ChunkCache[mesh_idx].Item1[4]
-                    },
-                    new RenderQueue2.MeshData()
-                    {
-                        BaseInstance = 0,
-                        InstanceCount = 1,
-                        Mesh = ChunkCache[mesh_idx].Item1[5]
+                        Mesh = ChunkCache[mesh_idx].Item1
                     },
                 }
             });
@@ -248,12 +161,14 @@ namespace KokoroVR.Graphics.Voxel
         }
 
         float rot_y = 0;
-
+        Vector3 origin = Vector3.Zero;
         public override void Render(double time, Framebuffer fbuf, StaticMeshRenderer staticMesh, DynamicMeshRenderer dynamicMesh, Matrix4 p, Matrix4 v, VREye eye)
         {
             cur_time = time;
             rot_y += 0.0005f;
-            voxelShader.Set("View", Matrix4.CreateRotationY(rot_y) * Matrix4.CreateRotationX(rot_y * 0.25f) * v);
+            origin = 40 * new Vector3((float)Math.Sin(rot_y) * (float)Math.Cos(0), (float)Math.Sin(rot_y) * (float)Math.Sin(0), (float)Math.Cos(rot_y));
+
+            voxelShader.Set("View", Matrix4.LookAt(origin, Vector3.Zero, Vector3.UnitY));
             voxelShader.Set("Proj", p);
             state = new RenderState(fbuf, voxelShader, new ShaderStorageBuffer[] { MaterialMap.voxelData, drawParams }, null, true, true, DepthFunc.Greater, InverseDepth.Far, InverseDepth.Near, BlendFactor.One, BlendFactor.Zero, Vector4.Zero, InverseDepth.ClearDepth, CullFaceMode.Back);
             queue.ClearAndBeginRecording();
@@ -267,10 +182,21 @@ namespace KokoroVR.Graphics.Voxel
                 parent = p;
             }
 
+            MeshGroup tmpGrp;
+            Mesh plane;
+
             public override void Render(double time, Framebuffer fbuf, StaticMeshRenderer staticMesh, DynamicMeshRenderer dynamicMesh, Matrix4 p, Matrix4 v, VREye eye)
             {
-                parent.queue.EndRecording();
-                parent.queue.Submit();
+                var f = new Frustum(Matrix4.LookAt(parent.origin, Vector3.Zero, Vector3.UnitY), p, parent.origin);
+                parent.queue.EndRecording(f);
+                //parent.queue.Submit();
+                tmpGrp = new MeshGroup(MeshGroupVertexFormat.X32F_Y32F_Z32F, 5000, 5000);
+                plane = Kokoro.Graphics.Prefabs.SphereFactory.Create(tmpGrp, 5);
+                Texture.Default.GetHandle(TextureSampler.Default).SetResidency(Residency.Resident);
+                staticMesh.DrawC(plane, Matrix4.Identity, Texture.Default.GetHandle(TextureSampler.Default));
+                plane = Kokoro.Graphics.Prefabs.QuadFactory.Create(tmpGrp, 1, 1, Vector3.UnitX, new Vector3(0, 2, 1));
+                Texture.Default.GetHandle(TextureSampler.Default).SetResidency(Residency.Resident);
+                staticMesh.DrawC(plane, Matrix4.Identity, Texture.Default.GetHandle(TextureSampler.Default));
             }
 
             public override void Update(double time, World parent)

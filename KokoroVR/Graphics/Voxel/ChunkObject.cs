@@ -58,6 +58,8 @@ namespace KokoroVR.Graphics.Voxel
 
                 //Do not submit draw if chunk itself isn't in the view frustum
                 //Use a compute shader to cull everything
+                //Generate vertices in full clusters, use extra bits in vertex data to encode normal
+                //Much smaller clusters for culling
                 streamer.RenderChunk(chunk, new Vector3(coord.Item1, coord.Item2, coord.Item3));
             }
             //TODO get view position, submit draws from nearest to farthest

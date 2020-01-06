@@ -59,54 +59,66 @@ namespace KokoroVR.Test
                         new VRAction("haptic_left", ActionHandleDirection.Output, ActionKind.Haptic))
                     });*/
 
-                float m_off = 64;
+                MeshGroup grp = new MeshGroup(MeshGroupVertexFormat.X32F_Y32F_Z32F, 40000, 40000);
+                /*
+                float m_off = 2;
                 float m_off_h = m_off * 0.5f;
 
-                MeshGroup grp = new MeshGroup(MeshGroupVertexFormat.X32F_Y32F_Z32F, 40000, 40000);
+                var f = new Frustum(Matrix4.LookAt(-Vector3.UnitX, Vector3.Zero, Vector3.UnitY), Engine.Projection[0], -Vector3.UnitX);
+                var pos = new Vector3(-2, 0, 0);
+                bool res = f.IsVisible(new Vector4(pos, 0.5f));
+
                 w.LightManager.AddLight(new Graphics.Lights.PointLight()
                 {
                     Color = Vector3.UnitX,
-                    Intensity = 6400.0f,
+                    Intensity = 64000.0f,
                     Position = Vector3.UnitX * -m_off + Vector3.UnitZ * m_off_h + Vector3.UnitY * m_off_h
                 });
 
                 w.LightManager.AddLight(new Graphics.Lights.PointLight()
                 {
                     Color = Vector3.UnitY,
-                    Intensity = 6400.0f,
+                    Intensity = 64000.0f,
                     Position = Vector3.UnitY * -m_off + Vector3.UnitX * m_off_h + Vector3.UnitZ * m_off_h
                 });
 
                 w.LightManager.AddLight(new Graphics.Lights.PointLight()
                 {
                     Color = Vector3.UnitZ,
-                    Intensity = 6400.0f,
+                    Intensity = 64000.0f,
                     Position = Vector3.UnitZ * -m_off + Vector3.UnitX * m_off_h + Vector3.UnitY * m_off_h
                 });
-
+                */
+                w.LightManager.AddLight(new Graphics.Lights.DirectionalLight()
+                {
+                    Color = Vector3.UnitZ,
+                    Intensity = 64.0f,
+                    Direction = new Vector3(0, -1, 0)
+                });
+                /*
                 ChunkStreamer chunkStreamer = new ChunkStreamer(64);
                 var mat_id = chunkStreamer.MaterialMap.Register(Vector3.One, Vector3.One * 0.5f, 1f);
                 ChunkObject obj = new ChunkObject(chunkStreamer);
 
                 Random rng = new Random(0);
                 var updates = new List<(int, int, int, byte)>();
-                for (int x = 0; x < ChunkConstants.Side; x++)
-                    for (int y = 0; y < ChunkConstants.Side; y++)
-                        for (int z = 0; z < ChunkConstants.Side; z++)
+                for (int x = 0; x < ChunkConstants.Side; x+=2)
+                    for (int y = 0; y < ChunkConstants.Side; y+=2)
+                        for (int z = 0; z < ChunkConstants.Side; z+=2)
                         {
-                            if (x == 11 && y == 0 && z == 11) continue;
-                            if (x == 12 && y == 0 && z == 12) continue;
+                            //if (x == 11 && y == 0 && z == 11) continue;
+                            //if (x == 12 && y == 0 && z == 12) continue;
                             if (rng.NextDouble() > 0f) updates.Add((x, y, z, mat_id));
                         }
 
                 Console.WriteLine(updates.Count);
                 obj.BulkSet(updates.ToArray());
+                */
+                w.AddRenderable(new StaticRenderable(Kokoro.Graphics.Prefabs.SphereFactory.Create(grp)));
+                //w.AddRenderable(chunkStreamer);
+                //w.AddRenderable(obj);
 
-                //w.AddRenderable(new StaticRenderable(Kokoro.Graphics.Prefabs.SphereFactory.Create(grp)));
-                w.AddRenderable(chunkStreamer);
-                w.AddRenderable(obj);
-
-                w.AddRenderable(chunkStreamer.Ender);
+                //w.AddRenderable(chunkStreamer.Ender);
                 //w.AddInterpreter(new Input.DefaultControlInterpreter("/actions/vrworld/in/hand_left", "/actions/vrworld/in/hand_right", grp));
             };
             Engine.AddWorld(w);

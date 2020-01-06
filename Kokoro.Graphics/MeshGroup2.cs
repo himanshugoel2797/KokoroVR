@@ -124,21 +124,21 @@ namespace Kokoro.Graphics
             }
         }
 
-        public unsafe void Update(int block_idx, byte* verts, byte* props, byte* indices, int len)
+        public unsafe void Update(int block_idx, byte* verts, byte* props, byte* indices, int vert_used_bits, int len)
         {
             if (verts != null)
             {
                 var v_p = vertSSBO.Update();
 
-                Vector3 min = new Vector3(float.MinValue), max = new Vector3(float.MaxValue);
+                Vector3 min = new Vector3(float.MaxValue), max = new Vector3(float.MinValue);
                 for (int i = 0; i < len; i++)
                 {
                     if (vertW == 8)
                     {
                         float x, y, z;
-                        x = (sbyte)verts[i * 4 + 0];
-                        y = (sbyte)verts[i * 4 + 1];
-                        z = (sbyte)verts[i * 4 + 2];
+                        x = (byte)verts[i * 4 + 0] & ((1 << vert_used_bits) - 1);
+                        y = (byte)verts[i * 4 + 1] & ((1 << vert_used_bits) - 1);
+                        z = (byte)verts[i * 4 + 2] & ((1 << vert_used_bits) - 1);
 
                         var v = new Vector3(x, y, z);
                         min = Vector3.ComponentMin(min, v);
@@ -147,9 +147,9 @@ namespace Kokoro.Graphics
                     else if (vertW == 16)
                     {
                         float x, y, z;
-                        x = ((short*)verts)[i * 4 + 0];
-                        y = ((short*)verts)[i * 4 + 1];
-                        z = ((short*)verts)[i * 4 + 2];
+                        x = ((short*)verts)[i * 4 + 0] & ((1 << vert_used_bits) - 1);
+                        y = ((short*)verts)[i * 4 + 1] & ((1 << vert_used_bits) - 1);
+                        z = ((short*)verts)[i * 4 + 2] & ((1 << vert_used_bits) - 1);
 
                         var v = new Vector3(x, y, z);
                         min = Vector3.ComponentMin(min, v);

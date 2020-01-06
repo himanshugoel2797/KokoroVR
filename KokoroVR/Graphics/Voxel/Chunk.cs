@@ -28,7 +28,27 @@ namespace KokoroVR.Graphics.Voxel
         internal int id;
         internal ChunkStreamer streamer;
         internal bool dirty, update_pending;
-        internal List<byte>[] faces;
+        internal List<byte> faces;
+
+        struct Primitive
+        {
+            public byte[] data;
+            public Vector3[] pos;
+            public Vector3 center;
+
+            public Primitive(byte[] d, int off)
+            {
+                data = new byte[4 * 3];
+                Buffer.BlockCopy(d, off, data, 0, 4 * 3);
+
+                pos = new Vector3[3];
+                pos[0] = new Vector3(data[0 * 4 + 0] & 0x1f, data[0 * 4 + 1] & 0x1f, data[0 * 4 + 2] & 0x1f);
+                pos[1] = new Vector3(data[1 * 4 + 0] & 0x1f, data[1 * 4 + 1] & 0x1f, data[1 * 4 + 2] & 0x1f);
+                pos[2] = new Vector3(data[2 * 4 + 0] & 0x1f, data[2 * 4 + 1] & 0x1f, data[2 * 4 + 2] & 0x1f);
+
+                center = (pos[0] + pos[1] + pos[2]) * 1.0f / 3.0f;
+            }
+        }
 
         public int VoxelCount { get; private set; }
 
@@ -44,16 +64,20 @@ namespace KokoroVR.Graphics.Voxel
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static int GetIndex(int x, int y, int z)
         {
-            return x * (ChunkConstants.Side * ChunkConstants.Side) + y * ChunkConstants.Side + z;
+            return (x & (ChunkConstants.Side - 1)) << (2 * ChunkConstants.SideLog) | (y & (ChunkConstants.Side - 1)) << ChunkConstants.SideLog | (z & (ChunkConstants.Side - 1));
         }
 
         public void RebuildFullMesh()
         {
             VoxelCount = 0;
 
-            faces = new List<byte>[6];
-            for (int i = 0; i < faces.Length; i++) faces[i] = new List<byte>();
-
+            faces = new List<byte>();
+            //0 - 0, -1, 0
+            //1 - 0, 1, 0
+            //2 - -1, 0, 0
+            //3 - 1, 0, 0
+            //4 - 0, 0, -1
+            //5 - 0, 0, 1
             for (byte x = 0; x <= ChunkConstants.Side - 1; x++)
                 for (byte y = 0; y <= ChunkConstants.Side - 1; y++)
                     for (byte z = 0; z <= ChunkConstants.Side - 1; z++)
@@ -75,92 +99,180 @@ namespace KokoroVR.Graphics.Voxel
 
                         //emit vertices for each faces based on this data
                         if (top == 0)
-                            faces[0].AddRange(new byte[]
+                        {
+                            //0
+                            var tmp = new byte[]
                                 {
-                                    x, y, z, cur,
-                                    x, y, (byte)(z + 1), cur,
-                                    (byte)(x + 1), y, (byte)(z + 1), cur,
                                     (byte)(x + 1), y, z, cur,
-                                });
+                                    x, y, (byte)(z + 1), cur,
+                                    x, y, z, cur,
+                                    (byte)(x + 1), y, z, cur,
+                                    (byte)(x + 1), y, (byte)(z + 1), cur,
+                                    x, y, (byte)(z + 1), cur,
+                                };
+                            int idx = 1;
+                            int idy = 0;
+                            int idz = 1;
+                            for (int i = 0; i < 6; i++)
+                            {
+                                tmp[i * 4 + 0] |= (byte)((idx & 3) << 6);
+                                tmp[i * 4 + 1] |= (byte)((idy & 3) << 6);
+                                tmp[i * 4 + 2] |= (byte)((idz & 3) << 6);
+                            }
+                            faces.AddRange(tmp);
+                        }
 
                         if (btm == 0)
-                            faces[1].AddRange(new byte[]
+                        {
+                            //1
+                            var tmp = new byte[]
                             {
                                 x, (byte)(y + 1), z, cur,
                                 x, (byte)(y + 1), (byte)(z + 1), cur,
+                                (byte)(x + 1), (byte)(y + 1), z, cur,
+                                x, (byte)(y + 1), (byte)(z + 1), cur,
                                 (byte)(x + 1), (byte)(y + 1), (byte)(z + 1), cur,
                                 (byte)(x + 1), (byte)(y + 1), z, cur,
-                            });
+                            };
+                            int idx = 1;
+                            int idy = 2;
+                            int idz = 1;
+                            for (int i = 0; i < 6; i++)
+                            {
+                                tmp[i * 4 + 0] |= (byte)((idx & 3) << 6);
+                                tmp[i * 4 + 1] |= (byte)((idy & 3) << 6);
+                                tmp[i * 4 + 2] |= (byte)((idz & 3) << 6);
+                            }
+                            faces.AddRange(tmp);
+                        }
 
                         if (lft == 0)
-                            faces[2].AddRange(new byte[]
+                        {
+                            //2
+                            var tmp = new byte[]
                             {
                                 x, y, z, cur,
                                 x, y, (byte)(z + 1), cur,
+                                x, (byte)(y + 1), z, cur,
+                                x, y, (byte)(z + 1), cur,
                                 x, (byte)(y + 1), (byte)(z + 1), cur,
                                 x, (byte)(y + 1), z, cur,
-                            });
+                            };
+                            int idx = 0;
+                            int idy = 1;
+                            int idz = 1;
+                            for (int i = 0; i < 6; i++)
+                            {
+                                tmp[i * 4 + 0] |= (byte)((idx & 3) << 6);
+                                tmp[i * 4 + 1] |= (byte)((idy & 3) << 6);
+                                tmp[i * 4 + 2] |= (byte)((idz & 3) << 6);
+                            }
+                            faces.AddRange(tmp);
+                        }
 
                         if (rgt == 0)
-                            faces[3].AddRange(new byte[]
+                        {
+                            //3
+                            var tmp = new byte[]
                             {
-                                (byte)(x + 1), y, z, cur,
-                                (byte)(x + 1), y, (byte)(z + 1), cur,
-                                (byte)(x + 1), (byte)(y + 1), (byte)(z + 1), cur,
                                 (byte)(x + 1), (byte)(y + 1), z, cur,
-                            });
+                                (byte)(x + 1), y, (byte)(z + 1), cur,
+                                (byte)(x + 1), y, z, cur,
+                                (byte)(x + 1), (byte)(y + 1), z, cur,
+                                (byte)(x + 1), (byte)(y + 1), (byte)(z + 1), cur,
+                                (byte)(x + 1), y, (byte)(z + 1), cur,
+                            };
+                            int idx = 2;
+                            int idy = 1;
+                            int idz = 1;
+                            for (int i = 0; i < 6; i++)
+                            {
+                                tmp[i * 4 + 0] |= (byte)((idx & 3) << 6);
+                                tmp[i * 4 + 1] |= (byte)((idy & 3) << 6);
+                                tmp[i * 4 + 2] |= (byte)((idz & 3) << 6);
+                            }
+                            faces.AddRange(tmp);
+                        }
 
                         if (frt == 0)
-                            faces[4].AddRange(new byte[]
+                        {
+                            //4
+                            var tmp = new byte[]
                             {
                                 x, y, z, cur,
                                 x, (byte)(y + 1), z, cur,
+                                (byte)(x + 1), y, z, cur,
+                                x, (byte)(y + 1), z, cur,
                                 (byte)(x + 1), (byte)(y + 1), z, cur,
                                 (byte)(x + 1), y, z, cur,
-                            });
+                            };
+                            int idx = 1;
+                            int idy = 1;
+                            int idz = 0;
+                            for (int i = 0; i < 6; i++)
+                            {
+                                tmp[i * 4 + 0] |= (byte)((idx & 3) << 6);
+                                tmp[i * 4 + 1] |= (byte)((idy & 3) << 6);
+                                tmp[i * 4 + 2] |= (byte)((idz & 3) << 6);
+                            }
+                            faces.AddRange(tmp);
+                        }
 
                         if (bck == 0)
-                            faces[5].AddRange(new byte[]
+                        {
+                            //5
+                            var tmp = new byte[]
                             {
-                                x, y, (byte)(z + 1), cur,
-                                x, (byte)(y + 1), (byte)(z + 1), cur,
-                                (byte)(x + 1), (byte)(y + 1), (byte)(z + 1), cur,
                                 (byte)(x + 1), y, (byte)(z + 1), cur,
-                            });
+                                x, (byte)(y + 1), (byte)(z + 1), cur,
+                                x, y, (byte)(z + 1), cur,
+                                (byte)(x + 1), y, (byte)(z + 1), cur,
+                                (byte)(x + 1), (byte)(y + 1), (byte)(z + 1), cur,
+                                x, (byte)(y + 1), (byte)(z + 1), cur,
+                            };
+                            int idx = 1;
+                            int idy = 1;
+                            int idz = 2;
+                            for (int i = 0; i < 6; i++)
+                            {
+                                tmp[i * 4 + 0] |= (byte)((idx & 3) << 6);
+                                tmp[i * 4 + 1] |= (byte)((idy & 3) << 6);
+                                tmp[i * 4 + 2] |= (byte)((idz & 3) << 6);
+                            }
+                            faces.AddRange(tmp);
+                        }
 
                         VoxelCount++;
                     }
 
-            //Normals:
-            //0 - 0, -1, 0
-            //1 - 0, 1, 0
-            //2 - -1, 0, 0
-            //3 - 1, 0, 0
-            //4 - 0, 0, -1
-            //5 - 0, 0, 1
-            var norm_set = new Vector3[]
-            {
-                Vector3.UnitY * -1,
-                Vector3.UnitY * 1,
-                Vector3.UnitX * -1,
-                Vector3.UnitX * 1,
-                Vector3.UnitZ * -1,
-                Vector3.UnitZ * 1,
-            };
 
-            //generate a graph from each side, including material ids
-            //drop vertices that have 4 connections
-            //join the vertices that have 3 connections
-            //generate triangles from these polygons
-            var opts = new MeshOptimizer[6];
-            for (int i = 0; i < opts.Length; i++)
+            if (faces.Count > 0)
             {
-                if (faces[i].Count > 0)
+                //reorder triangles to be clustered together
+                var face_arr = faces.ToArray();
+                var face_sorted = new List<byte>();
+                var prims = new List<Primitive>();
+                for (int i = 0; i < faces.Count; i += 4 * 3)
+                    prims.Add(new Primitive(face_arr, i));
+
+                do
                 {
-                    opts[i] = new MeshOptimizer(norm_set[i]);
-                    opts[i].ReduceQuads(faces[i].ToArray());
-                }
+                    //Choose the first primitive
+                    var ref_prim = prims[0];
+                    prims.RemoveAt(0);
+                    prims = prims.OrderBy(a => (ref_prim.center - a.center).LengthSquared).ToList();
+                    var ordered = prims.ToArray();
+
+                    face_sorted.AddRange(ref_prim.data);
+                    for(int i = 0; i < Math.Min(ChunkConstants.VoxeletTris - 1, ordered.Length); i++)
+                    {
+                        face_sorted.AddRange(ordered[i].data);
+                        prims.Remove(ordered[i]);
+                    }
+                } while (prims.Count > 0);
+                faces = face_sorted;
             }
+
 
             dirty = false;
             update_pending = true;

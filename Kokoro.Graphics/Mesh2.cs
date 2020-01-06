@@ -18,15 +18,15 @@ namespace Kokoro.Graphics
 
         public Mesh2(MeshGroup2 grp) { this.grp = grp; }
 
-        public unsafe void Reallocate(byte* verts, byte* props, byte* indices, int len)
+        public unsafe void Reallocate(byte* verts, byte* props, byte* indices, int vert_used_bits, int len)
         {
             Free();
             allocs = grp.Allocate(len);
             net_len = len;
-            Update(verts, props, indices, len);
+            Update(verts, props, indices, vert_used_bits, len);
         }
 
-        public unsafe void Update(byte* verts, byte* props, byte* indices, int len)
+        public unsafe void Update(byte* verts, byte* props, byte* indices, int vert_used_bits, int len)
         {
             if (allocs == null)
                 allocs = grp.Allocate(len);
@@ -38,7 +38,7 @@ namespace Kokoro.Graphics
             var l = len;
             for (int i = 0; i < allocs.Length; i++)
             {
-                grp.Update(allocs[i], v_p, p_p, i_p, System.Math.Min(l, grp.BlockSize));
+                grp.Update(allocs[i], v_p, p_p, i_p, vert_used_bits, System.Math.Min(l, grp.BlockSize));
 
                 v_p += grp.BlockSize * 4 * grp.VertexBitWidth / 8;
                 if (p_p != null) p_p += grp.BlockSize * 4 * grp.PropertyBitWidth / 8;

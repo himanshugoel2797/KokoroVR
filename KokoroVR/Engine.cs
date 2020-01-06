@@ -53,7 +53,7 @@ namespace KokoroVR
             CurrentPlayer = new LocalPlayer(HMDClient);
 #else
             CurrentPlayer = new LocalPlayer();
-            CurrentPlayer.Position = new Vector3(0.577f, 0.577f, 0.577f) * 40;
+            CurrentPlayer.Position = Vector3.UnitX * -1; //new Vector3(0.577f, 0.577f, 0.577f) * 20;
             Projection = new Matrix4[]
             {
                 Matrix4.CreatePerspectiveFieldOfView(MathHelper.DegreesToRadians(90), 16f/9f, 0.001f)

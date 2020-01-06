@@ -51,8 +51,9 @@ namespace Kokoro.Math
         /// <returns>The perpendicular distance from the point to the plane</returns>
         public static float PerpendicularDistance(ref Vector3 point, ref Plane plane)
         {
+
             // dist = (ax + by + cz + d) / sqrt(a*a + b*b + c*c)
-            return (float)System.Math.Abs((plane.Normal.X * point.X + plane.Normal.Y * point.Y + plane.Normal.Z * point.Z)
+            return (float)System.Math.Abs((plane.Normal.X * point.X + plane.Normal.Y * point.Y + plane.Normal.Z * point.Z + plane.D)
                                     / System.Math.Sqrt(plane.Normal.X * plane.Normal.X + plane.Normal.Y * plane.Normal.Y + plane.Normal.Z * plane.Normal.Z));
         }
     }
@@ -88,7 +89,7 @@ namespace Kokoro.Math
 
             Vector3 cross = Vector3.Cross(ab, ac);
             Normal = Vector3.Normalize(cross);
-            D = -(Vector3.Dot(cross, a));
+            D = -(Vector3.Dot(Normal, a));
         }
 
         public Plane(float a, float b, float c, float d)
