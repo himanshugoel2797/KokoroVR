@@ -43,12 +43,13 @@ namespace KokoroVR.Graphics
         List<csn_struct> csn_objs;
         List<cs_struct> cs_objs;
         List<c_struct> c_objs;
+        IRenderer renderer;
 
         const int csn_size = (3 * 8);
         const int cs_size = (2 * 8);
         const int c_size = (1 * 8);
 
-        public StaticMeshRenderer(int maxDraws, Framebuffer[] dest_fbufs)
+        public StaticMeshRenderer(int maxDraws, IRenderer renderer)
         {
             csn_objs = new List<csn_struct>();
             cs_objs = new List<cs_struct>();
@@ -62,13 +63,25 @@ namespace KokoroVR.Graphics
             cs_w_ssbo = new ShaderStorageBuffer(maxDraws * sizeof(float) * 16, true);
             c_w_ssbo = new ShaderStorageBuffer(maxDraws * sizeof(float) * 16, true);
 
-            _target_cnt = dest_fbufs.Length;
+            this.renderer = renderer;
+            _target_cnt = renderer.Framebuffers.Length;
             csn_state = new RenderState[_target_cnt];
             cs_state = new RenderState[_target_cnt];
             c_state = new RenderState[_target_cnt];
             csn_shader = new ShaderProgram[_target_cnt];
             cs_shader = new ShaderProgram[_target_cnt];
             c_shader = new ShaderProgram[_target_cnt];
+
+            _queue = new RenderQueue(maxDraws * 3, true);
+            _queue.ClearFramebufferBeforeSubmit = false;
+
+            Resize(renderer.Framebuffers);
+
+            Engine.WindowResized += (a, b) => Resize(renderer.Framebuffers);
+        }
+
+        private void Resize(Framebuffer[] dest_fbufs)
+        {
             for (int i = 0; i < _target_cnt; i++)
             {
                 csn_shader[i] = new ShaderProgram(ShaderSource.Load(ShaderType.VertexShader, "Shaders/Deferred/Mesh/CSN/vertex.glsl"),
@@ -84,9 +97,6 @@ namespace KokoroVR.Graphics
                 cs_state[i] = new RenderState(dest_fbufs[i], cs_shader[i], new ShaderStorageBuffer[] { cs_ssbo, cs_w_ssbo }, null, true, true, DepthFunc.Greater, InverseDepth.Far, InverseDepth.Near, BlendFactor.One, BlendFactor.Zero, Vector4.Zero, InverseDepth.ClearDepth, CullFaceMode.Back);
                 c_state[i] = new RenderState(dest_fbufs[i], c_shader[i], new ShaderStorageBuffer[] { c_ssbo, c_w_ssbo }, null, true, true, DepthFunc.Greater, InverseDepth.Far, InverseDepth.Near, BlendFactor.One, BlendFactor.Zero, Vector4.Zero, InverseDepth.ClearDepth, CullFaceMode.Back);
             }
-
-            _queue = new RenderQueue(maxDraws * 3, true);
-            _queue.ClearFramebufferBeforeSubmit = false;
         }
 
         public void SetMatrices(Matrix4[] projs, Matrix4[] views)

@@ -9,12 +9,19 @@ namespace Kokoro.Math
     public class Frustum
     {
         public Plane lft, rgt, top, btm, near, far;
+        public Matrix4 iVP, v, p;
         BoundingFrustum bf;
         public Frustum(Matrix4 v, Matrix4 p, Vector3 eyePos)
         {
             //inverse(v * p) applied to clip space vectors is then used to extract frustum planes
             //determine which side of each plane the sphere is on
-            var iVP = Matrix4.Invert(v * p);
+            this.v = v;
+            this.p = p;
+            iVP = Matrix4.Invert(v * p);
+            //var iV = Matrix4.Invert(v);
+            //var iPos = Vector4.Transform(new Vector4(0, 0, 0, 1), iV);
+            //iPos /= iPos.W;
+            //eyePos = Vector3.Zero;
 
             var ntl = Vector4.Transform(new Vector4(-1, 1, 0.1f, 1), iVP);
             var ntr = Vector4.Transform(new Vector4(1, 1, 0.1f, 1), iVP);
@@ -26,6 +33,8 @@ namespace Kokoro.Math
             nbl /= nbl.W;
             nbr /= nbr.W;
 
+
+
             //Compute planes
             near = new Plane(nbl.Xyz, nbr.Xyz, ntr.Xyz);
             lft = new Plane(eyePos, ntl.Xyz, nbl.Xyz);
@@ -33,10 +42,8 @@ namespace Kokoro.Math
             top = new Plane(ntl.Xyz, eyePos, ntr.Xyz);
             btm = new Plane(eyePos, nbl.Xyz, nbr.Xyz);
 
-
-            bf = new BoundingFrustum(v * p);
-            var corns = bf.GetCorners();
-
+            //Console.WriteLine(System.Math.Acos(Vector3.Dot(near.Normal, btm.Normal)) * 180 / 3.14159f);
+            //Console.WriteLine(btm.Normal);
         }
 
         public bool IsVisible(Vector4 Sphere)
@@ -51,19 +58,21 @@ namespace Kokoro.Math
 
             if (lft_inside && rgt_inside && top_inside && btm_inside && near_inside) return true;
             */
-            float lft_d = -PlaneHelper.ClassifyPoint(ref sphere_c, ref lft);
-            float rgt_d = -PlaneHelper.ClassifyPoint(ref sphere_c, ref rgt);
-            float top_d = -PlaneHelper.ClassifyPoint(ref sphere_c, ref top);
-            float btm_d = -PlaneHelper.ClassifyPoint(ref sphere_c, ref btm);
-            float near_d = -PlaneHelper.ClassifyPoint(ref sphere_c, ref near);
+            float lft_d = PlaneHelper.ClassifyPoint(ref sphere_c, ref lft);
+            float rgt_d = PlaneHelper.ClassifyPoint(ref sphere_c, ref rgt);
+            float top_d = PlaneHelper.ClassifyPoint(ref sphere_c, ref top);
+            float btm_d = PlaneHelper.ClassifyPoint(ref sphere_c, ref btm);
+            float near_d = PlaneHelper.ClassifyPoint(ref sphere_c, ref near);
 
-            if (lft_d < -Sphere.W) return false;
-            if (rgt_d < -Sphere.W) return false;
-            if (top_d < -Sphere.W) return false;
-            if (btm_d < -Sphere.W) return false;
-            if (near_d < -Sphere.W) return false;
+            float limit = 0;// Sphere.W;
 
-            return true;
+            if (lft_d < limit) return !false;
+            if (rgt_d < limit) return !false;
+            if (top_d < limit) return !false;
+            if (btm_d < limit) return !false;
+            if (near_d < limit) return !false;
+
+            return !true;
         }
     }
 }

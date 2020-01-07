@@ -17,6 +17,7 @@ namespace Kokoro.Graphics
 
         internal Vector4[] blk_bounds;
 
+        public Vector4[] Bounds { get => blk_bounds; }
         public int BlockSize { get => blk_sz; }
         public int VertexBitWidth { get => vertW; }
         public int PropertyBitWidth { get => propW; }
@@ -124,7 +125,7 @@ namespace Kokoro.Graphics
             }
         }
 
-        public unsafe void Update(int block_idx, byte* verts, byte* props, byte* indices, int vert_used_bits, int len)
+        public unsafe void Update(int block_idx, byte* verts, byte* props, byte* indices, int vert_used_bits, Vector3 offset, int len)
         {
             if (verts != null)
             {
@@ -140,7 +141,7 @@ namespace Kokoro.Graphics
                         y = (byte)verts[i * 4 + 1] & ((1 << vert_used_bits) - 1);
                         z = (byte)verts[i * 4 + 2] & ((1 << vert_used_bits) - 1);
 
-                        var v = new Vector3(x, y, z);
+                        var v = new Vector3(x, y, z) + offset;
                         min = Vector3.ComponentMin(min, v);
                         max = Vector3.ComponentMax(max, v);
                     }

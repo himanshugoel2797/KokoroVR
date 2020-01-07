@@ -79,6 +79,5 @@ void main(){
     vec3 diffuse = (1 - fresnel) * obj_albedo / PI;
 
     light = vec4((specular + diffuse) * l_color * l_inten * NdL , 1);
-    light = vec4(obj_wPos, 1);
     return;
 }

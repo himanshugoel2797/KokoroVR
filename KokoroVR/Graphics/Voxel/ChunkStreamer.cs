@@ -31,8 +31,8 @@ namespace KokoroVR.Graphics.Voxel
 
         public ChunkStreamer(int max_count)
         {
-            int blk_cnt = 8192 * 36 * 8;
-            buffer = new MeshGroup2(8, 0, 0, 3 /** 36 * 8*/, blk_cnt);
+            int blk_cnt = 8192 * 2;
+            buffer = new MeshGroup2(8, 0, 0, 3 * 36 * 32, blk_cnt);
             MaxChunkCount = max_count;
             ChunkList = new Chunk[max_count];
 
@@ -97,7 +97,7 @@ namespace KokoroVR.Graphics.Voxel
                 {
                     var b = c.faces.ToArray();
                     fixed (byte* b_p = b)
-                        ChunkCache[mesh_idx].Item1.Reallocate(b_p, null, null, 6, b.Length / 4);
+                        ChunkCache[mesh_idx].Item1.Reallocate(b_p, null, null, 6, Vector3.One * ChunkConstants.Side * -0.5f + offset, b.Length / 4);
 
                     var dP_p = (float*)drawParams.Update();
                     for (int j = 0; j < ChunkCache[mesh_idx].Item1.AllocIndices.Length; j++)
@@ -120,7 +120,7 @@ namespace KokoroVR.Graphics.Voxel
                     {
                         var b = c.faces.ToArray();
                         fixed (byte* b_p = b)
-                            ChunkCache[mesh_idx].Item1.Reallocate(b_p, null, null, 6, b.Length / 4);
+                            ChunkCache[mesh_idx].Item1.Reallocate(b_p, null, null, 6, Vector3.One * ChunkConstants.Side * -0.5f + offset, b.Length / 4);
 
                         var dP_p = (float*)drawParams.Update();
                         for (int j = 0; j < ChunkCache[mesh_idx].Item1.AllocIndices.Length; j++)
@@ -135,6 +135,13 @@ namespace KokoroVR.Graphics.Voxel
                     c.update_pending = false;
                 }
             }
+
+            //for (int i = 0; i < ChunkCache[mesh_idx].Item1.AllocIndices.Length; i++)
+            //{
+            //    var sphere = ChunkCache[mesh_idx].Item1.Parent.Bounds[ChunkCache[mesh_idx].Item1.AllocIndices[i]];
+            //    if (f.IsVisible(sphere))
+            //        Spheres.Add(sphere);
+            //}
 
             //Record this chunk's draw
             queue.RecordDraw(new RenderQueue2.DrawData()
@@ -162,11 +169,19 @@ namespace KokoroVR.Graphics.Voxel
 
         float rot_y = 0;
         Vector3 origin = Vector3.Zero;
+        List<Vector4> Spheres;
+        Frustum f;
         public override void Render(double time, Framebuffer fbuf, StaticMeshRenderer staticMesh, DynamicMeshRenderer dynamicMesh, Matrix4 p, Matrix4 v, VREye eye)
         {
+            Spheres = new List<Vector4>();
+
             cur_time = time;
-            rot_y += 0.0005f;
+            rot_y += 0.001f * (float)Math.PI;
             origin = 40 * new Vector3((float)Math.Sin(rot_y) * (float)Math.Cos(0), (float)Math.Sin(rot_y) * (float)Math.Sin(0), (float)Math.Cos(rot_y));
+
+            Engine.CurrentPlayer.Position = origin;
+            Engine.View[0] = Matrix4.LookAt(origin, Vector3.Zero, Vector3.UnitY);
+            f = new Frustum(Engine.View[0], p, origin);
 
             voxelShader.Set("View", Matrix4.LookAt(origin, Vector3.Zero, Vector3.UnitY));
             voxelShader.Set("Proj", p);
@@ -180,6 +195,8 @@ namespace KokoroVR.Graphics.Voxel
             internal ChunkStreamerEnd(ChunkStreamer p)
             {
                 parent = p;
+                tmpGrp = new MeshGroup(MeshGroupVertexFormat.X32F_Y32F_Z32F, 50000, 50000);
+                plane = Kokoro.Graphics.Prefabs.SphereFactory.Create(tmpGrp);
             }
 
             MeshGroup tmpGrp;
@@ -189,14 +206,14 @@ namespace KokoroVR.Graphics.Voxel
             {
                 var f = new Frustum(Matrix4.LookAt(parent.origin, Vector3.Zero, Vector3.UnitY), p, parent.origin);
                 parent.queue.EndRecording(f);
-                //parent.queue.Submit();
-                tmpGrp = new MeshGroup(MeshGroupVertexFormat.X32F_Y32F_Z32F, 5000, 5000);
-                plane = Kokoro.Graphics.Prefabs.SphereFactory.Create(tmpGrp, 5);
-                Texture.Default.GetHandle(TextureSampler.Default).SetResidency(Residency.Resident);
-                staticMesh.DrawC(plane, Matrix4.Identity, Texture.Default.GetHandle(TextureSampler.Default));
-                plane = Kokoro.Graphics.Prefabs.QuadFactory.Create(tmpGrp, 1, 1, Vector3.UnitX, new Vector3(0, 2, 1));
-                Texture.Default.GetHandle(TextureSampler.Default).SetResidency(Residency.Resident);
-                staticMesh.DrawC(plane, Matrix4.Identity, Texture.Default.GetHandle(TextureSampler.Default));
+                parent.queue.Submit();
+                //Texture.Default.GetHandle(TextureSampler.Default).SetResidency(Residency.Resident);
+
+                //for (int i = 0; i < parent.Spheres.Count; i++)
+                //    staticMesh.DrawC(plane, Matrix4.Scale(parent.Spheres[i].W) * Matrix4.CreateTranslation(parent.Spheres[i].Xyz), Texture.Default.GetHandle(TextureSampler.Default));
+                //plane = Kokoro.Graphics.Prefabs.QuadFactory.Create(tmpGrp, 1, 1, Vector3.UnitX, new Vector3(0, 2, 1));
+                //Texture.Default.GetHandle(TextureSampler.Default).SetResidency(Residency.Resident);
+                //staticMesh.DrawC(plane, Matrix4.Identity, Texture.Default.GetHandle(TextureSampler.Default));
             }
 
             public override void Update(double time, World parent)

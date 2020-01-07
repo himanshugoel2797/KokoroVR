@@ -88,7 +88,7 @@ namespace Kokoro.Graphics
             MaxAnisotropy = a;
 
             Default = new Texture();
-            var src = new System.Drawing.Bitmap(256, 256);
+            /*var src = new System.Drawing.Bitmap(256, 256);
             var g = System.Drawing.Graphics.FromImage(src);
             g.FillRectangle(System.Drawing.Brushes.BlueViolet, 0, 0, 256, 256);
             g.DrawRectangle(System.Drawing.Pens.Black, 0, 0, 256, 256);
@@ -98,8 +98,8 @@ namespace Kokoro.Graphics
 
             for (int x = 0; x < 256; x += 16)
                 g.DrawLine(System.Drawing.Pens.Red, 0, x, 256, x);
-
-            BitmapTextureSource s = new BitmapTextureSource(src, 1);
+                */
+            BitmapTextureSource s = new BitmapTextureSource(new System.Drawing.Bitmap(@"I:\Himanshu\Documents\uv_test.jpg"), 1);
             Default.SetData(s, 0);
 
         }

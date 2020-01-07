@@ -68,6 +68,7 @@
     <Compile Include="Engine.cs" />
     <Compile Include="Graphics\DeferredRenderer.cs" />
     <Compile Include="Graphics\DynamicMeshRenderer.cs" />
+    <Compile Include="Graphics\IRenderer.cs" />
     <Compile Include="Graphics\LightManager.cs" />
     <Compile Include="Graphics\Lights\DirectionalLight.cs" />
     <Compile Include="Graphics\Lights\PointLight.cs" />

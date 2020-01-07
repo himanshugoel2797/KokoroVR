@@ -24,9 +24,6 @@ namespace Kokoro.Graphics
             this.target = target;
 
             this.size = size;
-
-            Console.WriteLine(size);
-            Console.WriteLine("\t" + (IntPtr)size);
             GL.NamedBufferStorage(id, (IntPtr)size, IntPtr.Zero, BufferStorageFlags.MapPersistentBit | BufferStorageFlags.MapWriteBit | (read ? BufferStorageFlags.MapReadBit : 0));
             addr = GL.MapNamedBufferRange(id, IntPtr.Zero, (IntPtr)size, BufferAccessMask.MapPersistentBit | BufferAccessMask.MapFlushExplicitBit | BufferAccessMask.MapUnsynchronizedBit | BufferAccessMask.MapWriteBit | (read ? BufferAccessMask.MapReadBit : 0));
         }

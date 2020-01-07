@@ -160,7 +160,6 @@ namespace Kokoro.Graphics
                     if (aEnabled)
                     {
                         GL.Enable(EnableCap.Blend);
-                        GL.BlendFunc(BlendingFactor.SrcAlpha, BlendingFactor.OneMinusSrcAlpha);
                     }
                     else
                     {

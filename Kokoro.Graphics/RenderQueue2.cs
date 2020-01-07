@@ -150,6 +150,7 @@ namespace Kokoro.Graphics
                         }
                     }
 
+                    Console.WriteLine(idx);
                     //Move the data pointer forward
                     data_ui += (1 + 8 * MeshGroups[bkt].Item1.Count);
                 }

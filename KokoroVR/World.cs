@@ -109,7 +109,7 @@ namespace KokoroVR
                 Renderer = new DeferredRenderer(Engine.Framebuffers, LightManager);
 
             if (StaticMeshRenderer == null)
-                StaticMeshRenderer = new StaticMeshRenderer(1000, Renderer.Framebuffers);
+                StaticMeshRenderer = new StaticMeshRenderer(50000, Renderer);
 
             if (DynamicMeshRenderer == null)
                 DynamicMeshRenderer = new DynamicMeshRenderer();

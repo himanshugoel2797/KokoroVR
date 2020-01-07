@@ -8,7 +8,7 @@ using System.Threading.Tasks;
 
 namespace KokoroVR.Graphics
 {
-    public class DeferredRenderer
+    public class DeferredRenderer : IRenderer
     {
         private int _targetCount;
         private Framebuffer[] _destFramebuffers;
