@@ -1,3 +1,12 @@
+//VertexShader
+#version 460 core
+#extension GL_ARB_bindless_texture : require
+#extension GL_AMD_vertex_shader_viewport_index : require
+#extension GL_ARB_shader_draw_parameters : require
+ #define MAX_DRAWS_UBO 256
+ #define MAX_DRAWS_SSBO 1024
+ #define PI 3.14159265358979
+uniform int _blk_size;layout(rgba8i, bindless_image) restrict readonly uniform iimageBuffer vs_pos_d;
 // Output data ; will be interpolated for each fragment.
 out vec3 normal;
 out vec3 pos;
@@ -15,7 +24,8 @@ layout(std430, binding = 1) buffer BlockInfos_t {
 } BlockInfo;
 
 void main(){
-	FETCH_CODE_BLOCK
+	int _idx = int(gl_BaseInstance);ivec4 vs_pos = imageLoad(vs_pos_d, gl_VertexID);
+
 
 	vec3 n_unnorm = ((vs_pos.xyz & 192) - 64) / 64.0f;
 	vec3 vs_pos_e = (vs_pos.xyz & 63);

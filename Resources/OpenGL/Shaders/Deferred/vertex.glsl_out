@@ -1,0 +1,21 @@
+//VertexShader
+#version 460 core
+#extension GL_ARB_bindless_texture : require
+#extension GL_AMD_vertex_shader_viewport_index : require
+#extension GL_ARB_shader_draw_parameters : require
+ #define MAX_DRAWS_UBO 256
+ #define MAX_DRAWS_SSBO 1024
+ #define PI 3.14159265358979
+// Input vertex data, different for all executions of this shader.
+layout(location = 0) in vec3 position;
+layout(location = 1) in vec2 vertexUV;
+
+// Output data ; will be interpolated for each fragment.
+out vec2 UV;
+flat out int drawID;
+
+void main(){
+	gl_Position = vec4(position, 1);
+	UV = vertexUV;
+	drawID = gl_BaseInstance + gl_InstanceID;
+}

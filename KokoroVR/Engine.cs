@@ -6,6 +6,7 @@ using System.Text;
 using System.Threading.Tasks;
 using Kokoro.Common.StateMachine;
 using Kokoro.Math;
+using Kokoro.Graphics.Profiling;
 
 namespace KokoroVR
 {
@@ -20,8 +21,9 @@ namespace KokoroVR
         public static Framebuffer[] Framebuffers { get; private set; }
         public static Matrix4[] Projection { get; private set; }
         public static Matrix4[] View { get; private set; }
+        public static Frustum[] Frustums { get; private set; }
         public static LocalPlayer CurrentPlayer { get; private set; }
-
+        public static bool LogMetrics { get { return GenericMetrics.MetricsEnabled; } set { GenericMetrics.MetricsEnabled = value; } }
         public static Action<int, int> WindowResized { get { return GraphicsDevice.Resized; } set { GraphicsDevice.Resized = value; } }
 
         static Engine()
@@ -44,6 +46,11 @@ namespace KokoroVR
                 HMDClient.GetEyeView(VRHand.Left),
                 HMDClient.GetEyeView(VRHand.Right)
             };
+            Frustums = new Frustum[]
+            {
+                new Frustum(View[0], Projection[0], CurrentPlayer.Position)
+                new Frustum(View[1], Projection[1], CurrentPlayer.Position)
+            };
             Framebuffers = new Framebuffer[]
             {
                 HMDClient.LeftFramebuffer,
@@ -53,7 +60,7 @@ namespace KokoroVR
             CurrentPlayer = new LocalPlayer(HMDClient);
 #else
             CurrentPlayer = new LocalPlayer();
-            CurrentPlayer.Position = Vector3.UnitX * -1; //new Vector3(0.577f, 0.577f, 0.577f) * 20;
+            CurrentPlayer.Position = Vector3.UnitX * -300; //new Vector3(0.577f, 0.577f, 0.577f) * 20;
             Projection = new Matrix4[]
             {
                 Matrix4.CreatePerspectiveFieldOfView(MathHelper.DegreesToRadians(90), 16f/9f, 0.001f)
@@ -61,6 +68,10 @@ namespace KokoroVR
             View = new Matrix4[]
             {
                 Matrix4.LookAt(CurrentPlayer.Position, Vector3.Zero, Vector3.UnitY)
+            };
+            Frustums = new Frustum[]
+            {
+                new Frustum(Matrix4.LookAt(CurrentPlayer.Position, Vector3.Zero, Vector3.UnitY), Projection[0], CurrentPlayer.Position)
             };
             Framebuffers = new Framebuffer[]
             {

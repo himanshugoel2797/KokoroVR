@@ -38,7 +38,7 @@ namespace Kokoro.Graphics
                 if (propW != 0)
                     pull_decls += $"layout(rgba{propW}f, bindless_image) restrict readonly uniform imageBuffer vs_props;\n";
 
-                sub_code += "int _idx = int(gl_VertexID / _blk_size);";
+                sub_code += "int _idx = int(gl_BaseInstance);";
 
                 if (vertW == 32)
                     sub_code += "vec4 vs_pos = imageLoad(vs_pos_d, gl_VertexID);\n";
@@ -75,8 +75,8 @@ namespace Kokoro.Graphics
                 src = pull_decls + src;
                 src = src.Replace("FETCH_CODE_BLOCK", sub_code);
             }
-
-            return new ShaderSource(ShaderType.VertexShader, src, "");
+            
+            return new ShaderSource(ShaderType.VertexShader, file, src, "");
         }
 
         public static ShaderSource Load(ShaderType sType, string file)
@@ -86,7 +86,8 @@ namespace Kokoro.Graphics
                 if (File.Exists(Path.Combine(ShaderPath, file)))
                     file = Path.Combine(ShaderPath, file);
             }
-            return new ShaderSource(sType, File.ReadAllText(file), "");
+            var src = File.ReadAllText(file);
+            return new ShaderSource(sType, file, src, "");
         }
 
         public static ShaderSource Load(ShaderType sType, string file, string defines, params string[] libraryName)
@@ -96,14 +97,15 @@ namespace Kokoro.Graphics
                 if (File.Exists(Path.Combine(ShaderPath, file)))
                     file = Path.Combine(ShaderPath, file);
             }
-            return new ShaderSource(sType, File.ReadAllText(file), defines, libraryName);
+            var src = File.ReadAllText(file);
+            return new ShaderSource(sType, file, src, defines, libraryName);
         }
         #endregion
 
         internal int id;
         internal ShaderType sType;
 
-        public ShaderSource(Kokoro.Graphics.ShaderType sType, string src, string defines, params string[] libraryName)
+        public ShaderSource(Kokoro.Graphics.ShaderType sType, string filename, string src, string defines, params string[] libraryName)
         {
             string preamble = $"#version 460 core\n#extension GL_ARB_bindless_texture : require\n#extension GL_AMD_vertex_shader_viewport_index : require\n#extension GL_ARB_shader_draw_parameters : require\n #define MAX_DRAWS_UBO {GraphicsDevice.MaxIndirectDrawsUBO}\n #define MAX_DRAWS_SSBO {GraphicsDevice.MaxIndirectDrawsSSBO}\n #define PI {System.Math.PI}\n";
 
@@ -118,6 +120,7 @@ namespace Kokoro.Graphics
 
             }
             shaderSrc += src;
+            File.WriteAllText(Path.ChangeExtension(filename, ".glsl_out"), $"//{sType}\n" + shaderSrc);
 
             id = GL.CreateShader((OpenTK.Graphics.OpenGL4.ShaderType)sType);
             GL.ShaderSource(id, shaderSrc);

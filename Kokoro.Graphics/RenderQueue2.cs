@@ -129,9 +129,9 @@ namespace Kokoro.Graphics
                         for (int k = 0; k < mesh.Mesh.allocs.Length; k++)
                         {
                             data_ui[(idx * 8) + 1] = (uint)System.Math.Min(cnt, mesh.Mesh.Parent.BlockSize);   //count
-                            data_ui[(idx * 8) + 2] = (uint)mesh.InstanceCount;   //instanceCount
+                            data_ui[(idx * 8) + 2] = (uint)1;   //instanceCount
                             data_ui[(idx * 8) + 3] = (uint)(mesh.Mesh.allocs[k] * mesh.Mesh.Parent.BlockSize);   //baseVertex
-                            data_ui[(idx * 8) + 4] = (uint)mesh.BaseInstance;   //baseInstance
+                            data_ui[(idx * 8) + 4] = (uint)mesh.Mesh.allocs[k];   //baseInstance
 
                             //insert block bounding sphere
                             data_ui_fp[(idx * 8) + 5] = mesh.Mesh.Parent.blk_bounds[mesh.Mesh.allocs[k]].X;

@@ -11,19 +11,17 @@ namespace KokoroVR.Graphics.Voxel
     public class ChunkStreamer : Interactable
     {
         //Receive chunk faces
-        public const int VRAMCacheSize = 64;  //TODO make this depend on total available vram
+        public const int VRAMCacheSize = 384;  //TODO make this depend on total available vram
 
         private Chunk[] ChunkList;
         private (Mesh2, int, double)[] ChunkCache;
         private MeshGroup2 buffer;
         private RenderQueue2 queue;
         private double cur_time;
+        private VREye cur_eye;
         private RenderState state;
         private ShaderProgram voxelShader;
         private ShaderStorageBuffer drawParams;
-
-        private MeshGroup tmpGrp;
-        private Mesh plane;
 
         public VoxelDictionary MaterialMap { get; private set; }
         public int MaxChunkCount { get; private set; }
@@ -31,8 +29,8 @@ namespace KokoroVR.Graphics.Voxel
 
         public ChunkStreamer(int max_count)
         {
-            int blk_cnt = 8192 * 2;
-            buffer = new MeshGroup2(8, 0, 0, 3 * 36 * 32, blk_cnt);
+            int blk_cnt = 1024;
+            buffer = new MeshGroup2(8, 0, 0, 3 * 36 * 1024, blk_cnt);
             MaxChunkCount = max_count;
             ChunkList = new Chunk[max_count];
 
@@ -43,8 +41,9 @@ namespace KokoroVR.Graphics.Voxel
             {
                 ChunkCache[i].Item1 = new Mesh2(buffer);
                 ChunkCache[i].Item2 = -1;
+                ChunkCache[i].Item3 = double.MinValue;
             }
-            queue = new RenderQueue2(blk_cnt, !false);
+            queue = new RenderQueue2(blk_cnt, true);
 
             drawParams = new ShaderStorageBuffer(blk_cnt * 4 * sizeof(uint), false);
 
@@ -75,6 +74,11 @@ namespace KokoroVR.Graphics.Voxel
         public void RenderChunk(Chunk c, Vector3 offset)
         {
             if (c.streamer != this) throw new Exception("Chunk not owned by current renderer.");
+
+            //Don't proceed if this chunk isn't supposed to be visible
+            if (!Engine.Frustums[(int)cur_eye].IsVisible(new Vector4(offset, (float)(ChunkConstants.Side * System.Math.Sqrt(3)))))
+                return;
+
             int mesh_idx = -1;
             for (int i = 0; i < ChunkCache.Length; i++) if (ChunkCache[i].Item2 == c.id) { mesh_idx = i; break; }
             if (mesh_idx == -1)
@@ -93,6 +97,12 @@ namespace KokoroVR.Graphics.Voxel
                 ChunkCache[lru].Item3 = cur_time;
                 ChunkCache[lru].Item2 = c.id;
 
+                c.update_pending = true;
+            }
+
+            //Upload the current mesh state if it has been updated recently
+            if (c.update_pending)
+            {
                 unsafe
                 {
                     var b = c.faces.ToArray();
@@ -111,37 +121,6 @@ namespace KokoroVR.Graphics.Voxel
                 }
                 c.update_pending = false;
             }
-            else
-            {
-                //Upload the current mesh state if it has been updated recently
-                if (c.update_pending)
-                {
-                    unsafe
-                    {
-                        var b = c.faces.ToArray();
-                        fixed (byte* b_p = b)
-                            ChunkCache[mesh_idx].Item1.Reallocate(b_p, null, null, 6, Vector3.One * ChunkConstants.Side * -0.5f + offset, b.Length / 4);
-
-                        var dP_p = (float*)drawParams.Update();
-                        for (int j = 0; j < ChunkCache[mesh_idx].Item1.AllocIndices.Length; j++)
-                        {
-                            int idx = ChunkCache[mesh_idx].Item1.AllocIndices[j];
-                            dP_p[idx * 4 + 0] = offset.X - ChunkConstants.Side * 0.5f;
-                            dP_p[idx * 4 + 1] = offset.Y - ChunkConstants.Side * 0.5f;
-                            dP_p[idx * 4 + 2] = offset.Z - ChunkConstants.Side * 0.5f;
-                        }
-                        drawParams.UpdateDone();
-                    }
-                    c.update_pending = false;
-                }
-            }
-
-            //for (int i = 0; i < ChunkCache[mesh_idx].Item1.AllocIndices.Length; i++)
-            //{
-            //    var sphere = ChunkCache[mesh_idx].Item1.Parent.Bounds[ChunkCache[mesh_idx].Item1.AllocIndices[i]];
-            //    if (f.IsVisible(sphere))
-            //        Spheres.Add(sphere);
-            //}
 
             //Record this chunk's draw
             queue.RecordDraw(new RenderQueue2.DrawData()
@@ -167,24 +146,17 @@ namespace KokoroVR.Graphics.Voxel
             }
         }
 
-        float rot_y = 0;
-        Vector3 origin = Vector3.Zero;
-        List<Vector4> Spheres;
-        Frustum f;
-        public override void Render(double time, Framebuffer fbuf, StaticMeshRenderer staticMesh, DynamicMeshRenderer dynamicMesh, Matrix4 p, Matrix4 v, VREye eye)
+        float angle = 0;
+        public override void Render(double time, Framebuffer fbuf, StaticMeshRenderer staticMesh, DynamicMeshRenderer dynamicMesh, VREye eye)
         {
-            Spheres = new List<Vector4>();
-
-            cur_time = time;
-            rot_y += 0.001f * (float)Math.PI;
-            origin = 40 * new Vector3((float)Math.Sin(rot_y) * (float)Math.Cos(0), (float)Math.Sin(rot_y) * (float)Math.Sin(0), (float)Math.Cos(rot_y));
-
-            Engine.CurrentPlayer.Position = origin;
-            Engine.View[0] = Matrix4.LookAt(origin, Vector3.Zero, Vector3.UnitY);
-            f = new Frustum(Engine.View[0], p, origin);
-
-            voxelShader.Set("View", Matrix4.LookAt(origin, Vector3.Zero, Vector3.UnitY));
-            voxelShader.Set("Proj", p);
+            angle += (float)(time * 0.5f);
+            Engine.CurrentPlayer.Position = Vector3.FromSpherical(new Vector3(100, angle, 0));
+            Engine.View[0] = Matrix4.LookAt(Engine.CurrentPlayer.Position, Vector3.Zero, Vector3.UnitY);
+            Engine.Frustums[0] = new Frustum(Engine.View[0], Engine.Projection[0], Engine.CurrentPlayer.Position);
+            cur_time += time;
+            cur_eye = eye;
+            //voxelShader.Set("View", Engine.View[(int)eye]);
+            voxelShader.Set("ViewProj", Engine.View[(int)eye] * Engine.Projection[(int)eye]);
             state = new RenderState(fbuf, voxelShader, new ShaderStorageBuffer[] { MaterialMap.voxelData, drawParams }, null, true, true, DepthFunc.Greater, InverseDepth.Far, InverseDepth.Near, BlendFactor.One, BlendFactor.Zero, Vector4.Zero, InverseDepth.ClearDepth, CullFaceMode.Back);
             queue.ClearAndBeginRecording();
         }
@@ -195,25 +167,12 @@ namespace KokoroVR.Graphics.Voxel
             internal ChunkStreamerEnd(ChunkStreamer p)
             {
                 parent = p;
-                tmpGrp = new MeshGroup(MeshGroupVertexFormat.X32F_Y32F_Z32F, 50000, 50000);
-                plane = Kokoro.Graphics.Prefabs.SphereFactory.Create(tmpGrp);
             }
 
-            MeshGroup tmpGrp;
-            Mesh plane;
-
-            public override void Render(double time, Framebuffer fbuf, StaticMeshRenderer staticMesh, DynamicMeshRenderer dynamicMesh, Matrix4 p, Matrix4 v, VREye eye)
+            public override void Render(double time, Framebuffer fbuf, StaticMeshRenderer staticMesh, DynamicMeshRenderer dynamicMesh, VREye eye)
             {
-                var f = new Frustum(Matrix4.LookAt(parent.origin, Vector3.Zero, Vector3.UnitY), p, parent.origin);
-                parent.queue.EndRecording(f);
+                parent.queue.EndRecording(Engine.Frustums[(int)eye]);
                 parent.queue.Submit();
-                //Texture.Default.GetHandle(TextureSampler.Default).SetResidency(Residency.Resident);
-
-                //for (int i = 0; i < parent.Spheres.Count; i++)
-                //    staticMesh.DrawC(plane, Matrix4.Scale(parent.Spheres[i].W) * Matrix4.CreateTranslation(parent.Spheres[i].Xyz), Texture.Default.GetHandle(TextureSampler.Default));
-                //plane = Kokoro.Graphics.Prefabs.QuadFactory.Create(tmpGrp, 1, 1, Vector3.UnitX, new Vector3(0, 2, 1));
-                //Texture.Default.GetHandle(TextureSampler.Default).SetResidency(Residency.Resident);
-                //staticMesh.DrawC(plane, Matrix4.Identity, Texture.Default.GetHandle(TextureSampler.Default));
             }
 
             public override void Update(double time, World parent)

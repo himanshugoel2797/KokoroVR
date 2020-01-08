@@ -13,6 +13,6 @@ namespace KokoroVR
     public abstract class Interactable
     {
         public abstract void Update(double time, World parent);
-        public abstract void Render(double time, Framebuffer fbuf, StaticMeshRenderer staticMesh, DynamicMeshRenderer dynamicMesh, Matrix4 p, Matrix4 v, VREye eye);
+        public abstract void Render(double time, Framebuffer fbuf, StaticMeshRenderer staticMesh, DynamicMeshRenderer dynamicMesh, VREye eye);
     }
 }

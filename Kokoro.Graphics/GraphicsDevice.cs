@@ -14,6 +14,7 @@ using System.IO;
 using System.Drawing;
 using Kokoro.Common;
 using Kokoro.Common.StateMachine;
+using Kokoro.Graphics.Profiling;
 
 namespace Kokoro.Graphics
 {
@@ -465,27 +466,6 @@ namespace Kokoro.Graphics
             if (gl_name == "")
                 gl_name = GL.GetString(StringName.Version);
 
-            StreamWriter cntrs = new StreamWriter("cntrs.txt");
-
-            GL.Amd.GetPerfMonitorGroups(out int perfmonGrpCnt, 0, (int[])null);
-            int[] perfmon_grps = new int[perfmonGrpCnt];
-            GL.Amd.GetPerfMonitorGroups(out perfmonGrpCnt, perfmon_grps.Length, perfmon_grps);
-            foreach (int i in perfmon_grps)
-            {
-                GL.Amd.GetPerfMonitorGroupString(i, 200, out int grp_name_len, out string grp_name);
-                cntrs.WriteLine(grp_name);
-
-                GL.Amd.GetPerfMonitorCounters(i, out int cntr_num, out int max_active_cntrs, 0, null);
-                int[] cntr_ids = new int[cntr_num];
-                GL.Amd.GetPerfMonitorCounters(i, out cntr_num, out max_active_cntrs, cntr_ids.Length, cntr_ids);
-
-                foreach(int j in cntr_ids)
-                {
-                    GL.Amd.GetPerfMonitorCounterString(i, j, 200, out int cntr_name_len, out string cntr_name);
-                    cntrs.WriteLine("\t" + cntr_name);
-                }
-            }
-
             Window.Title = gameName + $" | {renderer_name} | { gl_name }";
             GL.Enable(EnableCap.DebugOutput);
             GL.DebugMessageInsert(DebugSourceExternal.DebugSourceApplication, DebugType.DebugTypePortability, 1, DebugSeverity.DebugSeverityNotification, 5, "test");
@@ -514,6 +494,8 @@ namespace Kokoro.Graphics
                 renderCnt = 0;
                 updateCnt = 0;
             }
+
+            GenericMetrics.EndFrame();
 #endif
             Window.SwapBuffers();
         }
@@ -573,7 +555,10 @@ namespace Kokoro.Graphics
 
         private static void Game_UpdateFrame(object sender, FrameEventArgs e)
         {
+            DeleteSomeObjects();
 #if DEBUG
+            GenericMetrics.UpdateLog();
+
             updateCnt++;
             int len = GL.GetInteger((GetPName)All.MaxDebugMessageLength);
             if (GL.GetDebugMessageLog(1, len, out var source, out var type, out var id, out var severity, out var strlen, out var str) > 0)
@@ -712,8 +697,14 @@ namespace Kokoro.Graphics
 
             curProg.Set(nameof(WindowSize), new Vector2(WindowSize.Width, WindowSize.Height));
 
+#if DEBUG
+            GenericMetrics.StartMeasurement();
+#endif
             if (indexed) GL.DrawElements((OpenTK.Graphics.OpenGL4.PrimitiveType)type, count, DrawElementsType.UnsignedShort, IntPtr.Zero);
             else GL.DrawArrays((OpenTK.Graphics.OpenGL4.PrimitiveType)type, first, count);
+#if DEBUG
+            GenericMetrics.StopMeasurement();
+#endif
         }
 
         public static void MultiDraw(PrimitiveType type, bool indexed, params MultiDrawParameters[] dParams)
@@ -725,29 +716,47 @@ namespace Kokoro.Graphics
             int[] baseVertex = new int[dParams.Length];
             int drawCount = dParams.Length;
 
+#if DEBUG
+            GenericMetrics.StartMeasurement();
+#endif
             if (indexed)
                 GL.MultiDrawElementsBaseVertex((OpenTK.Graphics.OpenGL4.PrimitiveType)type, count, DrawElementsType.UnsignedShort, IntPtr.Zero, drawCount, baseVertex);
             else
                 GL.MultiDrawArrays((OpenTK.Graphics.OpenGL4.PrimitiveType)type, first, count, drawCount);
+#if DEBUG
+            GenericMetrics.StopMeasurement();
+#endif
         }
 
         public static void MultiDrawIndirect(PrimitiveType type, uint byteOffset, int count, bool indexed)
         {
             if (count == 0) return;
 
+#if DEBUG
+            GenericMetrics.StartMeasurement();
+#endif
             if (indexed)
                 GL.MultiDrawElementsIndirect((OpenTK.Graphics.OpenGL4.PrimitiveType)type, DrawElementsType.UnsignedShort, (IntPtr)byteOffset, count, 0);
             else
                 GL.MultiDrawArraysIndirect((OpenTK.Graphics.OpenGL4.PrimitiveType)type, (IntPtr)byteOffset, count, 0);
+#if DEBUG
+            GenericMetrics.StopMeasurement();
+#endif
         }
 
         public static void MultiDrawIndirectCount(PrimitiveType type, ulong byteOffset, ulong countOffset, int maxCount, bool indexed, int stride = 0)
         {
+#if DEBUG
+            GenericMetrics.StartMeasurement();
+#endif
             GL.MemoryBarrier(MemoryBarrierFlags.ShaderImageAccessBarrierBit);
             if (indexed)
                 GL.Arb.MultiDrawElementsIndirectCount((OpenTK.Graphics.OpenGL4.PrimitiveType)type, DrawElementsType.UnsignedShort, (IntPtr)byteOffset, (IntPtr)countOffset, maxCount, stride);
             else
                 GL.Arb.MultiDrawArraysIndirectCount((OpenTK.Graphics.OpenGL4.PrimitiveType)type, (IntPtr)byteOffset, (IntPtr)countOffset, maxCount, stride);
+#if DEBUG
+            GenericMetrics.StopMeasurement();
+#endif
         }
         #endregion
 

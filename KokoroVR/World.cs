@@ -71,10 +71,10 @@ namespace KokoroVR
             for (int i = 0; i < Engine.Framebuffers.Length; i++)
             {
                 foreach (var r in ControlInterpreters)
-                    r.Render(time, Renderer.Framebuffers[i], StaticMeshRenderer, DynamicMeshRenderer, p[i], v[i], VRHand.Get(i));
+                    r.Render(time, Renderer.Framebuffers[i], StaticMeshRenderer, DynamicMeshRenderer, (i == 0) ? VREye.Left : VREye.Right, VRHand.Get(i));
 
                 foreach (var r in Interactables)
-                    r.Render(time, Renderer.Framebuffers[i], StaticMeshRenderer, DynamicMeshRenderer, p[i], v[i], (i == 0) ? VREye.Left : VREye.Right);
+                    r.Render(time, Renderer.Framebuffers[i], StaticMeshRenderer, DynamicMeshRenderer, (i == 0) ? VREye.Left : VREye.Right);
             }
             StaticMeshRenderer.Submit();
             Renderer.Submit(v, p, Engine.CurrentPlayer.Position);

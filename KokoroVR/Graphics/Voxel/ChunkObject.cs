@@ -15,6 +15,8 @@ namespace KokoroVR.Graphics.Voxel
         private ChunkStreamer streamer;
         private Dictionary<(int, int, int), Chunk> ChunkSet;
 
+        public Vector3 Position { get; set; }
+
         public ChunkObject(ChunkStreamer streamer)
         {
             ChunkSet = new Dictionary<(int, int, int), Chunk>();
@@ -49,7 +51,7 @@ namespace KokoroVR.Graphics.Voxel
             }
         }
 
-        public override void Render(double time, Framebuffer fbuf, StaticMeshRenderer staticMesh, DynamicMeshRenderer dynamicMesh, Matrix4 p, Matrix4 v, VREye eye)
+        public override void Render(double time, Framebuffer fbuf, StaticMeshRenderer staticMesh, DynamicMeshRenderer dynamicMesh, VREye eye)
         {
             foreach (var coord_chunk_pair in ChunkSet)
             {
@@ -60,7 +62,7 @@ namespace KokoroVR.Graphics.Voxel
                 //Use a compute shader to cull everything
                 //Generate vertices in full clusters, use extra bits in vertex data to encode normal
                 //Much smaller clusters for culling
-                streamer.RenderChunk(chunk, new Vector3(coord.Item1, coord.Item2, coord.Item3));
+                streamer.RenderChunk(chunk, Position + new Vector3(coord.Item1, coord.Item2, coord.Item3));
             }
             //TODO get view position, submit draws from nearest to farthest
         }

@@ -12,6 +12,6 @@ namespace KokoroVR.Input
     public abstract class ControlInterpreter
     {
         public abstract void Update(double time, World parent);
-        public abstract void Render(double time, Framebuffer fbuf, StaticMeshRenderer staticMesh, DynamicMeshRenderer dynamicMesh, Matrix4 p, Matrix4 v, VRHand eye);
+        public abstract void Render(double time, Framebuffer fbuf, StaticMeshRenderer staticMesh, DynamicMeshRenderer dynamicMesh, VREye eye, VRHand hand);
     }
 }

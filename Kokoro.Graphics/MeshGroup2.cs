@@ -66,7 +66,7 @@ namespace Kokoro.Graphics
                     if (vertW == 16) iFormat = PixelInternalFormat.Rgba16i;
                     if (vertW == 32) iFormat = PixelInternalFormat.Rgba32f;
 
-                    vertSSBO = new ShaderStorageBuffer(4 * blk_sz * blk_cnt * vertW / 8, false);
+                    vertSSBO = new ShaderStorageBuffer(4 * (long)blk_sz * blk_cnt * vertW / 8, false);
                     vertBO = new Texture();
                     vertBO.SetData(new BufferTextureSource(vertSSBO)
                     {
