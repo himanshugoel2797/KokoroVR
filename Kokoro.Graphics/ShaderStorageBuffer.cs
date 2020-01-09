@@ -8,7 +8,7 @@ using System.Threading.Tasks;
 
 namespace Kokoro.Graphics
 {
-    public class ShaderStorageBuffer
+    public class ShaderStorageBuffer : IMappedBuffer
     {
         private static int alignmentRequirement = 0;
         static ShaderStorageBuffer()
@@ -26,14 +26,14 @@ namespace Kokoro.Graphics
         bool dirty = false;
         bool stream = false;
 
-        public ulong Size
+        public long Size
         {
-            get { return size; }
+            get { return (long)size; }
         }
 
-        public ulong Offset
+        public long Offset
         {
-            get { return (ulong)curRung * size; }
+            get { return curRung * Size; }
         }
 
         public ShaderStorageBuffer(GPUBuffer buf, bool stream)

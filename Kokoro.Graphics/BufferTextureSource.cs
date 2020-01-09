@@ -8,7 +8,7 @@ namespace Kokoro.Graphics
 {
     public class BufferTextureSource : ITextureSource
     {
-        private int width;
+        private long width;
         private GPUBuffer buf;
 
         public PixelInternalFormat InternalFormat { get; set; }
@@ -72,7 +72,7 @@ namespace Kokoro.Graphics
 
         public int GetWidth()
         {
-            return width;
+            return (int)width;  //TODO: Fix this mess, make everything consistently long as needed
         }
 
         public int GetBaseWidth()

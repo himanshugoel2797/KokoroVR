@@ -31,10 +31,11 @@ namespace Kokoro.Graphics
             this.parent = parent;
         }
 
-        public void SetResidency(Residency residency, AccessMode m)
+        public ImageHandle SetResidency(Residency residency, AccessMode m)
         {
             if (residency == Residency.Resident) GL.Arb.MakeImageHandleResident(hndl, (All)m);
             else GL.Arb.MakeImageHandleNonResident(hndl);
+            return this;
         }
 
         public static implicit operator long(ImageHandle handle)
@@ -58,7 +59,7 @@ namespace Kokoro.Graphics
             this.Sampler = sampler;
         }
 
-        public void SetResidency(Residency residency)
+        public TextureHandle SetResidency(Residency residency)
         {
             if (residency == Residency.Resident && !isResident)
             {
@@ -70,6 +71,7 @@ namespace Kokoro.Graphics
                 GL.Arb.MakeTextureHandleNonResident(hndl);
                 isResident = false;
             }
+            return this;
         }
 
         public static implicit operator long(TextureHandle handle)

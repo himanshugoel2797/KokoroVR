@@ -403,6 +403,8 @@ namespace Kokoro.Graphics
             GraphicsDevice.Framebuffer = state.Framebuffer;
             GraphicsDevice.SetDepthRange(state.NearPlane, state.FarPlane);
 
+            
+            if(state.IndexBuffer != null)SetVertexArray(state.IndexBuffer.varray);
             for (int i = 0; i < state.Viewports.Length; i++)
                 GraphicsDevice.SetViewport(i, state.Viewports[i].X, state.Viewports[i].Y, state.Viewports[i].Z, state.Viewports[i].W);
 
@@ -691,7 +693,7 @@ namespace Kokoro.Graphics
         #endregion
 
         #region Draw calls
-        public static void Draw(PrimitiveType type, int first, int count, bool indexed)
+        public static void Draw(PrimitiveType type, int first, int count, bool indexed, bool short_idx)
         {
             if (count == 0) return;
 
@@ -700,35 +702,14 @@ namespace Kokoro.Graphics
 #if DEBUG
             GenericMetrics.StartMeasurement();
 #endif
-            if (indexed) GL.DrawElements((OpenTK.Graphics.OpenGL4.PrimitiveType)type, count, DrawElementsType.UnsignedShort, IntPtr.Zero);
+            if (indexed) GL.DrawElements((OpenTK.Graphics.OpenGL4.PrimitiveType)type, count, short_idx ? DrawElementsType.UnsignedShort : DrawElementsType.UnsignedInt, IntPtr.Zero);
             else GL.DrawArrays((OpenTK.Graphics.OpenGL4.PrimitiveType)type, first, count);
 #if DEBUG
             GenericMetrics.StopMeasurement();
 #endif
         }
 
-        public static void MultiDraw(PrimitiveType type, bool indexed, params MultiDrawParameters[] dParams)
-        {
-            if (dParams.Length == 0) return;
-
-            int[] first = new int[dParams.Length];
-            int[] count = new int[dParams.Length];
-            int[] baseVertex = new int[dParams.Length];
-            int drawCount = dParams.Length;
-
-#if DEBUG
-            GenericMetrics.StartMeasurement();
-#endif
-            if (indexed)
-                GL.MultiDrawElementsBaseVertex((OpenTK.Graphics.OpenGL4.PrimitiveType)type, count, DrawElementsType.UnsignedShort, IntPtr.Zero, drawCount, baseVertex);
-            else
-                GL.MultiDrawArrays((OpenTK.Graphics.OpenGL4.PrimitiveType)type, first, count, drawCount);
-#if DEBUG
-            GenericMetrics.StopMeasurement();
-#endif
-        }
-
-        public static void MultiDrawIndirect(PrimitiveType type, uint byteOffset, int count, bool indexed)
+        public static void MultiDrawIndirect(PrimitiveType type, uint byteOffset, int count, bool indexed, bool short_idx)
         {
             if (count == 0) return;
 
@@ -736,7 +717,7 @@ namespace Kokoro.Graphics
             GenericMetrics.StartMeasurement();
 #endif
             if (indexed)
-                GL.MultiDrawElementsIndirect((OpenTK.Graphics.OpenGL4.PrimitiveType)type, DrawElementsType.UnsignedShort, (IntPtr)byteOffset, count, 0);
+                GL.MultiDrawElementsIndirect((OpenTK.Graphics.OpenGL4.PrimitiveType)type, short_idx ? DrawElementsType.UnsignedShort : DrawElementsType.UnsignedInt, (IntPtr)byteOffset, count, 0);
             else
                 GL.MultiDrawArraysIndirect((OpenTK.Graphics.OpenGL4.PrimitiveType)type, (IntPtr)byteOffset, count, 0);
 #if DEBUG
@@ -744,16 +725,16 @@ namespace Kokoro.Graphics
 #endif
         }
 
-        public static void MultiDrawIndirectCount(PrimitiveType type, ulong byteOffset, ulong countOffset, int maxCount, bool indexed, int stride = 0)
+        public static void MultiDrawIndirectCount(PrimitiveType type, long byteOffset, long countOffset, uint maxCount, bool indexed, bool short_idx, int stride = 0)
         {
 #if DEBUG
             GenericMetrics.StartMeasurement();
 #endif
             GL.MemoryBarrier(MemoryBarrierFlags.ShaderImageAccessBarrierBit);
             if (indexed)
-                GL.Arb.MultiDrawElementsIndirectCount((OpenTK.Graphics.OpenGL4.PrimitiveType)type, DrawElementsType.UnsignedShort, (IntPtr)byteOffset, (IntPtr)countOffset, maxCount, stride);
+                GL.Arb.MultiDrawElementsIndirectCount((OpenTK.Graphics.OpenGL4.PrimitiveType)type, short_idx ? DrawElementsType.UnsignedShort : DrawElementsType.UnsignedInt, (IntPtr)byteOffset, (IntPtr)countOffset, (int)maxCount, stride);
             else
-                GL.Arb.MultiDrawArraysIndirectCount((OpenTK.Graphics.OpenGL4.PrimitiveType)type, (IntPtr)byteOffset, (IntPtr)countOffset, maxCount, stride);
+                GL.Arb.MultiDrawArraysIndirectCount((OpenTK.Graphics.OpenGL4.PrimitiveType)type, (IntPtr)byteOffset, (IntPtr)countOffset, (int)maxCount, stride);
 #if DEBUG
             GenericMetrics.StopMeasurement();
 #endif

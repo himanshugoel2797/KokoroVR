@@ -15,22 +15,32 @@ namespace Kokoro.Math
             //determine which side of each plane the sphere is on
             var iVP = Matrix4.Invert(v * p);
             
-            var ntl = Vector4.Transform(new Vector4(-1, 1, 0.1f, 1), iVP);
-            var ntr = Vector4.Transform(new Vector4(1, 1, 0.1f, 1), iVP);
-            var nbl = Vector4.Transform(new Vector4(-1, -1, 0.1f, 1), iVP);
-            var nbr = Vector4.Transform(new Vector4(1, -1, 0.1f, 1), iVP);
+            var ntl = Vector4.Transform(new Vector4(-1, 1, 1f, 1), iVP);
+            var ntr = Vector4.Transform(new Vector4(1, 1, 1f, 1), iVP);
+            var nbl = Vector4.Transform(new Vector4(-1, -1, 1f, 1), iVP);
+            var nbr = Vector4.Transform(new Vector4(1, -1, 1f, 1), iVP);
+
+            var ftl = Vector4.Transform(new Vector4(-1, 1, 0.00001f, 1), iVP);
+            var ftr = Vector4.Transform(new Vector4(1, 1, 0.00001f, 1), iVP);
+            var fbl = Vector4.Transform(new Vector4(-1, -1, 0.00001f, 1), iVP);
+            var fbr = Vector4.Transform(new Vector4(1, -1, 0.00001f, 1), iVP);
 
             ntl /= ntl.W;
             ntr /= ntr.W;
             nbl /= nbl.W;
             nbr /= nbr.W;
 
+            ftl /= ftl.W;
+            ftr /= ftr.W;
+            fbl /= fbl.W;
+            fbr /= fbr.W;
+
             //Compute planes
-            near = new Plane(nbl.Xyz, nbr.Xyz, ntr.Xyz);
-            lft = new Plane(eyePos, ntl.Xyz, nbl.Xyz);
-            rgt = new Plane(eyePos, nbr.Xyz, ntr.Xyz);
-            top = new Plane(ntl.Xyz, eyePos, ntr.Xyz);
-            btm = new Plane(eyePos, nbl.Xyz, nbr.Xyz);
+            near = new Plane(nbl.Xyz, nbr.Xyz, ntl.Xyz);
+            lft = new Plane(nbl.Xyz, ntl.Xyz, fbl.Xyz);
+            rgt = new Plane(ntr.Xyz, nbr.Xyz, ftr.Xyz);
+            top = new Plane(ntl.Xyz, ntr.Xyz, ftl.Xyz);
+            btm = new Plane(nbr.Xyz, nbl.Xyz, fbr.Xyz);
         }
 
         public bool IsVisible(Vector4 Sphere)
@@ -44,15 +54,15 @@ namespace Kokoro.Math
             float btm_d = PlaneHelper.ClassifyPoint(ref sphere_c, ref btm);
             float near_d = PlaneHelper.ClassifyPoint(ref sphere_c, ref near);
 
-            float limit = 0;// Sphere.W;
+            float limit = Sphere.W;
 
-            if (lft_d < limit) return true;
-            if (rgt_d < limit) return true;
-            if (top_d < limit) return true;
-            if (btm_d < limit) return true;
-            if (near_d < limit) return true;
+            if (lft_d > limit) return false;
+            if (rgt_d > limit) return false;
+            if (top_d > limit) return false;
+            if (btm_d > limit) return false;
+            if (near_d > limit) return false;
 
-            return false;
+            return !false;
         }
     }
 }

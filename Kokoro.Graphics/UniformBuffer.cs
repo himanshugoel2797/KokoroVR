@@ -8,7 +8,7 @@ using System.Threading.Tasks;
 
 namespace Kokoro.Graphics
 {
-    public class UniformBuffer
+    public class UniformBuffer : IMappedBuffer
     {
         #region Bind point allocation
         private static int freebindPoint = 0;
@@ -45,11 +45,19 @@ namespace Kokoro.Graphics
             }
         }
 
-        public int Size
+        public long Size
         {
             get
             {
                 return dynamic ? UniformBufferSize / rungs : UniformBufferSize;
+            }
+        }
+
+        public long Offset
+        {
+            get
+            {
+                return curRung * Size;
             }
         }
 
@@ -67,13 +75,13 @@ namespace Kokoro.Graphics
             }
         }
 
-        internal int GetReadyOffset()
+        internal ulong GetReadyOffset()
         {
             int idx = curRung;
             for (int i = 0; i < readyFence.Length; i++)
             {
                 if (readyFence[idx].Raised(1))
-                    return idx * Size;
+                    return (ulong)idx * (ulong)Size;
 
                 if (idx == 0)
                     idx = readyFence.Length - 1;
@@ -81,19 +89,25 @@ namespace Kokoro.Graphics
                     idx--;
             }
 
-            return curRung - 1;
+            return (ulong)curRung - 1;
         }
 
         public unsafe byte* Update()
         {
             if (dynamic) curRung = (curRung + 1) % rungs;
             while (!readyFence[curRung].Raised(0)) ;
-            return (byte*)buf.GetPtr() + curRung * Size; ;
+            return (byte*)buf.GetPtr() + (ulong)curRung * (ulong)Size; ;
         }
 
         public void UpdateDone()
         {
-            buf.FlushBuffer((ulong)(curRung * Size), (ulong)Size);
+            buf.FlushBuffer((ulong)curRung * (ulong)Size, (ulong)Size);
+            readyFence[curRung].PlaceFence();
+        }
+
+        public void UpdateDone(long off, long usize)
+        {
+            buf.FlushBuffer((ulong)curRung * (ulong)Size + (ulong)off, (ulong)usize);
             readyFence[curRung].PlaceFence();
         }
 

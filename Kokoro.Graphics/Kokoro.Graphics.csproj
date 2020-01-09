@@ -73,6 +73,11 @@
     <Compile Include="ArrayTextureSource.cs" />
     <Compile Include="BitmapTextureSource.cs" />
     <Compile Include="BlendFunc.cs" />
+    <Compile Include="BlockAllocator.cs" />
+    <Compile Include="BufferAllocator.cs" />
+    <Compile Include="BufferGroup.cs" />
+    <Compile Include="BufferGroupAllocator.cs" />
+    <Compile Include="BufferTexture.cs" />
     <Compile Include="BufferTextureSource.cs" />
     <Compile Include="BufferUsage.cs" />
     <Compile Include="CompressedTextureSource.cs" />
@@ -88,11 +93,12 @@
     <Compile Include="GPUBuffer.cs" />
     <Compile Include="GPUStateMachine.cs" />
     <Compile Include="GraphicsDevice.cs" />
+    <Compile Include="IMappedBuffer.cs" />
+    <Compile Include="IndexBuffer.cs" />
     <Compile Include="InverseDepth.cs" />
     <Compile Include="ITextureSource.cs" />
     <Compile Include="Mesh.cs" />
     <Compile Include="Mesh2.cs" />
-    <Compile Include="MeshGroup2.cs" />
     <Compile Include="MeshGroup.cs" />
     <Compile Include="MultiDrawParameters.cs" />
     <Compile Include="PerfTimer.cs" />

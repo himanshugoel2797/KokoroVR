@@ -78,7 +78,7 @@
     <Compile Include="Graphics\Voxel\Chunk.cs" />
     <Compile Include="Graphics\Voxel\ChunkConstants.cs" />
     <Compile Include="Graphics\Voxel\ChunkObject.cs" />
-    <Compile Include="Graphics\Voxel\ChunkRenderer.cs" />
+    <Compile Include="Graphics\Voxel\ChunkMesh.cs" />
     <Compile Include="Graphics\Voxel\ChunkStreamer.cs" />
     <Compile Include="Graphics\Voxel\MeshOptimizer.cs" />
     <Compile Include="Graphics\Voxel\RunEncoder.cs" />

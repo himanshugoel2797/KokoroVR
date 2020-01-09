@@ -26,6 +26,8 @@ namespace Kokoro.Graphics
         public CullFaceMode CullMode { get; private set; }
         public Vector4[] Viewports { get; private set; }
 
+        public IndexBuffer IndexBuffer { get; private set; }
+
         public RenderState(Framebuffer fbuf,
                            ShaderProgram prog,
                            ShaderStorageBuffer[] ssboBindings,
@@ -40,6 +42,7 @@ namespace Kokoro.Graphics
                            Vector4 ClearColor,
                            float ClearDepth,
                            CullFaceMode cullMode,
+                           IndexBuffer iBuffer = null,
                            Vector4[] viewports = null)
         {
             Framebuffer = fbuf;
@@ -56,6 +59,7 @@ namespace Kokoro.Graphics
             CullMode = cullMode;
             ShaderStorageBufferBindings = ssboBindings;
             UniformBufferBindings = uboBindings;
+            IndexBuffer = iBuffer;
 
             if (viewports == null)
                 Viewports = new Vector4[] { new Vector4(0, 0, Framebuffer.Width, Framebuffer.Height) };

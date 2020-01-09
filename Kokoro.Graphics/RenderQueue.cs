@@ -224,7 +224,7 @@ namespace Kokoro.Graphics
                     GraphicsDevice.SetMultiDrawParameterBuffer(multiDrawParams);
                     GraphicsDevice.SetParameterBuffer(multiDrawParams);
 
-                    GraphicsDevice.MultiDrawIndirectCount(PrimitiveType.Triangles, bkt.offset + sizeof(uint), bkt.offset, maxDrawCount, true);
+                    GraphicsDevice.MultiDrawIndirectCount(PrimitiveType.Triangles, bkt.offset + sizeof(uint), bkt.offset, (uint)maxDrawCount, true, true);
 
                     //Ensure the buffers aren't in use before next update
                     RenderState state = bkt.State;

@@ -78,19 +78,19 @@ namespace KokoroVR.Test
                     Direction = new Vector3(0, -1, 0)
                 });
 
-                ChunkStreamer chunkStreamer = new ChunkStreamer(512);
+                ChunkStreamer chunkStreamer = new ChunkStreamer(1024);
                 var mat_id = chunkStreamer.MaterialMap.Register(Vector3.One, Vector3.One * 0.5f, 1f);
                 ChunkObject obj = new ChunkObject(chunkStreamer);
 
                 Random rng = new Random(0);
                 var updates = new List<(int, int, int, byte)>();
-                for (int x = ChunkConstants.Side * -6; x < ChunkConstants.Side * 6; x ++)
+                for (int x = ChunkConstants.Side * -10; x < ChunkConstants.Side * 10; x ++)
                     for (int y = 0; y < ChunkConstants.Side; y ++)
-                        for (int z = ChunkConstants.Side * -6; z < ChunkConstants.Side * 6; z ++)
+                        for (int z = ChunkConstants.Side * -10; z < ChunkConstants.Side * 10; z ++)
                         {
                             //if (x == 11 && y == 0 && z == 11) continue;
                             //if (x == 12 && y == 0 && z == 12) continue;
-                            if (rng.NextDouble() > 0.7f) updates.Add((y, z, x, mat_id));
+                            if (rng.NextDouble() > 0.1f) updates.Add((y, z, x, mat_id));
                         }
 
                 Console.WriteLine(updates.Count);

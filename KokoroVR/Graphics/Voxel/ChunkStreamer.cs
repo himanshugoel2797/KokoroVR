@@ -11,17 +11,21 @@ namespace KokoroVR.Graphics.Voxel
     public class ChunkStreamer : Interactable
     {
         //Receive chunk faces
-        public const int VRAMCacheSize = 384;  //TODO make this depend on total available vram
+        public const int VRAMCacheSize = 512;  //TODO make this depend on total available vram
 
         private Chunk[] ChunkList;
-        private (Mesh2, int, double)[] ChunkCache;
-        private MeshGroup2 buffer;
+        private (ChunkMesh, int, double)[] ChunkCache;
+        private BufferGroupAllocator buffer;
+        private ShaderStorageBuffer drawParams;
         private RenderQueue2 queue;
+        private ShaderProgram voxelShader;
+        private RenderState state;
+
+        private BufferAllocator indexBufferAllocator;
+        private IndexBuffer indexBuffer;
+
         private double cur_time;
         private VREye cur_eye;
-        private RenderState state;
-        private ShaderProgram voxelShader;
-        private ShaderStorageBuffer drawParams;
 
         public VoxelDictionary MaterialMap { get; private set; }
         public int MaxChunkCount { get; private set; }
@@ -29,25 +33,25 @@ namespace KokoroVR.Graphics.Voxel
 
         public ChunkStreamer(int max_count)
         {
-            int blk_cnt = 1024;
-            buffer = new MeshGroup2(8, 0, 0, 3 * 36 * 1024, blk_cnt);
-            MaxChunkCount = max_count;
-            ChunkList = new Chunk[max_count];
-
+            uint blk_cnt = 1024 * 3;
             Ender = new ChunkStreamerEnd(this);
 
-            ChunkCache = new (Mesh2, int, double)[VRAMCacheSize];
+            indexBufferAllocator = new BufferAllocator(3 * 36 * 512 * sizeof(uint), blk_cnt, false, PixelInternalFormat.R32ui);
+            indexBuffer = new IndexBuffer(indexBufferAllocator.BufferTex.Buffer, false);
+
+            MaxChunkCount = max_count;
+            ChunkList = new Chunk[max_count];
+            ChunkCache = new (ChunkMesh, int, double)[VRAMCacheSize];
             for (int i = 0; i < ChunkCache.Length; i++)
             {
-                ChunkCache[i].Item1 = new Mesh2(buffer);
+                ChunkCache[i].Item1 = new ChunkMesh(indexBufferAllocator);
                 ChunkCache[i].Item2 = -1;
                 ChunkCache[i].Item3 = double.MinValue;
             }
+
             queue = new RenderQueue2(blk_cnt, true);
-
-            drawParams = new ShaderStorageBuffer(blk_cnt * 4 * sizeof(uint), false);
-
-            voxelShader = new ShaderProgram(ShaderSource.LoadV("Shaders/Deferred/Voxel/vertex.glsl", 8, 0, 0),
+            drawParams = new ShaderStorageBuffer(blk_cnt * 8 * sizeof(uint), false);
+            voxelShader = new ShaderProgram(ShaderSource.Load(ShaderType.VertexShader, "Shaders/Deferred/Voxel/vertex.glsl"),
                                             ShaderSource.Load(ShaderType.FragmentShader, "Shaders/Deferred/Voxel/fragment.glsl"));
 
             MaterialMap = new VoxelDictionary();
@@ -76,7 +80,7 @@ namespace KokoroVR.Graphics.Voxel
             if (c.streamer != this) throw new Exception("Chunk not owned by current renderer.");
 
             //Don't proceed if this chunk isn't supposed to be visible
-            if (!Engine.Frustums[(int)cur_eye].IsVisible(new Vector4(offset, (float)(ChunkConstants.Side * System.Math.Sqrt(3)))))
+            if (!Engine.Frustums[(int)cur_eye].IsVisible(new Vector4(offset - Vector3.One * ChunkConstants.Side * 0.5f, (float)(ChunkConstants.Side * 0.75f * System.Math.Sqrt(3)))))
                 return;
 
             int mesh_idx = -1;
@@ -97,6 +101,7 @@ namespace KokoroVR.Graphics.Voxel
                 ChunkCache[lru].Item3 = cur_time;
                 ChunkCache[lru].Item2 = c.id;
 
+                if (c.faces == null) c.RebuildFullMesh();
                 c.update_pending = true;
             }
 
@@ -105,20 +110,21 @@ namespace KokoroVR.Graphics.Voxel
             {
                 unsafe
                 {
-                    var b = c.faces.ToArray();
-                    fixed (byte* b_p = b)
-                        ChunkCache[mesh_idx].Item1.Reallocate(b_p, null, null, 6, Vector3.One * ChunkConstants.Side * -0.5f + offset, b.Length / 4);
+                    ChunkCache[mesh_idx].Item1.Reallocate(c.faces, c.indices, Vector3.One * ChunkConstants.Side * -0.5f + offset);
 
                     var dP_p = (float*)drawParams.Update();
                     for (int j = 0; j < ChunkCache[mesh_idx].Item1.AllocIndices.Length; j++)
                     {
                         int idx = ChunkCache[mesh_idx].Item1.AllocIndices[j];
-                        dP_p[idx * 4 + 0] = offset.X - ChunkConstants.Side * 0.5f;
-                        dP_p[idx * 4 + 1] = offset.Y - ChunkConstants.Side * 0.5f;
-                        dP_p[idx * 4 + 2] = offset.Z - ChunkConstants.Side * 0.5f;
+                        dP_p[idx * 8 + 0] = offset.X - ChunkConstants.Side * 0.5f;
+                        dP_p[idx * 8 + 1] = offset.Y - ChunkConstants.Side * 0.5f;
+                        dP_p[idx * 8 + 2] = offset.Z - ChunkConstants.Side * 0.5f;
+                        ((long*)dP_p)[idx * 4 + 2] = ChunkCache[mesh_idx].Item1.VertexBuffer;
                     }
                     drawParams.UpdateDone();
                 }
+                c.faces = null;
+                c.indices = null;
                 c.update_pending = false;
             }
 
@@ -152,12 +158,12 @@ namespace KokoroVR.Graphics.Voxel
             angle += (float)(time * 0.5f);
             Engine.CurrentPlayer.Position = Vector3.FromSpherical(new Vector3(100, angle, 0));
             Engine.View[0] = Matrix4.LookAt(Engine.CurrentPlayer.Position, Vector3.Zero, Vector3.UnitY);
-            Engine.Frustums[0] = new Frustum(Engine.View[0], Engine.Projection[0], Engine.CurrentPlayer.Position);
+            Engine.Frustums[0] = new Frustum(Matrix4.LookAt(Engine.CurrentPlayer.Position, Vector3.Zero, Vector3.UnitY), Engine.Projection[0], Engine.CurrentPlayer.Position);
             cur_time += time;
             cur_eye = eye;
-            //voxelShader.Set("View", Engine.View[(int)eye]);
+
             voxelShader.Set("ViewProj", Engine.View[(int)eye] * Engine.Projection[(int)eye]);
-            state = new RenderState(fbuf, voxelShader, new ShaderStorageBuffer[] { MaterialMap.voxelData, drawParams }, null, true, true, DepthFunc.Greater, InverseDepth.Far, InverseDepth.Near, BlendFactor.One, BlendFactor.Zero, Vector4.Zero, InverseDepth.ClearDepth, CullFaceMode.Back);
+            state = new RenderState(fbuf, voxelShader, new ShaderStorageBuffer[] { MaterialMap.voxelData, drawParams }, null, true, true, DepthFunc.Greater, InverseDepth.Far, InverseDepth.Near, BlendFactor.One, BlendFactor.Zero, Vector4.Zero, InverseDepth.ClearDepth, CullFaceMode.Back, indexBuffer);
             queue.ClearAndBeginRecording();
         }
 
