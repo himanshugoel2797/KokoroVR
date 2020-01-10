@@ -35,7 +35,7 @@ namespace Kokoro.Graphics.Profiling
 
         static GenericMetrics()
         {
-            logFile = new StreamWriter("generic_perf_log.csv", false);
+            logFile = new StreamWriter($"generic_perf_log_{DateTime.Now.Ticks}.csv", false);
 
             string hdr = "";
             var members = typeof(GenericMeasurement).GetFields();

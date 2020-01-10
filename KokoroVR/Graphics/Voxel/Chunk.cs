@@ -238,10 +238,6 @@ namespace KokoroVR.Graphics.Voxel
                                     (byte)(x + 1), y, (byte)(z + 1),
                                     x, y, (byte)(z + 1),
                         };
-                    int idx = 1;
-                    int idy = 0;
-                    int idz = 1;
-                    int norm = (idz & 3) << 4 | (idy & 3) << 2 | (idx & 3);
                     for (int i = 0; i < 6; i++)
                     {
                         var vec = (tmp[i * 3], tmp[i * 3 + 1], tmp[i * 3 + 2]);
@@ -253,12 +249,12 @@ namespace KokoroVR.Graphics.Voxel
                             faces.Add(tmp[i * 3 + 2]);
                             faces.Add(0);
 
-                            indices.Add((uint)norm << 24 | (uint)cur << 16 | (uint)(cur_index & 0xffff));
+                            indices.Add((uint)cur << 16 | (uint)(cur_index & 0xffff));
                             cur_index++;
                         }
                         else
                         {
-                            indices.Add((uint)norm << 24 | (uint)cur << 16 | indexDict[vec]);
+                            indices.Add((uint)cur << 16 | indexDict[vec]);
                         }
                     }
                 }
@@ -275,10 +271,6 @@ namespace KokoroVR.Graphics.Voxel
                                 (byte)(x + 1), (byte)(y + 1), (byte)(z + 1),
                                 (byte)(x + 1), (byte)(y + 1), z,
                     };
-                    int idx = 1;
-                    int idy = 2;
-                    int idz = 1;
-                    int norm = (idz & 3) << 4 | (idy & 3) << 2 | (idx & 3);
                     for (int i = 0; i < 6; i++)
                     {
                         var vec = (tmp[i * 3], tmp[i * 3 + 1], tmp[i * 3 + 2]);
@@ -290,12 +282,12 @@ namespace KokoroVR.Graphics.Voxel
                             faces.Add(tmp[i * 3 + 2]);
                             faces.Add(0);
 
-                            indices.Add((uint)norm << 24 | (uint)cur << 16 | (uint)(cur_index & 0xffff));
+                            indices.Add((uint)cur << 16 | (uint)(cur_index & 0xffff));
                             cur_index++;
                         }
                         else
                         {
-                            indices.Add((uint)norm << 24 | (uint)cur << 16 | indexDict[vec]);
+                            indices.Add((uint)cur << 16 | indexDict[vec]);
                         }
                     }
                 }
@@ -312,10 +304,6 @@ namespace KokoroVR.Graphics.Voxel
                                 x, (byte)(y + 1), (byte)(z + 1),
                                 x, (byte)(y + 1), z,
                     };
-                    int idx = 0;
-                    int idy = 1;
-                    int idz = 1;
-                    int norm = (idz & 3) << 4 | (idy & 3) << 2 | (idx & 3);
                     for (int i = 0; i < 6; i++)
                     {
                         var vec = (tmp[i * 3], tmp[i * 3 + 1], tmp[i * 3 + 2]);
@@ -327,12 +315,12 @@ namespace KokoroVR.Graphics.Voxel
                             faces.Add(tmp[i * 3 + 2]);
                             faces.Add(0);
 
-                            indices.Add((uint)norm << 24 | (uint)cur << 16 | (uint)(cur_index & 0xffff));
+                            indices.Add((uint)cur << 16 | (uint)(cur_index & 0xffff));
                             cur_index++;
                         }
                         else
                         {
-                            indices.Add((uint)norm << 24 | (uint)cur << 16 | indexDict[vec]);
+                            indices.Add((uint)cur << 16 | indexDict[vec]);
                         }
                     }
                 }
@@ -349,10 +337,6 @@ namespace KokoroVR.Graphics.Voxel
                                 (byte)(x + 1), (byte)(y + 1), (byte)(z + 1),
                                 (byte)(x + 1), y, (byte)(z + 1),
                     };
-                    int idx = 2;
-                    int idy = 1;
-                    int idz = 1;
-                    int norm = (idz & 3) << 4 | (idy & 3) << 2 | (idx & 3);
                     for (int i = 0; i < 6; i++)
                     {
                         var vec = (tmp[i * 3], tmp[i * 3 + 1], tmp[i * 3 + 2]);
@@ -364,12 +348,12 @@ namespace KokoroVR.Graphics.Voxel
                             faces.Add(tmp[i * 3 + 2]);
                             faces.Add(0);
 
-                            indices.Add((uint)norm << 24 | (uint)cur << 16 | (uint)(cur_index & 0xffff));
+                            indices.Add((uint)cur << 16 | (uint)(cur_index & 0xffff));
                             cur_index++;
                         }
                         else
                         {
-                            indices.Add((uint)norm << 24 | (uint)cur << 16 | indexDict[vec]);
+                            indices.Add((uint)cur << 16 | indexDict[vec]);
                         }
                     }
                 }
@@ -386,10 +370,6 @@ namespace KokoroVR.Graphics.Voxel
                                 (byte)(x + 1), (byte)(y + 1), z,
                                 (byte)(x + 1), y, z,
                     };
-                    int idx = 1;
-                    int idy = 1;
-                    int idz = 0;
-                    int norm = (idz & 3) << 4 | (idy & 3) << 2 | (idx & 3);
                     for (int i = 0; i < 6; i++)
                     {
                         var vec = (tmp[i * 3], tmp[i * 3 + 1], tmp[i * 3 + 2]);
@@ -401,12 +381,12 @@ namespace KokoroVR.Graphics.Voxel
                             faces.Add(tmp[i * 3 + 2]);
                             faces.Add(0);
 
-                            indices.Add((uint)norm << 24 | (uint)cur << 16 | (uint)(cur_index & 0xffff));
+                            indices.Add((uint)cur << 16 | (uint)(cur_index & 0xffff));
                             cur_index++;
                         }
                         else
                         {
-                            indices.Add((uint)norm << 24 | (uint)cur << 16 | indexDict[vec]);
+                            indices.Add((uint)cur << 16 | indexDict[vec]);
                         }
                     }
                 }
@@ -423,10 +403,6 @@ namespace KokoroVR.Graphics.Voxel
                                 (byte)(x + 1), (byte)(y + 1), (byte)(z + 1),
                                 x, (byte)(y + 1), (byte)(z + 1),
                     };
-                    int idx = 1;
-                    int idy = 1;
-                    int idz = 2;
-                    int norm = (idz & 3) << 4 | (idy & 3) << 2 | (idx & 3);
                     for (int i = 0; i < 6; i++)
                     {
                         var vec = (tmp[i * 3], tmp[i * 3 + 1], tmp[i * 3 + 2]);
@@ -438,12 +414,12 @@ namespace KokoroVR.Graphics.Voxel
                             faces.Add(tmp[i * 3 + 2]);
                             faces.Add(0);
 
-                            indices.Add((uint)norm << 24 | (uint)cur << 16 | (uint)(cur_index & 0xffff));
+                            indices.Add((uint)cur << 16 | (uint)(cur_index & 0xffff));
                             cur_index++;
                         }
                         else
                         {
-                            indices.Add((uint)norm << 24 | (uint)cur << 16 | indexDict[vec]);
+                            indices.Add((uint)cur << 16 | indexDict[vec]);
                         }
                     }
                 }

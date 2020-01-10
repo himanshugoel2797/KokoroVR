@@ -40,7 +40,7 @@ namespace KokoroVR.Test
         static void Main(string[] args)
         {
             Engine.Initialize(ExperienceKind.Standing);
-            Engine.LogMetrics = false;
+            Engine.LogMetrics = !false;
 
             var w = new World("TestWorld", 10);
             w.Initializer = () =>
@@ -90,7 +90,7 @@ namespace KokoroVR.Test
                         {
                             //if (x == 11 && y == 0 && z == 11) continue;
                             //if (x == 12 && y == 0 && z == 12) continue;
-                            if (rng.NextDouble() > 0.1f) updates.Add((y, z, x, mat_id));
+                            if (rng.NextDouble() > 0.5f) updates.Add((y, z, x, mat_id));
                         }
 
                 Console.WriteLine(updates.Count);

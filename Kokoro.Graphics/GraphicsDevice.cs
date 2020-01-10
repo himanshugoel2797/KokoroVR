@@ -468,6 +468,14 @@ namespace Kokoro.Graphics
             if (gl_name == "")
                 gl_name = GL.GetString(StringName.Version);
 
+            GL.GetInteger((GetIndexedPName)All.MaxComputeWorkGroupCount, 0, out var x_wg_max);
+            GL.GetInteger((GetIndexedPName)All.MaxComputeWorkGroupCount, 1, out var y_wg_max);
+            GL.GetInteger((GetIndexedPName)All.MaxComputeWorkGroupCount, 2, out var z_wg_max);
+
+            GL.GetInteger((GetIndexedPName)All.MaxComputeWorkGroupSize, 0, out var x_wg_sz);
+            GL.GetInteger((GetIndexedPName)All.MaxComputeWorkGroupSize, 1, out var y_wg_sz);
+            GL.GetInteger((GetIndexedPName)All.MaxComputeWorkGroupSize, 2, out var z_wg_sz);
+
             Window.Title = gameName + $" | {renderer_name} | { gl_name }";
             GL.Enable(EnableCap.DebugOutput);
             GL.DebugMessageInsert(DebugSourceExternal.DebugSourceApplication, DebugType.DebugTypePortability, 1, DebugSeverity.DebugSeverityNotification, 5, "test");
@@ -477,14 +485,14 @@ namespace Kokoro.Graphics
 
         static string gl_name = "";
         static string renderer_name = "";
-#if DEBUG
+//#if DEBUG
         static double renderCnt = 0;
         static double updateCnt = 0;
         static DateTime startTime;
-#endif
+//#endif
         public static void SwapBuffers()
         {
-#if DEBUG
+//#if DEBUG
             if (renderer_name == "")
                 renderer_name = GL.GetString(StringName.Renderer);
 
@@ -498,7 +506,7 @@ namespace Kokoro.Graphics
             }
 
             GenericMetrics.EndFrame();
-#endif
+//#endif
             Window.SwapBuffers();
         }
 

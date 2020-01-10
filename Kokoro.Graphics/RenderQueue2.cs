@@ -80,7 +80,7 @@ namespace Kokoro.Graphics
             MeshGroups[renderState].Item1.AddRange(draw.Meshes);
         }
 
-        public void EndRecording(Frustum f)
+        public void EndRecording(Frustum f, Vector3 eye)
         {
             if (!isRecording) throw new Exception("Not Recording.");
 
@@ -103,7 +103,7 @@ namespace Kokoro.Graphics
                     float* data_ui_fp = (float*)data_ui;
 
                     MeshGroups[bkt] = (MeshGroups[bkt].Item1, (uint)((ulong)data_ui - (ulong)data));
-                    
+
                     //Index 0 contains the draw count, so all the draw commands themselves are at an offset of 1
                     int idx = 0;
                     for (int j = 0; j < MeshGroups[bkt].Item1.Count; j++)
@@ -113,30 +113,29 @@ namespace Kokoro.Graphics
                         if (mesh.Mesh == null)
                             continue;
 
+                        var sorted_draws = mesh.Mesh.Sort(f, eye);
+
                         //break into and submit blocks
-                        long cnt = mesh.Mesh.Length;
-                        for (int k = 0; k < mesh.Mesh.AllocIndices.Length; k++)
+                        for (int q = 0; q < sorted_draws.Length; q++)
                         {
+                            (int k, uint cnt) = sorted_draws[q];
                             if (bkt.IndexBuffer == null)
                             {
-                                data_ui[(idx * 4) + 1] = (uint)(System.Math.Min(cnt, mesh.Mesh.BlockSize) / (bkt.IndexBuffer.IsShort ? 2 : 4));   //count
+                                data_ui[(idx * 4) + 1] = (uint)(cnt / (bkt.IndexBuffer.IsShort ? 2 : 4));   //count
                                 data_ui[(idx * 4) + 2] = (uint)mesh.InstanceCount;   //instanceCount
                                 data_ui[(idx * 4) + 3] = (uint)(mesh.Mesh.AllocIndices[k] * mesh.Mesh.BlockSize);   //baseVertex
                                 data_ui[(idx * 4) + 4] = (uint)mesh.BaseInstance;   //baseInstance
                             }
                             else
                             {
-                                data_ui[(idx * 5) + 1] = (uint)(System.Math.Min(cnt, mesh.Mesh.BlockSize) / (bkt.IndexBuffer.IsShort ? 2 : 4));   //count
+                                data_ui[(idx * 5) + 1] = (uint)(cnt / (bkt.IndexBuffer.IsShort ? 2 : 4));   //count
                                 data_ui[(idx * 5) + 2] = (uint)mesh.InstanceCount;   //instanceCount
                                 data_ui[(idx * 5) + 3] = (uint)((mesh.Mesh.AllocIndices[k] * mesh.Mesh.BlockSize) / (bkt.IndexBuffer.IsShort ? 2 : 4));   //firstIndex
                                 data_ui[(idx * 5) + 4] = (uint)mesh.Mesh.AllocIndices[k];   //baseVertex
                                 data_ui[(idx * 5) + 5] = (uint)mesh.BaseInstance;   //baseInstance
                             }
 
-                            if (mesh.Mesh.IsVisible(f, k))
-                                idx++;
-
-                            cnt -= mesh.Mesh.BlockSize;
+                            idx++;
                         }
                     }
                     data_ui[0] = (uint)idx;

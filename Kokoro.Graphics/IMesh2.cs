@@ -13,6 +13,7 @@ namespace Kokoro.Graphics
         uint BlockSize { get; }
         int[] AllocIndices { get; }
 
+        (int, uint)[] Sort(Frustum f, Vector3 eyePos);
         bool IsVisible(Frustum f, int k);
     }
 }

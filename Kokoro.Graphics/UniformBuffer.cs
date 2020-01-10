@@ -23,7 +23,7 @@ namespace Kokoro.Graphics
         #endregion
 
 
-        private const int UniformBufferSize = 16 * 1024;
+        private const int UniformBufferSize = 64 * 1024;
 
         static UniformBuffer()
         {

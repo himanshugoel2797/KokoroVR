@@ -39,7 +39,7 @@ namespace Kokoro.ShaderAnalyzer
             for (int i = 0; i < analyzer.Length; i++)
             {
                 analyzer[i] = new AMDShaderAnalyzer(files[i]);
-                analyzer[i].InvokeAnalyzer();
+                analyzer[i].InvokeAnalyzer(GPUArch.gfx1010);
             }
 
             return analyzer;
@@ -59,13 +59,14 @@ namespace Kokoro.ShaderAnalyzer
             Analysis = new ShaderInfo[(int)GPUArch.ArchCount];
         }
 
-        public void InvokeAnalyzer()
+        public void InvokeAnalyzer(GPUArch arch)
         {
             foreach (string file in Directory.EnumerateFiles(".", "*.txt"))
                 File.Delete(file);
             foreach (string file in Directory.EnumerateFiles(".", "*.csv"))
                 File.Delete(file);
 
+            Lines = File.ReadAllLines(ShaderPath);
             string sType_str = "";
             switch (ShaderType)
             {
@@ -95,7 +96,7 @@ namespace Kokoro.ShaderAnalyzer
                 StartInfo = new ProcessStartInfo()
                 {
                     UseShellExecute = true,
-                    Arguments = $"-s opengl -c Ellesmere -c Carrizo -c Fiji -c Hawaii -c gfx900 -c gfx902 -c gfx906 -c gfx1010 --isa isa.txt --livereg regs.txt -a stats.csv --cfg cfg.dot --{sType_str} {ShaderPath}",
+                    Arguments = $"-s opengl -c {arch} --isa isa.txt --livereg regs.txt -a stats.csv --cfg cfg.dot --{sType_str} {ShaderPath}",
                     FileName = exec_path,
                     WorkingDirectory = Environment.CurrentDirectory
                 }
@@ -103,18 +104,17 @@ namespace Kokoro.ShaderAnalyzer
             proc.Start();
             proc.WaitForExit();
 
-            for (int i = 0; i < (int)GPUArch.ArchCount; i++)
-                try
+            try
+            {
+                GPUArch cur_arch = arch;
+                Analysis[(int)cur_arch] = new ShaderInfo()
                 {
-                    GPUArch cur_arch = (GPUArch)i;
-                    Analysis[(int)cur_arch] = new ShaderInfo()
-                    {
-                        Architecture = cur_arch,
-                        ISA = File.ReadAllLines($"{cur_arch}_isa_{sType_str}.txt"),
-                        RegisterMap = File.ReadAllLines($"{cur_arch}_regs_{sType_str}.txt"),
-                    };
-                }
-                catch (Exception) { }
+                    Architecture = cur_arch,
+                    ISA = File.ReadAllLines($"{cur_arch}_isa_{sType_str}.txt"),
+                    RegisterMap = File.ReadAllLines($"{cur_arch}_regs_{sType_str}.txt"),
+                };
+            }
+            catch (Exception) { }
 
             Console.WriteLine($"Processing: {ShaderPath}, {ShaderType}");
         }

@@ -71,6 +71,22 @@ namespace KokoroVR.Graphics.Voxel
             }
         }
 
+        public (int, uint)[] Sort(Frustum f, Vector3 eyePos)
+        {
+            var blocks = new List<(int, uint)>();
+            long cnt = 0;
+            uint last_blk_len = (uint)(Length - (AllocIndices.Length - 1) * BlockSize);
+
+            for (int i = 0; i < AllocIndices.Length; i++)
+                if (IsVisible(f, i))
+                    if (i < AllocIndices.Length - 1)
+                        blocks.Add((i, BlockSize));
+                    else
+                        blocks.Add((i, last_blk_len));
+
+            return blocks.OrderBy(a => (bounding_spheres[a.Item1].Xyz - eyePos).LengthSquared).ToArray();
+        }
+
         public bool IsVisible(Frustum f, int k)
         {
             return f.IsVisible(bounding_spheres[k]);

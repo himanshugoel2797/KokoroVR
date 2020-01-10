@@ -30,7 +30,7 @@ namespace Kokoro.ShaderAnalyzer
                 };
                 if (i == (int)curArch)
                     item.CheckState = CheckState.Checked;
-                item.CheckedChanged += Item_CheckedChanged;
+                item.CheckStateChanged += Item_CheckedChanged;
                 architectureToolStripMenuItem.DropDownItems.Add(item);
             }
         }
@@ -38,13 +38,18 @@ namespace Kokoro.ShaderAnalyzer
         private void Item_CheckedChanged(object sender, EventArgs e)
         {
             for (int i = 0; i < (int)GPUArch.ArchCount; i++)
-                if (architectureToolStripMenuItem.DropDownItems[i] != sender)
+                if (architectureToolStripMenuItem.DropDownItems[i].Text != ((ToolStripMenuItem)sender).Text)
                 {
                     var item = (ToolStripMenuItem)architectureToolStripMenuItem.DropDownItems[i];
+                    item.CheckStateChanged -= Item_CheckedChanged;
                     item.CheckState = CheckState.Unchecked;
+                    item.CheckStateChanged += Item_CheckedChanged;
                 }
                 else
+                {
                     curArch = (GPUArch)i;
+                }
+            shader.InvokeAnalyzer(curArch);
             UpdateDisplay();
         }
 
@@ -54,7 +59,7 @@ namespace Kokoro.ShaderAnalyzer
             if (openFileDialog1.ShowDialog() == DialogResult.OK)
             {
                 shader = new AMDShaderAnalyzer(openFileDialog1.FileName);
-                shader.InvokeAnalyzer();
+                shader.InvokeAnalyzer(curArch);
                 UpdateDisplay();
             }
         }
@@ -62,7 +67,7 @@ namespace Kokoro.ShaderAnalyzer
         {
             if (shader != null)
             {
-                shader.InvokeAnalyzer();
+                shader.InvokeAnalyzer(curArch);
                 UpdateDisplay();
             }
         }

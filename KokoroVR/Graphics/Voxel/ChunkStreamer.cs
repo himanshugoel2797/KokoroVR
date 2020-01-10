@@ -20,6 +20,7 @@ namespace KokoroVR.Graphics.Voxel
         private RenderQueue2 queue;
         private ShaderProgram voxelShader;
         private RenderState state;
+        private List<(int, Vector3)> Draws;
 
         private BufferAllocator indexBufferAllocator;
         private IndexBuffer indexBuffer;
@@ -33,10 +34,11 @@ namespace KokoroVR.Graphics.Voxel
 
         public ChunkStreamer(int max_count)
         {
-            uint blk_cnt = 1024 * 3;
+            uint blk_cnt = 1024 * 8;
             Ender = new ChunkStreamerEnd(this);
+            Draws = new List<(int, Vector3)>();
 
-            indexBufferAllocator = new BufferAllocator(3 * 36 * 512 * sizeof(uint), blk_cnt, false, PixelInternalFormat.R32ui);
+            indexBufferAllocator = new BufferAllocator(36 * 1024 * sizeof(uint), blk_cnt, false, PixelInternalFormat.R32ui);
             indexBuffer = new IndexBuffer(indexBufferAllocator.BufferTex.Buffer, false);
 
             MaxChunkCount = max_count;
@@ -119,6 +121,7 @@ namespace KokoroVR.Graphics.Voxel
                         dP_p[idx * 8 + 0] = offset.X - ChunkConstants.Side * 0.5f;
                         dP_p[idx * 8 + 1] = offset.Y - ChunkConstants.Side * 0.5f;
                         dP_p[idx * 8 + 2] = offset.Z - ChunkConstants.Side * 0.5f;
+
                         ((long*)dP_p)[idx * 4 + 2] = ChunkCache[mesh_idx].Item1.VertexBuffer;
                     }
                     drawParams.UpdateDone();
@@ -128,20 +131,10 @@ namespace KokoroVR.Graphics.Voxel
                 c.update_pending = false;
             }
 
+            //TODO Sort these draws front to back
+            //TODO do the same internally for each mesh
             //Record this chunk's draw
-            queue.RecordDraw(new RenderQueue2.DrawData()
-            {
-                State = state,
-                Meshes = new RenderQueue2.MeshData[]
-                {
-                    new RenderQueue2.MeshData()
-                    {
-                        BaseInstance = 0,
-                        InstanceCount = 1,
-                        Mesh = ChunkCache[mesh_idx].Item1
-                    },
-                }
-            });
+            Draws.Add((mesh_idx, offset - Vector3.One * ChunkConstants.Side * 0.5f));
         }
 
         public override void Update(double time, World parent)
@@ -162,6 +155,8 @@ namespace KokoroVR.Graphics.Voxel
             cur_time += time;
             cur_eye = eye;
 
+            Draws.Clear();
+            voxelShader.Set("eyePos", Engine.CurrentPlayer.Position);
             voxelShader.Set("ViewProj", Engine.View[(int)eye] * Engine.Projection[(int)eye]);
             state = new RenderState(fbuf, voxelShader, new ShaderStorageBuffer[] { MaterialMap.voxelData, drawParams }, null, true, true, DepthFunc.Greater, InverseDepth.Far, InverseDepth.Near, BlendFactor.One, BlendFactor.Zero, Vector4.Zero, InverseDepth.ClearDepth, CullFaceMode.Back, indexBuffer);
             queue.ClearAndBeginRecording();
@@ -177,7 +172,24 @@ namespace KokoroVR.Graphics.Voxel
 
             public override void Render(double time, Framebuffer fbuf, StaticMeshRenderer staticMesh, DynamicMeshRenderer dynamicMesh, VREye eye)
             {
-                parent.queue.EndRecording(Engine.Frustums[(int)eye]);
+                var sorted = parent.Draws.OrderBy(a => (a.Item2 - Engine.CurrentPlayer.Position).LengthSquared);
+                foreach (var (mesh_idx, _) in sorted)
+                {
+                    parent.queue.RecordDraw(new RenderQueue2.DrawData()
+                    {
+                        State = parent.state,
+                        Meshes = new RenderQueue2.MeshData[]
+                        {
+                            new RenderQueue2.MeshData(){
+                                BaseInstance = 0,
+                                InstanceCount = 1,
+                                Mesh = parent.ChunkCache[mesh_idx].Item1
+                            }
+                        }
+                    });
+                }
+
+                parent.queue.EndRecording(Engine.Frustums[(int)eye], Engine.CurrentPlayer.Position);
                 parent.queue.Submit();
             }
 
