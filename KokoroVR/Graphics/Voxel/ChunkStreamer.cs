@@ -24,6 +24,7 @@ namespace KokoroVR.Graphics.Voxel
         private List<(int, Vector3)> Draws;
 
         private ShaderProgram cullingShader;
+        private ShaderProgram compactShader;
 
         private BufferAllocator indexBufferAllocator;
         private IndexBuffer indexBuffer;
@@ -31,6 +32,7 @@ namespace KokoroVR.Graphics.Voxel
         private IndexBuffer o_indexBuffer;
 
         private ShaderStorageBuffer multiDrawParams;
+        private ShaderStorageBuffer multiDrawParams2;
 
         private double cur_time;
         private VREye cur_eye;
@@ -49,7 +51,8 @@ namespace KokoroVR.Graphics.Voxel
             o_indexSSBO = new ShaderStorageBuffer(6 * 64 * 48 * blk_cnt * sizeof(uint), false);
             o_indexBuffer = new IndexBuffer(o_indexSSBO, false);
 
-            multiDrawParams = new ShaderStorageBuffer((5 * (blk_cnt * 6 + 1) + 2) * sizeof(uint), true);
+            multiDrawParams = new ShaderStorageBuffer((5 * blk_cnt + 4) * sizeof(uint), true);
+            multiDrawParams2 = new ShaderStorageBuffer((5 * blk_cnt + 4) * sizeof(uint), true);
 
             MaxChunkCount = max_count;
             ChunkList = new Chunk[max_count];
@@ -67,6 +70,7 @@ namespace KokoroVR.Graphics.Voxel
                                             ShaderSource.Load(ShaderType.FragmentShader, "Shaders/Deferred/Voxel/fragment.glsl"));
 
             cullingShader = new ShaderProgram(ShaderSource.Load(ShaderType.ComputeShader, "Shaders/Deferred/Voxel/Cull/filter.glsl"));
+            compactShader = new ShaderProgram(ShaderSource.Load(ShaderType.ComputeShader, "Shaders/Deferred/Voxel/Cull/compact.glsl"));
 
             MaterialMap = new VoxelDictionary();
         }
@@ -173,17 +177,37 @@ namespace KokoroVR.Graphics.Voxel
                 unsafe
                 {
                     var mp_p = (uint*)multiDrawParams.Update();
-                    mp_p[0] = 0;
-                    mp_p[1] = 0;
-                    for (int i = 0; i < blk_cnt*6; i++)
+                    mp_p[0] = blk_cnt / 64;
+                    mp_p[1] = 1;
+                    mp_p[2] = 1;
+                    mp_p[3] = 0;
+                    for (int i = 0; i < blk_cnt; i++)
                     {
-                        mp_p[i * 5 + 2] = 0;
-                        mp_p[i * 5 + 3] = 1;
-                        mp_p[i * 5 + 4] = (uint)(i * 6 * 24 * 128);
-                        mp_p[i * 5 + 5] = 0;
-                        mp_p[i * 5 + 6] = 0;
+                        mp_p[i * 5 + 4] = 0;
+                        mp_p[i * 5 + 5] = 1;
+                        mp_p[i * 5 + 6] = (uint)(i * 6 * 24 * 128);
+                        mp_p[i * 5 + 7] = 0;
+                        mp_p[i * 5 + 8] = 0;
                     }
                     multiDrawParams.UpdateDone();
+                }
+
+                unsafe
+                {
+                    var mp_p = (uint*)multiDrawParams2.Update();
+                    mp_p[0] = blk_cnt / 64;
+                    mp_p[1] = 1;
+                    mp_p[2] = 1;
+                    mp_p[3] = 0;
+                    for (int i = 0; i < blk_cnt; i++)
+                    {
+                        mp_p[i * 5 + 4] = 0;
+                        mp_p[i * 5 + 5] = 1;
+                        mp_p[i * 5 + 6] = (uint)(i * 6 * 24 * 128);
+                        mp_p[i * 5 + 7] = 0;
+                        mp_p[i * 5 + 8] = 0;
+                    }
+                    multiDrawParams2.UpdateDone();
                 }
             }
 
@@ -232,34 +256,37 @@ namespace KokoroVR.Graphics.Voxel
                     GraphicsDevice.SetShaderStorageBufferBinding(parent.queue.MultidrawParams, 3);
                     GraphicsDevice.SetShaderStorageBufferBinding(parent.o_indexSSBO, 4);
                     GraphicsDevice.SetShaderStorageBufferBinding(parent.multiDrawParams, 5);
+                    GraphicsDevice.SetShaderStorageBufferBinding(parent.multiDrawParams2, 6);
                     GraphicsDevice.DispatchIndirectSyncComputeJob(parent.cullingShader, parent.queue.MultidrawParams, 0);
                     parent.multiDrawParams.UpdateDone();
+                    GraphicsDevice.DispatchIndirectSyncComputeJob(parent.compactShader, parent.multiDrawParams, 0);
+                    parent.multiDrawParams2.UpdateDone();
                     parent.o_indexBuffer.UpdateDone();
 
                     //System.Threading.Thread.Sleep(1);
                 }
                 parent.ctr = (parent.ctr + 1) % 1;
 
-
-                /*unsafe
+                /*
+                unsafe
                 {
-                    var p = (uint*)parent.multiDrawParams.Update();
-                    Console.WriteLine($"Draw Count: {p[1]}");
-                    for (int j = 0; j < p[1]; j++) {
-                        Console.WriteLine($"[{j}]Count: {p[j * 5 + 2]}");
-                        Console.WriteLine($"[{j}]InstanceCount: {p[j * 5 + 3]}");
-                        Console.WriteLine($"[{j}]FirstIndex: {p[j * 5 + 4]}");
-                        Console.WriteLine($"[{j}]BaseVertex: {p[j * 5 + 5]}");
-                        Console.WriteLine($"[{j}]BaseInstance: {p[j * 5 + 6]}");
+                    var p = (uint*)parent.queue.MultidrawParams.Update();
+                    Console.WriteLine($"Draw Count: {p[3]}");
+                    for (int j = 0; j < p[3]; j++) {
+                        Console.WriteLine($"[{j}]Count: {p[j * 5 + 4]}");
+                        Console.WriteLine($"[{j}]InstanceCount: {p[j * 5 + 5]}");
+                        Console.WriteLine($"[{j}]FirstIndex: {p[j * 5 + 6]}");
+                        Console.WriteLine($"[{j}]BaseVertex: {p[j * 5 + 7]}");
+                        Console.WriteLine($"[{j}]BaseInstance: {p[j * 5 + 8]}");
                     }
 
-                    parent.multiDrawParams.UpdateDone();
+                    parent.queue.MultidrawParams.UpdateDone();
                 }*/
 
                 GraphicsDevice.SetRenderState(parent.state);
-                GraphicsDevice.SetMultiDrawParameterBuffer(parent.multiDrawParams);
-                GraphicsDevice.SetParameterBuffer(parent.multiDrawParams);
-                GraphicsDevice.MultiDrawIndirectCount(PrimitiveType.Triangles, parent.multiDrawParams.Offset + sizeof(uint) * 2, parent.multiDrawParams.Offset + sizeof(uint), blk_cnt * 6, true, false);
+                GraphicsDevice.SetMultiDrawParameterBuffer(parent.multiDrawParams2);
+                GraphicsDevice.SetParameterBuffer(parent.multiDrawParams2);
+                GraphicsDevice.MultiDrawIndirectCount(PrimitiveType.Triangles, parent.multiDrawParams2.Offset + sizeof(uint) * 4, parent.multiDrawParams2.Offset + sizeof(uint) * 3, blk_cnt, true, false);
 
                 //parent.queue.Submit();
             }

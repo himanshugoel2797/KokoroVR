@@ -42,7 +42,7 @@ namespace Kokoro.Graphics
                 MaxDrawCount = 4096;
 
             maxDrawCount = MaxDrawCount;
-            multiDrawParams = new ShaderStorageBuffer((MaxDrawCount * 5 + 1) * sizeof(uint), transient);
+            multiDrawParams = new ShaderStorageBuffer((MaxDrawCount * 5 + 4) * sizeof(uint), transient);
         }
 
         public void Clear()

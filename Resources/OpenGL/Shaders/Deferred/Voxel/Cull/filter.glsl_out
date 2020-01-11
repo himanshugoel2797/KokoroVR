@@ -41,10 +41,10 @@ layout(std430, binding = 2) restrict readonly buffer IndexBuffer_t {
 } IndexBuffer;
 
 layout(std430, binding = 3) restrict readonly buffer DrawCMDs_t {
+    uint x;
     uint drawCalls;
-    uint y;
     uint z;
-    uint blk_cntr;
+    uint drawCalls1;
     draw_cmd_t cmds[];
 } DrawCMDs;
 
@@ -53,8 +53,10 @@ layout(std430, binding = 4) restrict writeonly buffer OutIndexBuffer_t {
 } OutIndexBuffer;
 
 layout(std430, binding = 5) restrict coherent buffer OutDrawCMDs_t {
-    uint net_cntr;
-    uint blk_cntr;
+    uint x;
+    uint drawCalls;
+    uint z;
+    uint drawCalls1;
     draw_cmd_t cmds[];
 } O_DrawCMDs;
 
@@ -77,11 +79,11 @@ void main(){
 
     //read the 4 quad indices
     uint idx0 = IndexBuffer.i[tri_off + 0];
-    uint idx1 = IndexBuffer.i[tri_off + 1];
-    uint idx2 = IndexBuffer.i[tri_off + 2];
-    uint idx3 = IndexBuffer.i[tri_off + 3];
-    uint idx4 = IndexBuffer.i[tri_off + 4];
-    uint idx5 = IndexBuffer.i[tri_off + 5];
+    uint idx1 = bitfieldExtract(IndexBuffer.i[tri_off + 1], 0, 24);
+    uint idx2 = bitfieldExtract(IndexBuffer.i[tri_off + 2], 0, 24);
+    uint idx3 = bitfieldExtract(IndexBuffer.i[tri_off + 3], 0, 24);
+    uint idx4 = bitfieldExtract(IndexBuffer.i[tri_off + 4], 0, 24);
+    uint idx5 = bitfieldExtract(IndexBuffer.i[tri_off + 5], 0, 24);
 
     //read the vertices to compute the center of the quad
     uimageBuffer vbuf = uimageBuffer(BlockInfo.v[_idx].vbuf_hndl.xy);
@@ -90,6 +92,8 @@ void main(){
     vec3 vc = v0 + BlockInfo.v[_idx].o.xyz; //(v0 + v1 + v2 + v3) * 0.25f + BlockInfo.v[_idx].o.xyz;
     float vDir = dot((vc - eyePos), normal);//try using precomputed normals instead, save on the vertex lookup + cross, reduce index buffer size
 
+    O_DrawCMDs.cmds[gl_WorkGroupID.y].baseVertex = _idx;
+    
     //extract the normal and emit if dot product suggests the face is visible
     //if vDir >= 0, cull
     bool laneActive = vDir < 0.0f;
@@ -101,19 +105,16 @@ void main(){
 
     uint shared_slot;
     if(gl_LocalInvocationID.x == 0){
-        O_DrawCMDs.blk_cntr = atomicMax(O_DrawCMDs.blk_cntr, gl_WorkGroupID.y + 1);
         shared_slot = atomicAdd(O_DrawCMDs.cmds[gl_WorkGroupID.y].count, mask_v_bitcnt);
-        O_DrawCMDs.cmds[gl_WorkGroupID.y].firstIndex = o_tri_off;
-        O_DrawCMDs.cmds[gl_WorkGroupID.y].baseVertex = _idx;
     }
     shared_slot = readFirstInvocationARB(shared_slot);
 
     if(laneActive){
-        OutIndexBuffer.i[o_tri_off + shared_slot + oSlot + 0] = idx0 & 0xFFFFFF;
-        OutIndexBuffer.i[o_tri_off + shared_slot + oSlot + 1] = idx1 & 0xFFFFFF;
-        OutIndexBuffer.i[o_tri_off + shared_slot + oSlot + 2] = idx2 & 0xFFFFFF;
-        OutIndexBuffer.i[o_tri_off + shared_slot + oSlot + 3] = idx3 & 0xFFFFFF;
-        OutIndexBuffer.i[o_tri_off + shared_slot + oSlot + 4] = idx4 & 0xFFFFFF;
-        OutIndexBuffer.i[o_tri_off + shared_slot + oSlot + 5] = idx5 & 0xFFFFFF;
+        OutIndexBuffer.i[o_tri_off + shared_slot + oSlot + 0] = bitfieldExtract(idx0, 0, 24);
+        OutIndexBuffer.i[o_tri_off + shared_slot + oSlot + 1] = idx1;
+        OutIndexBuffer.i[o_tri_off + shared_slot + oSlot + 2] = idx2;
+        OutIndexBuffer.i[o_tri_off + shared_slot + oSlot + 3] = idx3;
+        OutIndexBuffer.i[o_tri_off + shared_slot + oSlot + 4] = idx4;
+        OutIndexBuffer.i[o_tri_off + shared_slot + oSlot + 5] = idx5;
     }
 }
