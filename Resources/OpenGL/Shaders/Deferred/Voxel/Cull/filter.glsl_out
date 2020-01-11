@@ -1,3 +1,13 @@
+//ComputeShader
+#version 460 core
+#extension GL_ARB_gpu_shader_int64 : require
+#extension GL_ARB_shader_ballot : require
+#extension GL_ARB_bindless_texture : require
+#extension GL_AMD_vertex_shader_viewport_index : require
+#extension GL_ARB_shader_draw_parameters : require
+ #define MAX_DRAWS_UBO 256
+ #define MAX_DRAWS_SSBO 1024
+ #define PI 3.14159265358979
 layout(local_size_x = 64, local_size_y = 1, local_size_z = 1) in;
 //local_size = number of times the subgroup is executed
 //workgroup = spread of the subgroup

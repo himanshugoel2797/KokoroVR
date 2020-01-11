@@ -35,18 +35,24 @@ namespace Kokoro.Graphics.Profiling
 
         static GenericMetrics()
         {
-            logFile = new StreamWriter($"generic_perf_log_{DateTime.Now.Ticks}.csv", false);
-
-            string hdr = "";
-            var members = typeof(GenericMeasurement).GetFields();
-            for (int i = 0; i < members.Length; i++)
-                hdr += members[i].Name + ",";
-
-            hdr = hdr.Substring(0, hdr.Length - 1);
-            logFile.WriteLine(hdr);
-
             start_ticks = DateTime.Now.Ticks;
             pending = new Queue<PerfTimer[]>();
+        }
+
+        private static void InitFile()
+        {
+            if (logFile == null)
+            {
+                logFile = new StreamWriter($"generic_perf_log_{DateTime.Now.Ticks}.csv", false);
+
+                string hdr = "";
+                var members = typeof(GenericMeasurement).GetFields();
+                for (int i = 0; i < members.Length; i++)
+                    hdr += members[i].Name + ",";
+
+                hdr = hdr.Substring(0, hdr.Length - 1);
+                logFile.WriteLine(hdr);
+            }
         }
 
         public static void StartMeasurement()
@@ -85,6 +91,7 @@ namespace Kokoro.Graphics.Profiling
         public static void EndFrame()
         {
             if (!MetricsEnabled) return;
+            InitFile();
             var m = new GenericMeasurement()
             {
                 CPUTimestamp = DateTime.Now.Ticks - start_ticks,
@@ -104,6 +111,7 @@ namespace Kokoro.Graphics.Profiling
             if (!MetricsEnabled) return;
             if (pending.Count == 0) return;
 
+            InitFile();
             bool loop = true;
             do
             {

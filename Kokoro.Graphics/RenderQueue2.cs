@@ -31,6 +31,7 @@ namespace Kokoro.Graphics
         private bool transient;
 
         public bool ClearFramebufferBeforeSubmit { get; set; } = false;
+        public ShaderStorageBuffer MultidrawParams { get => multiDrawParams; }
 
         public RenderQueue2(uint MaxDrawCount, bool transient)
         {
@@ -97,6 +98,7 @@ namespace Kokoro.Graphics
                 uint* data_ui = (uint*)data;
 
                 var bkts = MeshGroups.Keys.ToArray();
+                if (bkts.Length > 1) throw new Exception("Only 1 bucket expected.");
                 for (int i = 0; i < bkts.Length; i++)
                 {
                     var bkt = bkts[i];
@@ -121,28 +123,30 @@ namespace Kokoro.Graphics
                             (int k, uint cnt) = sorted_draws[q];
                             if (bkt.IndexBuffer == null)
                             {
-                                data_ui[(idx * 4) + 1] = (uint)(cnt / (bkt.IndexBuffer.IsShort ? 2 : 4));   //count
-                                data_ui[(idx * 4) + 2] = (uint)mesh.InstanceCount;   //instanceCount
-                                data_ui[(idx * 4) + 3] = (uint)(mesh.Mesh.AllocIndices[k] * mesh.Mesh.BlockSize);   //baseVertex
-                                data_ui[(idx * 4) + 4] = (uint)mesh.BaseInstance;   //baseInstance
+                                data_ui[(idx * 4) + 4] = (uint)(cnt / (bkt.IndexBuffer.IsShort ? 2 : 4));   //count
+                                data_ui[(idx * 4) + 5] = (uint)mesh.InstanceCount;   //instanceCount
+                                data_ui[(idx * 4) + 6] = (uint)(mesh.Mesh.AllocIndices[k] * mesh.Mesh.BlockSize);   //baseVertex
+                                data_ui[(idx * 4) + 7] = (uint)mesh.BaseInstance;   //baseInstance
                             }
                             else
                             {
-                                data_ui[(idx * 5) + 1] = (uint)(cnt / (bkt.IndexBuffer.IsShort ? 2 : 4));   //count
-                                data_ui[(idx * 5) + 2] = (uint)mesh.InstanceCount;   //instanceCount
-                                data_ui[(idx * 5) + 3] = (uint)((mesh.Mesh.AllocIndices[k] * mesh.Mesh.BlockSize) / (bkt.IndexBuffer.IsShort ? 2 : 4));   //firstIndex
-                                data_ui[(idx * 5) + 4] = (uint)mesh.Mesh.AllocIndices[k];   //baseVertex
-                                data_ui[(idx * 5) + 5] = (uint)mesh.BaseInstance;   //baseInstance
+                                data_ui[(idx * 5) + 4] = (uint)(cnt / (bkt.IndexBuffer.IsShort ? 2 : 4));   //count
+                                data_ui[(idx * 5) + 5] = (uint)mesh.InstanceCount;   //instanceCount
+                                data_ui[(idx * 5) + 6] = (uint)((mesh.Mesh.AllocIndices[k] * mesh.Mesh.BlockSize) / (bkt.IndexBuffer.IsShort ? 2 : 4));   //firstIndex
+                                data_ui[(idx * 5) + 7] = (uint)mesh.Mesh.AllocIndices[k];   //baseVertex
+                                data_ui[(idx * 5) + 8] = (uint)mesh.BaseInstance;   //baseInstance
                             }
 
                             idx++;
                         }
                     }
-                    data_ui[0] = (uint)idx;
+                    data_ui[0] = 48;
+                    data_ui[1] = (uint)idx;
+                    data_ui[2] = 1;
+                    data_ui[3] = 0;
 
-                    Console.WriteLine(idx);
                     //Move the data pointer forward
-                    data_ui += (1 + 8 * MeshGroups[bkt].Item1.Count);
+                    //Console.WriteLine(idx);
                 }
             }
 
@@ -175,9 +179,9 @@ namespace Kokoro.Graphics
                 GraphicsDevice.SetParameterBuffer(multiDrawParams);
 
                 if (bkts[i].IndexBuffer != null)
-                    GraphicsDevice.MultiDrawIndirectCount(PrimitiveType.Triangles, multiDrawParams.Offset + offset + sizeof(uint), multiDrawParams.Offset + offset, maxDrawCount, true, bkts[i].IndexBuffer.IsShort, 5 * sizeof(uint));
+                    GraphicsDevice.MultiDrawIndirectCount(PrimitiveType.Triangles, multiDrawParams.Offset + offset + sizeof(uint) * 4, multiDrawParams.Offset + offset + sizeof(uint), maxDrawCount, true, bkts[i].IndexBuffer.IsShort, 5 * sizeof(uint));
                 else
-                    GraphicsDevice.MultiDrawIndirectCount(PrimitiveType.Triangles, multiDrawParams.Offset + offset + sizeof(uint), multiDrawParams.Offset + offset, maxDrawCount, false, false, 5 * sizeof(uint));
+                    GraphicsDevice.MultiDrawIndirectCount(PrimitiveType.Triangles, multiDrawParams.Offset + offset + sizeof(uint) * 4, multiDrawParams.Offset + offset + sizeof(uint), maxDrawCount, false, false, 5 * sizeof(uint));
 
                 //Ensure the buffers aren't in use before next update
                 RenderState state = bkts[i];

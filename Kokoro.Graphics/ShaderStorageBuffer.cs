@@ -57,7 +57,7 @@ namespace Kokoro.Graphics
             return size + (alignmentRequirement - (size % alignmentRequirement));
         }
 
-        public ShaderStorageBuffer(long size, bool stream) : this(new GPUBuffer(BufferUsage.StorageBuffer, (ulong)(AlignSize(size) * (stream ? rungs : 1)), false, true), stream)
+        public ShaderStorageBuffer(long size, bool stream, bool read = false) : this(new GPUBuffer(BufferUsage.StorageBuffer, (ulong)(AlignSize(size) * (stream ? rungs : 1)), read, true), stream)
         {
 
         }

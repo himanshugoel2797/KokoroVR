@@ -403,8 +403,8 @@ namespace Kokoro.Graphics
             GraphicsDevice.Framebuffer = state.Framebuffer;
             GraphicsDevice.SetDepthRange(state.NearPlane, state.FarPlane);
 
-            
-            if(state.IndexBuffer != null)SetVertexArray(state.IndexBuffer.varray);
+
+            if (state.IndexBuffer != null) SetVertexArray(state.IndexBuffer.varray);
             for (int i = 0; i < state.Viewports.Length; i++)
                 GraphicsDevice.SetViewport(i, state.Viewports[i].X, state.Viewports[i].Y, state.Viewports[i].Z, state.Viewports[i].W);
 
@@ -476,6 +476,8 @@ namespace Kokoro.Graphics
             GL.GetInteger((GetIndexedPName)All.MaxComputeWorkGroupSize, 1, out var y_wg_sz);
             GL.GetInteger((GetIndexedPName)All.MaxComputeWorkGroupSize, 2, out var z_wg_sz);
 
+            GL.GetInteger((GetPName)All.MaxComputeWorkGroupInvocations, out var wg_inv);
+
             Window.Title = gameName + $" | {renderer_name} | { gl_name }";
             GL.Enable(EnableCap.DebugOutput);
             GL.DebugMessageInsert(DebugSourceExternal.DebugSourceApplication, DebugType.DebugTypePortability, 1, DebugSeverity.DebugSeverityNotification, 5, "test");
@@ -485,14 +487,14 @@ namespace Kokoro.Graphics
 
         static string gl_name = "";
         static string renderer_name = "";
-//#if DEBUG
+        //#if DEBUG
         static double renderCnt = 0;
         static double updateCnt = 0;
         static DateTime startTime;
-//#endif
+        //#endif
         public static void SwapBuffers()
         {
-//#if DEBUG
+            //#if DEBUG
             if (renderer_name == "")
                 renderer_name = GL.GetString(StringName.Renderer);
 
@@ -506,7 +508,7 @@ namespace Kokoro.Graphics
             }
 
             GenericMetrics.EndFrame();
-//#endif
+            //#endif
             Window.SwapBuffers();
         }
 
@@ -672,6 +674,10 @@ namespace Kokoro.Graphics
         {
             GL.BindBuffer(OpenTK.Graphics.OpenGL4.BufferTarget.DrawIndirectBuffer, buf.id);
         }
+        public static void SetDispatchIndirectBuffer(GPUBuffer buf)
+        {
+            GL.BindBuffer(OpenTK.Graphics.OpenGL4.BufferTarget.DispatchIndirectBuffer, buf.id);
+        }
 
         public static void SetMultiDrawParameterBuffer(ShaderStorageBuffer buf)
         {
@@ -696,6 +702,16 @@ namespace Kokoro.Graphics
             var tmp = ShaderProgram;
             ShaderProgram = prog;
             GL.DispatchCompute(x, y, z);
+            ShaderProgram = tmp;
+        }
+
+        public static void DispatchIndirectSyncComputeJob(ShaderProgram prog, ShaderStorageBuffer buffer, int off)
+        {
+            GL.MemoryBarrier(MemoryBarrierFlags.AllBarrierBits);
+            var tmp = ShaderProgram;
+            ShaderProgram = prog;
+            SetDispatchIndirectBuffer(buffer.buf);
+            GL.DispatchComputeIndirect((IntPtr)off);
             ShaderProgram = tmp;
         }
         #endregion
@@ -738,7 +754,7 @@ namespace Kokoro.Graphics
 #if DEBUG
             GenericMetrics.StartMeasurement();
 #endif
-            GL.MemoryBarrier(MemoryBarrierFlags.ShaderImageAccessBarrierBit);
+            GL.MemoryBarrier(MemoryBarrierFlags.AllBarrierBits);
             if (indexed)
                 GL.Arb.MultiDrawElementsIndirectCount((OpenTK.Graphics.OpenGL4.PrimitiveType)type, short_idx ? DrawElementsType.UnsignedShort : DrawElementsType.UnsignedInt, (IntPtr)byteOffset, (IntPtr)countOffset, (int)maxCount, stride);
             else

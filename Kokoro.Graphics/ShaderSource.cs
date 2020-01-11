@@ -43,7 +43,7 @@ namespace Kokoro.Graphics
 
         public ShaderSource(Kokoro.Graphics.ShaderType sType, string filename, string src, string defines, params string[] libraryName)
         {
-            string preamble = $"#version 460 core\n#extension GL_ARB_bindless_texture : require\n#extension GL_AMD_vertex_shader_viewport_index : require\n#extension GL_ARB_shader_draw_parameters : require\n #define MAX_DRAWS_UBO {GraphicsDevice.MaxIndirectDrawsUBO}\n #define MAX_DRAWS_SSBO {GraphicsDevice.MaxIndirectDrawsSSBO}\n #define PI {System.Math.PI}\n";
+            string preamble = $"#version 460 core\n#extension GL_ARB_gpu_shader_int64 : require\n#extension GL_ARB_shader_ballot : require\n#extension GL_ARB_bindless_texture : require\n#extension GL_AMD_vertex_shader_viewport_index : require\n#extension GL_ARB_shader_draw_parameters : require\n #define MAX_DRAWS_UBO {GraphicsDevice.MaxIndirectDrawsUBO}\n #define MAX_DRAWS_SSBO {GraphicsDevice.MaxIndirectDrawsSSBO}\n #define PI {System.Math.PI}\n";
 
             string shaderSrc = preamble + defines;
 

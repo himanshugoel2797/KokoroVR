@@ -1,5 +1,7 @@
 //VertexShader
 #version 460 core
+#extension GL_ARB_gpu_shader_int64 : require
+#extension GL_ARB_shader_ballot : require
 #extension GL_ARB_bindless_texture : require
 #extension GL_AMD_vertex_shader_viewport_index : require
 #extension GL_ARB_shader_draw_parameters : require
