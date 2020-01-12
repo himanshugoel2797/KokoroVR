@@ -41,7 +41,7 @@ namespace KokoroVR.Test
         {
             Engine.Initialize(ExperienceKind.Standing);
             Engine.LogMetrics = false;
-
+            //For ray tracing, store 32x32x32 cubemaps with direct 
             var w = new World("TestWorld", 10);
             w.Initializer = () =>
             {
@@ -53,48 +53,59 @@ namespace KokoroVR.Test
                 w.LightManager.AddLight(new Graphics.Lights.PointLight()
                 {
                     Color = Vector3.UnitX,
-                    Intensity = 64.0f,
+                    Intensity = 640.0f,
                     Position = Vector3.UnitX * -m_off + Vector3.UnitZ * m_off_h + Vector3.UnitY * m_off_h
                 });
 
                 w.LightManager.AddLight(new Graphics.Lights.PointLight()
                 {
                     Color = Vector3.UnitY,
-                    Intensity = 64.0f,
+                    Intensity = 640.0f,
                     Position = Vector3.UnitY * -m_off + Vector3.UnitX * m_off_h + Vector3.UnitZ * m_off_h
                 });
 
                 w.LightManager.AddLight(new Graphics.Lights.PointLight()
                 {
                     Color = Vector3.UnitZ,
-                    Intensity = 64.0f,
+                    Intensity = 640.0f,
                     Position = Vector3.UnitZ * -m_off + Vector3.UnitX * m_off_h + Vector3.UnitY * m_off_h
                 });
 
                 w.LightManager.AddLight(new Graphics.Lights.DirectionalLight()
                 {
                     Color = Vector3.UnitZ,
-                    Intensity = 64.0f,
+                    Intensity = 640.0f,
                     Direction = new Vector3(0, -1, 0)
                 });
 
-                ChunkStreamer chunkStreamer = new ChunkStreamer(1024);
+                ChunkStreamer chunkStreamer = new ChunkStreamer(10240);
                 var mat_id = chunkStreamer.MaterialMap.Register(Vector3.One, Vector3.One * 0.5f, 1f);
                 ChunkObject obj = new ChunkObject(chunkStreamer);
 
                 Random rng = new Random(0);
                 var updates = new List<(int, int, int, byte)>();
-                for (int x = ChunkConstants.Side * -10; x < ChunkConstants.Side * 10; x ++)
-                    for (int y = 0; y < ChunkConstants.Side; y ++)
-                        for (int z = ChunkConstants.Side * -10; z < ChunkConstants.Side * 10; z ++)
+                ulong cnt = 0;
+                for (int x = ChunkConstants.Side * -10; x < ChunkConstants.Side * 10; x++)
+                {
+                    for (int y = ChunkConstants.Side * 0; y < ChunkConstants.Side * 1; y++)
+                        for (int z = ChunkConstants.Side * -10; z < ChunkConstants.Side * 10; z++)
                         {
                             //if (x == 11 && y == 0 && z == 11) continue;
                             //if (x == 12 && y == 0 && z == 12) continue;
-                            if (rng.NextDouble() > 0.1f) updates.Add((y, z, x, mat_id));
+                            if (rng.NextDouble() > 0.0f) 
+                            //if (x * x + y * y + z * z <= 200 * 200)
+                                updates.Add((y, z, x, mat_id));
                         }
+                    if (x % 256 == 0)
+                    {
+                        obj.BulkSet(updates.ToArray());
+                        cnt += (ulong)updates.Count;
+                        updates = new List<(int, int, int, byte)>();
+                    }
+                }
 
-                Console.WriteLine(updates.Count);
-                obj.BulkSet(updates.ToArray());
+                Console.WriteLine(cnt);
+                updates = null;
 
                 //w.AddRenderable(new StaticRenderable(Kokoro.Graphics.Prefabs.SphereFactory.Create(grp)));
                 w.AddRenderable(chunkStreamer);

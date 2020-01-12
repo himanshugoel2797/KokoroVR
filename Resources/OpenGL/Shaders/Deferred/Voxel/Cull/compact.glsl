@@ -26,7 +26,8 @@ layout(std430, binding = 5) restrict readonly buffer DrawCMDs_t {
 
 void main(){
     //indirect dispatch using DrawCMDs.drawCalls
-    bool laneActive = DrawCMDs.cmds[gl_GlobalInvocationID.x].count != 0;
+    uint cnt = DrawCMDs.cmds[gl_GlobalInvocationID.x].count;
+    bool laneActive = cnt != 0;
     uint64_t mask_v = ballotARB(laneActive);
 	uvec2 mask_v_unpacked = unpackUint2x32(mask_v);
 	uvec2 mask_v_unpacked_masked = unpackUint2x32(mask_v & gl_SubGroupLtMaskARB);
@@ -40,7 +41,7 @@ void main(){
     shared_slot = readFirstInvocationARB(shared_slot);
 
     if(laneActive){
-        O_DrawCMDs.cmds[shared_slot + oSlot].count = DrawCMDs.cmds[gl_GlobalInvocationID.x].count;
+        O_DrawCMDs.cmds[shared_slot + oSlot].count = cnt;
         O_DrawCMDs.cmds[shared_slot + oSlot].instanceCount = DrawCMDs.cmds[gl_GlobalInvocationID.x].instanceCount;
         O_DrawCMDs.cmds[shared_slot + oSlot].firstIndex = DrawCMDs.cmds[gl_GlobalInvocationID.x].firstIndex;
         O_DrawCMDs.cmds[shared_slot + oSlot].baseVertex = DrawCMDs.cmds[gl_GlobalInvocationID.x].baseVertex;

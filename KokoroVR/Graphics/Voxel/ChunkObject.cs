@@ -40,15 +40,30 @@ namespace KokoroVR.Graphics.Voxel
                 if (!ChunkSet.ContainsKey(coord))
                 {
                     ChunkSet[coord] = streamer.Allocate();
+                    ChunkSet[coord].Owner = this;
                 }
 
                 ChunkSet[coord].EditLocalMesh(x_o, y_o, z_o, val);
             }
 
-            foreach (var c in ChunkSet.Values)
+            foreach (var c in ChunkSet)
             {
-                c.RebuildFullMesh();
+                var (x, y, z) = c.Key;
+                c.Value.RebuildFullMesh(x, y, z);
             }
+        }
+
+        public Chunk GetChunk(int x, int y, int z)
+        {
+            var x_b = x & ~(ChunkConstants.Side - 1);
+            var y_b = y & ~(ChunkConstants.Side - 1);
+            var z_b = z & ~(ChunkConstants.Side - 1);
+
+            var coord = (x_b, y_b, z_b);
+
+            if (ChunkSet.ContainsKey(coord))
+                return ChunkSet[coord];
+            return null;
         }
 
         public override void Render(double time, Framebuffer fbuf, StaticMeshRenderer staticMesh, DynamicMeshRenderer dynamicMesh, VREye eye)

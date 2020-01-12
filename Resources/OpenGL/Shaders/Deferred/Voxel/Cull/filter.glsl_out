@@ -79,11 +79,6 @@ void main(){
 
     //read the 4 quad indices
     uint idx0 = IndexBuffer.i[tri_off + 0];
-    uint idx1 = bitfieldExtract(IndexBuffer.i[tri_off + 1], 0, 24);
-    uint idx2 = bitfieldExtract(IndexBuffer.i[tri_off + 2], 0, 24);
-    uint idx3 = bitfieldExtract(IndexBuffer.i[tri_off + 3], 0, 24);
-    uint idx4 = bitfieldExtract(IndexBuffer.i[tri_off + 4], 0, 24);
-    uint idx5 = bitfieldExtract(IndexBuffer.i[tri_off + 5], 0, 24);
 
     //read the vertices to compute the center of the quad
     uimageBuffer vbuf = uimageBuffer(BlockInfo.v[_idx].vbuf_hndl.xy);
@@ -110,6 +105,11 @@ void main(){
     shared_slot = readFirstInvocationARB(shared_slot);
 
     if(laneActive){
+        uint idx1 = bitfieldExtract(IndexBuffer.i[tri_off + 1], 0, 24);
+        uint idx2 = bitfieldExtract(IndexBuffer.i[tri_off + 2], 0, 24);
+        uint idx3 = bitfieldExtract(IndexBuffer.i[tri_off + 3], 0, 24);
+        uint idx4 = bitfieldExtract(IndexBuffer.i[tri_off + 4], 0, 24);
+        uint idx5 = bitfieldExtract(IndexBuffer.i[tri_off + 5], 0, 24);
         OutIndexBuffer.i[o_tri_off + shared_slot + oSlot + 0] = bitfieldExtract(idx0, 0, 24);
         OutIndexBuffer.i[o_tri_off + shared_slot + oSlot + 1] = idx1;
         OutIndexBuffer.i[o_tri_off + shared_slot + oSlot + 2] = idx2;

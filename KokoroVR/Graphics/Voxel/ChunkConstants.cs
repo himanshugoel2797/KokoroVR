@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Kokoro.Math;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -10,9 +11,18 @@ namespace KokoroVR.Graphics.Voxel
     {
         public const int SideLog = 5;
         public const int Side = (1 << SideLog);
-        public const int VoxletSize = 8;
-        public const int VoxeletTris = VoxletSize * 36;
-        public const int Off = 8;
-        public const int DictionaryLen = 1 << (sizeof(ushort) * 8 - Off);
+        public const int DictionaryLen = 255;
+        public const int WavefrontSize = 64;
+        public const int BlockSize = WavefrontSize * 24 * 6;
+
+        public static Vector3[] Normals = new Vector3[]
+        {
+            new Vector3(0, -1, 0),
+            new Vector3(0, 1, 0),
+            new Vector3(-1, 0, 0),
+            new Vector3(1, 0, 0),
+            new Vector3(0, 0, -1),
+            new Vector3(0, 0, 1),
+        };
     }
 }

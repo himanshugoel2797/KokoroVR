@@ -9,6 +9,8 @@ namespace Kokoro.Math
     public class Frustum
     {
         Plane lft, rgt, top, btm, near;
+
+        public Vector3 EyePosition { get; private set; }
         public Frustum(Matrix4 v, Matrix4 p, Vector3 eyePos)
         {
             //inverse(v * p) applied to clip space vectors is then used to extract frustum planes
@@ -41,6 +43,8 @@ namespace Kokoro.Math
             rgt = new Plane(ntr.Xyz, nbr.Xyz, ftr.Xyz);
             top = new Plane(ntl.Xyz, ntr.Xyz, ftl.Xyz);
             btm = new Plane(nbr.Xyz, nbl.Xyz, fbr.Xyz);
+
+            EyePosition = eyePos;
         }
 
         public bool IsVisible(Vector4 Sphere)

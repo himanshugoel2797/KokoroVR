@@ -28,31 +28,14 @@ namespace KokoroVR.Graphics.Voxel
 
         internal int id;
         internal ChunkStreamer streamer;
-        internal bool dirty, update_pending;
+        internal bool dirty, update_pending, empty;
         internal byte[] faces;
         internal uint[] indices;
-
-        struct Primitive
-        {
-            public byte[] data;
-            public Vector3[] pos;
-            public Vector3 center;
-
-            public Primitive(byte[] d, int off)
-            {
-                data = new byte[4 * 3];
-                Buffer.BlockCopy(d, off, data, 0, 4 * 3);
-
-                pos = new Vector3[3];
-                pos[0] = new Vector3(data[0 * 4 + 0] & 0x1f, data[0 * 4 + 1] & 0x1f, data[0 * 4 + 2] & 0x1f);
-                pos[1] = new Vector3(data[1 * 4 + 0] & 0x1f, data[1 * 4 + 1] & 0x1f, data[1 * 4 + 2] & 0x1f);
-                pos[2] = new Vector3(data[2 * 4 + 0] & 0x1f, data[2 * 4 + 1] & 0x1f, data[2 * 4 + 2] & 0x1f);
-
-                center = (pos[0] + pos[1] + pos[2]) * 1.0f / 3.0f;
-            }
-        }
+        internal Vector4[] bounds;
+        internal byte[] norm_mask;
 
         public int VoxelCount { get; private set; }
+        public ChunkObject Owner { get; internal set; }
 
         internal Chunk(ChunkStreamer streamer, int id)
         {
@@ -84,10 +67,6 @@ namespace KokoroVR.Graphics.Voxel
             while (nodes.Count > 0)
             {
                 (x, y, z) = nodes.Dequeue();
-
-                if (x_b == 0 && x == ChunkConstants.Side - 1)
-                { //Set associated mask
-                }
 
                 if (x > 0)
                 {
@@ -180,7 +159,52 @@ namespace KokoroVR.Graphics.Voxel
             }
         }
 
-        public void RebuildFullMesh()
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private void EmitFace(byte cur, int norm, int normal_idx, byte[] tmp, Dictionary<uint, uint> indexDict, List<byte> faces, List<uint> indices, List<Vector4> cluster_bnds, List<byte> cluster_norms, ref byte minx, ref byte miny, ref byte minz, ref byte maxx, ref byte maxy, ref byte maxz, ref byte cur_norm_mask)
+        {
+            cur_norm_mask |= (byte)(1 << normal_idx);
+            for (int i = 0; i < 6; i++)
+            {
+                minx = Math.Min(minx, tmp[i * 3 + 0]);
+                miny = Math.Min(miny, tmp[i * 3 + 1]);
+                minz = Math.Min(minz, tmp[i * 3 + 2]);
+
+                maxx = Math.Max(maxx, tmp[i * 3 + 0]);
+                maxy = Math.Max(maxy, tmp[i * 3 + 1]);
+                maxz = Math.Max(maxz, tmp[i * 3 + 2]);
+
+                var vec = (uint)tmp[i * 3 + 2] << 16 | (uint)tmp[i * 3 + 1] << 8 | tmp[i * 3];
+                if (!indexDict.ContainsKey(vec))
+                {
+                    indices.Add((uint)norm << 24 | (uint)cur << 16 | (uint)(indexDict.Count & 0xffff));
+                    indexDict[vec] = (ushort)indexDict.Count;
+                    faces.Add(tmp[i * 3 + 0]);
+                    faces.Add(tmp[i * 3 + 1]);
+                    faces.Add(tmp[i * 3 + 2]);
+                    faces.Add(0);
+                }
+                else
+                {
+                    indices.Add((uint)norm << 24 | (uint)cur << 16 | indexDict[vec]);
+                }
+            }
+
+            if (indices.Count % ChunkConstants.BlockSize == 0)
+            {
+                //Compute bounds and set norm mask
+                Vector3 c = new Vector3(maxx + minx, maxy + miny, maxz + minz) * 0.5f;
+                float radsq = (new Vector3(maxx, maxy, maxz) - c).Length;
+
+                cluster_bnds.Add(new Vector4(c, radsq));
+                cluster_norms.Add(cur_norm_mask);
+
+                cur_norm_mask = 0;
+                maxx = maxy = maxz = byte.MinValue;
+                minx = miny = minz = byte.MaxValue;
+            }
+        }
+
+        public void RebuildFullMesh(int x_off, int y_off, int z_off)
         {
             VoxelCount = 0;
 
@@ -189,8 +213,13 @@ namespace KokoroVR.Graphics.Voxel
 
             var faces = new List<byte>();
             var indices = new List<uint>();
-            var indexDict = new Dictionary<(byte, byte, byte), uint>();
-            ushort cur_index = 0;
+            var cluster_bnds = new List<Vector4>();
+            var cluster_norms = new List<byte>();
+
+            //TODO implement neighbor visibility sampling instead of assuming visibility
+            var indexDict = new Dictionary<uint, uint>();
+            byte cur_norm_mask = 0;
+            byte minx = byte.MaxValue, miny = byte.MaxValue, minz = byte.MaxValue, maxx = byte.MinValue, maxy = byte.MinValue, maxz = byte.MinValue;
             for (int j = 0; j < data.Length; j++)
             {
                 int xi, yi, zi;
@@ -203,64 +232,44 @@ namespace KokoroVR.Graphics.Voxel
                 byte y = (byte)yi;
                 byte z = (byte)zi;
 
-                byte cur, top, btm, frt, bck, lft, rgt, top_v, btm_v, frt_v, bck_v, lft_v, rgt_v;
+                byte cur, top_v, btm_v, frt_v, bck_v, lft_v, rgt_v;
                 lock (data_locker)
                 {
                     cur = data[GetIndex(x, y, z)];
-                    top = y > 0 ? data[GetIndex(x, y - 1, z)] : (byte)0;
-                    btm = y < ChunkConstants.Side - 1 ? data[GetIndex(x, y + 1, z)] : (byte)0;
-                    frt = z > 0 ? data[GetIndex(x, y, z - 1)] : (byte)0;
-                    bck = z < ChunkConstants.Side - 1 ? data[GetIndex(x, y, z + 1)] : (byte)0;
-                    lft = x > 0 ? data[GetIndex(x - 1, y, z)] : (byte)0;
-                    rgt = x < ChunkConstants.Side - 1 ? data[GetIndex(x + 1, y, z)] : (byte)0;
 
-                    top_v = y > 0 ? vismap[GetIndex(x, y - 1, z)] : (byte)2;
-                    btm_v = y < ChunkConstants.Side - 1 ? vismap[GetIndex(x, y + 1, z)] : (byte)2;
-                    frt_v = z > 0 ? vismap[GetIndex(x, y, z - 1)] : (byte)2;
-                    bck_v = z < ChunkConstants.Side - 1 ? vismap[GetIndex(x, y, z + 1)] : (byte)2;
-                    lft_v = x > 0 ? vismap[GetIndex(x - 1, y, z)] : (byte)2;
-                    rgt_v = x < ChunkConstants.Side - 1 ? vismap[GetIndex(x + 1, y, z)] : (byte)2;
+                    if (cur == 0)
+                        continue;
+
+                    var top_c = Owner.GetChunk(x_off + x, y_off + y - 1, z_off + z);
+                    var btm_c = Owner.GetChunk(x_off + x, y_off + y + 1, z_off + z);
+                    var frt_c = Owner.GetChunk(x_off + x, y_off + y, z_off + z - 1);
+                    var bck_c = Owner.GetChunk(x_off + x, y_off + y, z_off + z + 1);
+                    var lft_c = Owner.GetChunk(x_off + x - 1, y_off + y, z_off + z);
+                    var rgt_c = Owner.GetChunk(x_off + x + 1, y_off + y, z_off + z);
+
+                    top_v = y > 0 ? vismap[GetIndex(x, y - 1, z)] : top_c == null ? (byte)2 : top_c.data[GetIndex(x, ChunkConstants.Side - 1, z)] == 0 ? (byte)2 : (byte)0;
+                    btm_v = y < ChunkConstants.Side - 1 ? vismap[GetIndex(x, y + 1, z)] : btm_c == null ? (byte)2 : btm_c.data[GetIndex(x, 0, z)] == 0 ? (byte)2 : (byte)0;
+                    frt_v = z > 0 ? vismap[GetIndex(x, y, z - 1)] : frt_c == null ? (byte)2 : frt_c.data[GetIndex(x, y, ChunkConstants.Side - 1)] == 0 ? (byte)2 : (byte)0;
+                    bck_v = z < ChunkConstants.Side - 1 ? vismap[GetIndex(x, y, z + 1)] : bck_c == null ? (byte)2 : bck_c.data[GetIndex(x, y, 0)] == 0 ? (byte)2 : (byte)0;
+                    lft_v = x > 0 ? vismap[GetIndex(x - 1, y, z)] : lft_c == null ? (byte)2 : lft_c.data[GetIndex(ChunkConstants.Side - 1, y, z)] == 0 ? (byte)2 : (byte)0;
+                    rgt_v = x < ChunkConstants.Side - 1 ? vismap[GetIndex(x + 1, y, z)] : rgt_c == null ? (byte)2 : rgt_c.data[GetIndex(0, y, z)] == 0 ? (byte)2 : (byte)0;
                 }
-                //generate draws per face
-                if (cur == 0)
-                    continue;
 
+                //generate draws per face
                 //emit vertices for each faces based on this data
                 if (top_v == 2)
                 {
                     //0
                     var tmp = new byte[]
-                        {
-                                    (byte)(x + 1), y, z,
-                                    x, y, (byte)(z + 1),
-                                    x, y, z,
-                                    (byte)(x + 1), y, z,
-                                    (byte)(x + 1), y, (byte)(z + 1),
-                                    x, y, (byte)(z + 1),
-                        };
-                    int idx = 1;
-                    int idy = 0;
-                    int idz = 1;
-                    int norm = (idz & 3) << 4 | (idy & 3) << 2 | (idx & 3);
-                    for (int i = 0; i < 6; i++)
                     {
-                        var vec = (tmp[i * 3], tmp[i * 3 + 1], tmp[i * 3 + 2]);
-                        if (!indexDict.ContainsKey(vec))
-                        {
-                            indexDict[vec] = cur_index;
-                            faces.Add(tmp[i * 3 + 0]);
-                            faces.Add(tmp[i * 3 + 1]);
-                            faces.Add(tmp[i * 3 + 2]);
-                            faces.Add(0);
-
-                            indices.Add((uint)norm << 24 | (uint)cur << 16 | (uint)(cur_index & 0xffff));
-                            cur_index++;
-                        }
-                        else
-                        {
-                            indices.Add((uint)norm << 24 | (uint)cur << 16 | indexDict[vec]);
-                        }
-                    }
+                        (byte)(x + 1), y, z,
+                        x, y, (byte)(z + 1),
+                        x, y, z,
+                        (byte)(x + 1), y, z,
+                        (byte)(x + 1), y, (byte)(z + 1),
+                        x, y, (byte)(z + 1),
+                    };
+                    EmitFace(cur, (1 & 3) << 4 | (0 & 3) << 2 | (1 & 3), 0, tmp, indexDict, faces, indices, cluster_bnds, cluster_norms, ref minx, ref miny, ref minz, ref maxx, ref maxy, ref maxz, ref cur_norm_mask);
                 }
 
                 if (btm_v == 2)
@@ -268,36 +277,14 @@ namespace KokoroVR.Graphics.Voxel
                     //1
                     var tmp = new byte[]
                     {
-                                x, (byte)(y + 1), z,
-                                x, (byte)(y + 1), (byte)(z + 1),
-                                (byte)(x + 1), (byte)(y + 1), z,
-                                x, (byte)(y + 1), (byte)(z + 1),
-                                (byte)(x + 1), (byte)(y + 1), (byte)(z + 1),
-                                (byte)(x + 1), (byte)(y + 1), z,
+                        x, (byte)(y + 1), z,
+                        x, (byte)(y + 1), (byte)(z + 1),
+                        (byte)(x + 1), (byte)(y + 1), z,
+                        x, (byte)(y + 1), (byte)(z + 1),
+                        (byte)(x + 1), (byte)(y + 1), (byte)(z + 1),
+                        (byte)(x + 1), (byte)(y + 1), z,
                     };
-                    int idx = 1;
-                    int idy = 2;
-                    int idz = 1;
-                    int norm = (idz & 3) << 4 | (idy & 3) << 2 | (idx & 3);
-                    for (int i = 0; i < 6; i++)
-                    {
-                        var vec = (tmp[i * 3], tmp[i * 3 + 1], tmp[i * 3 + 2]);
-                        if (!indexDict.ContainsKey(vec))
-                        {
-                            indexDict[vec] = cur_index;
-                            faces.Add(tmp[i * 3 + 0]);
-                            faces.Add(tmp[i * 3 + 1]);
-                            faces.Add(tmp[i * 3 + 2]);
-                            faces.Add(0);
-
-                            indices.Add((uint)norm << 24 | (uint)cur << 16 | (uint)(cur_index & 0xffff));
-                            cur_index++;
-                        }
-                        else
-                        {
-                            indices.Add((uint)norm << 24 | (uint)cur << 16 | indexDict[vec]);
-                        }
-                    }
+                    EmitFace(cur, (1 & 3) << 4 | (2 & 3) << 2 | (1 & 3), 1, tmp, indexDict, faces, indices, cluster_bnds, cluster_norms, ref minx, ref miny, ref minz, ref maxx, ref maxy, ref maxz, ref cur_norm_mask);
                 }
 
                 if (lft_v == 2)
@@ -305,36 +292,14 @@ namespace KokoroVR.Graphics.Voxel
                     //2
                     var tmp = new byte[]
                     {
-                                x, y, z,
-                                x, y, (byte)(z + 1),
-                                x, (byte)(y + 1), z,
-                                x, y, (byte)(z + 1),
-                                x, (byte)(y + 1), (byte)(z + 1),
-                                x, (byte)(y + 1), z,
+                        x, y, z,
+                        x, y, (byte)(z + 1),
+                        x, (byte)(y + 1), z,
+                        x, y, (byte)(z + 1),
+                        x, (byte)(y + 1), (byte)(z + 1),
+                        x, (byte)(y + 1), z,
                     };
-                    int idx = 0;
-                    int idy = 1;
-                    int idz = 1;
-                    int norm = (idz & 3) << 4 | (idy & 3) << 2 | (idx & 3);
-                    for (int i = 0; i < 6; i++)
-                    {
-                        var vec = (tmp[i * 3], tmp[i * 3 + 1], tmp[i * 3 + 2]);
-                        if (!indexDict.ContainsKey(vec))
-                        {
-                            indexDict[vec] = cur_index;
-                            faces.Add(tmp[i * 3 + 0]);
-                            faces.Add(tmp[i * 3 + 1]);
-                            faces.Add(tmp[i * 3 + 2]);
-                            faces.Add(0);
-
-                            indices.Add((uint)norm << 24 | (uint)cur << 16 | (uint)(cur_index & 0xffff));
-                            cur_index++;
-                        }
-                        else
-                        {
-                            indices.Add((uint)norm << 24 | (uint)cur << 16 | indexDict[vec]);
-                        }
-                    }
+                    EmitFace(cur, (1 & 3) << 4 | (1 & 3) << 2 | (0 & 3), 2, tmp, indexDict, faces, indices, cluster_bnds, cluster_norms, ref minx, ref miny, ref minz, ref maxx, ref maxy, ref maxz, ref cur_norm_mask);
                 }
 
                 if (rgt_v == 2)
@@ -342,36 +307,14 @@ namespace KokoroVR.Graphics.Voxel
                     //3
                     var tmp = new byte[]
                     {
-                                (byte)(x + 1), (byte)(y + 1), z,
-                                (byte)(x + 1), y, (byte)(z + 1),
-                                (byte)(x + 1), y, z,
-                                (byte)(x + 1), (byte)(y + 1), z,
-                                (byte)(x + 1), (byte)(y + 1), (byte)(z + 1),
-                                (byte)(x + 1), y, (byte)(z + 1),
+                        (byte)(x + 1), (byte)(y + 1), z,
+                        (byte)(x + 1), y, (byte)(z + 1),
+                        (byte)(x + 1), y, z,
+                        (byte)(x + 1), (byte)(y + 1), z,
+                        (byte)(x + 1), (byte)(y + 1), (byte)(z + 1),
+                        (byte)(x + 1), y, (byte)(z + 1),
                     };
-                    int idx = 2;
-                    int idy = 1;
-                    int idz = 1;
-                    int norm = (idz & 3) << 4 | (idy & 3) << 2 | (idx & 3);
-                    for (int i = 0; i < 6; i++)
-                    {
-                        var vec = (tmp[i * 3], tmp[i * 3 + 1], tmp[i * 3 + 2]);
-                        if (!indexDict.ContainsKey(vec))
-                        {
-                            indexDict[vec] = cur_index;
-                            faces.Add(tmp[i * 3 + 0]);
-                            faces.Add(tmp[i * 3 + 1]);
-                            faces.Add(tmp[i * 3 + 2]);
-                            faces.Add(0);
-
-                            indices.Add((uint)norm << 24 | (uint)cur << 16 | (uint)(cur_index & 0xffff));
-                            cur_index++;
-                        }
-                        else
-                        {
-                            indices.Add((uint)norm << 24 | (uint)cur << 16 | indexDict[vec]);
-                        }
-                    }
+                    EmitFace(cur, (1 & 3) << 4 | (1 & 3) << 2 | (2 & 3), 3, tmp, indexDict, faces, indices, cluster_bnds, cluster_norms, ref minx, ref miny, ref minz, ref maxx, ref maxy, ref maxz, ref cur_norm_mask);
                 }
 
                 if (frt_v == 2)
@@ -379,36 +322,14 @@ namespace KokoroVR.Graphics.Voxel
                     //4
                     var tmp = new byte[]
                     {
-                                x, y, z,
-                                x, (byte)(y + 1), z,
-                                (byte)(x + 1), y, z,
-                                x, (byte)(y + 1), z,
-                                (byte)(x + 1), (byte)(y + 1), z,
-                                (byte)(x + 1), y, z,
+                        x, y, z,
+                        x, (byte)(y + 1), z,
+                        (byte)(x + 1), y, z,
+                        x, (byte)(y + 1), z,
+                        (byte)(x + 1), (byte)(y + 1), z,
+                        (byte)(x + 1), y, z,
                     };
-                    int idx = 1;
-                    int idy = 1;
-                    int idz = 0;
-                    int norm = (idz & 3) << 4 | (idy & 3) << 2 | (idx & 3);
-                    for (int i = 0; i < 6; i++)
-                    {
-                        var vec = (tmp[i * 3], tmp[i * 3 + 1], tmp[i * 3 + 2]);
-                        if (!indexDict.ContainsKey(vec))
-                        {
-                            indexDict[vec] = cur_index;
-                            faces.Add(tmp[i * 3 + 0]);
-                            faces.Add(tmp[i * 3 + 1]);
-                            faces.Add(tmp[i * 3 + 2]);
-                            faces.Add(0);
-
-                            indices.Add((uint)norm << 24 | (uint)cur << 16 | (uint)(cur_index & 0xffff));
-                            cur_index++;
-                        }
-                        else
-                        {
-                            indices.Add((uint)norm << 24 | (uint)cur << 16 | indexDict[vec]);
-                        }
-                    }
+                    EmitFace(cur, (0 & 3) << 4 | (1 & 3) << 2 | (1 & 3), 4, tmp, indexDict, faces, indices, cluster_bnds, cluster_norms, ref minx, ref miny, ref minz, ref maxx, ref maxy, ref maxz, ref cur_norm_mask);
                 }
 
                 if (bck_v == 2)
@@ -416,59 +337,36 @@ namespace KokoroVR.Graphics.Voxel
                     //5
                     var tmp = new byte[]
                     {
-                                (byte)(x + 1), y, (byte)(z + 1),
-                                x, (byte)(y + 1), (byte)(z + 1),
-                                x, y, (byte)(z + 1),
-                                (byte)(x + 1), y, (byte)(z + 1),
-                                (byte)(x + 1), (byte)(y + 1), (byte)(z + 1),
-                                x, (byte)(y + 1), (byte)(z + 1),
+                        (byte)(x + 1), y, (byte)(z + 1),
+                        x, (byte)(y + 1), (byte)(z + 1),
+                        x, y, (byte)(z + 1),
+                        (byte)(x + 1), y, (byte)(z + 1),
+                        (byte)(x + 1), (byte)(y + 1), (byte)(z + 1),
+                        x, (byte)(y + 1), (byte)(z + 1),
                     };
-                    int idx = 1;
-                    int idy = 1;
-                    int idz = 2;
-                    int norm = (idz & 3) << 4 | (idy & 3) << 2 | (idx & 3);
-                    for (int i = 0; i < 6; i++)
-                    {
-                        var vec = (tmp[i * 3], tmp[i * 3 + 1], tmp[i * 3 + 2]);
-                        if (!indexDict.ContainsKey(vec))
-                        {
-                            indexDict[vec] = cur_index;
-                            faces.Add(tmp[i * 3 + 0]);
-                            faces.Add(tmp[i * 3 + 1]);
-                            faces.Add(tmp[i * 3 + 2]);
-                            faces.Add(0);
-
-                            indices.Add((uint)norm << 24 | (uint)cur << 16 | (uint)(cur_index & 0xffff));
-                            cur_index++;
-                        }
-                        else
-                        {
-                            indices.Add((uint)norm << 24 | (uint)cur << 16 | indexDict[vec]);
-                        }
-                    }
+                    EmitFace(cur, (2 & 3) << 4 | (1 & 3) << 2 | (1 & 3), 5, tmp, indexDict, faces, indices, cluster_bnds, cluster_norms, ref minx, ref miny, ref minz, ref maxx, ref maxy, ref maxz, ref cur_norm_mask);
                 }
-
+                //TODO clean up and optimize this code
                 VoxelCount++;
+            }
+
+            if (indices.Count % ChunkConstants.BlockSize != 0)
+            {
+                //Compute bounds and set norm mask
+                Vector3 c = new Vector3(maxx + minx, maxy + miny, maxz + minz) * 0.5f;
+                float radsq = (new Vector3(maxx, maxy, maxz) - c).Length;
+
+                cluster_bnds.Add(new Vector4(c, radsq));
+                cluster_norms.Add(cur_norm_mask);
             }
 
             this.faces = faces.ToArray();
             this.indices = indices.ToArray();
+            this.bounds = cluster_bnds.ToArray();
+            this.norm_mask = cluster_norms.ToArray();
 
-
-#if OBJ_OUT
-            string str = "";
-            for (int i = 0; i < indices.Count; i ++)
-            {
-                str += $"v {faces[(int)(indices[i] & 0xffff) * 4]} {faces[(int)(indices[i] & 0xffff) * 4 + 1]} {faces[(int)(indices[i] & 0xffff) * 4 + 2]} {faces[(int)(indices[i] & 0xffff) * 4 + 3]}\n";
-            }
-
-            for(int i = 0; i < indices.Count; i+=3)
-            {
-                str += $"f {i + 1} {i + 2} {i + 3}\n";
-            }
-            File.WriteAllText("tmp.obj", str);
-
-#endif
+            if (this.faces.Length == 0)
+                empty = true;
 
             dirty = false;
             update_pending = true;
@@ -492,8 +390,8 @@ namespace KokoroVR.Graphics.Voxel
 
         public void Update()
         {
-            if (dirty)
-                RebuildFullMesh();
+            // if (dirty)
+            //RebuildFullMesh();
         }
     }
 }

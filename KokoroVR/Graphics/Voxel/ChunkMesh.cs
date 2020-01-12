@@ -13,6 +13,7 @@ namespace KokoroVR.Graphics.Voxel
         private BufferTexture vertex_buf;
         private BufferAllocator index_buf;
         private Vector4[] bounding_spheres;
+        private byte[] bounding_norms;
 
         public int Length { get; private set; }
 
@@ -26,15 +27,24 @@ namespace KokoroVR.Graphics.Voxel
             this.index_buf = index_buf;
         }
 
-        public void Reallocate(byte[] vertices, uint[] indices, Vector3 offset)
+        public void Reallocate(byte[] vertices, uint[] indices, Vector4[] bounds, byte[] norms, Vector3 offset)
         {
             //allocate a new vertex buffer
             vertex_buf = new BufferTexture(vertices.Length, PixelInternalFormat.Rgba8ui, false);
             Length = indices.Length * sizeof(uint);
 
+            bounding_spheres = bounds;
+            bounding_norms = norms;
+
+            for(int i = 0; i < bounding_spheres.Length; i++)
+            {
+                bounding_spheres[i].X += offset.X;
+                bounding_spheres[i].Y += offset.Y;
+                bounding_spheres[i].Z += offset.Z;
+            }
+
             if (AllocIndices != null) index_buf.Free(AllocIndices);
             AllocIndices = index_buf.Allocate(indices.Length * sizeof(uint));
-            bounding_spheres = new Vector4[AllocIndices.Length];
             unsafe
             {
                 //Upload the vertex data
@@ -44,30 +54,15 @@ namespace KokoroVR.Graphics.Voxel
                 vertex_buf.UpdateDone(0, vertices.Length);
 
                 //While uploading the index data compute each block's bounds too
-                int idx_buf_idx = 0;
-                for (int i = 0; i < AllocIndices.Length; i++)
-                {
-                    Vector3 min = new Vector3(float.MaxValue);
-                    Vector3 max = new Vector3(float.MinValue);
-
-                    var i_d_p = (uint*)index_buf.Update(AllocIndices[i]);
-                    for (int j = 0; j < index_buf.BlockSize / sizeof(uint); j++)
+                long idx_buf_idx = indices.Length * sizeof(uint);
+                fixed (uint* i_s_p = indices)
+                    for (int i = 0; i < AllocIndices.Length; i++)
                     {
-                        var cur = new Vector3(vertices[(ushort)(indices[idx_buf_idx] & 0xffff) * 4], vertices[(ushort)(indices[idx_buf_idx] & 0xffff) * 4 + 1], vertices[(ushort)(indices[idx_buf_idx] & 0xffff) * 4 + 2]);
-                        min = Vector3.ComponentMin(min, cur + offset);
-                        max = Vector3.ComponentMax(max, cur + offset);
-
-                        i_d_p[j] = indices[idx_buf_idx];
-                        idx_buf_idx++;
-                        if (idx_buf_idx == indices.Length)
-                            break;
+                        var i_d_p = (uint*)index_buf.Update(AllocIndices[i]);
+                        Buffer.MemoryCopy(i_s_p + i * index_buf.BlockSize / sizeof(uint), i_d_p, index_buf.BlockSize, Math.Min(idx_buf_idx, index_buf.BlockSize));
+                        index_buf.UpdateDone(AllocIndices[i]);
+                        idx_buf_idx -= index_buf.BlockSize;
                     }
-                    index_buf.UpdateDone(AllocIndices[i]);
-                    bounding_spheres[i] = new Vector4((min + max) * 0.5f, (max - min).Length * 0.5f);
-
-                    if (idx_buf_idx == indices.Length)
-                        break;
-                }
             }
         }
 
@@ -89,7 +84,22 @@ namespace KokoroVR.Graphics.Voxel
 
         public bool IsVisible(Frustum f, int k)
         {
-            return f.IsVisible(bounding_spheres[k]);
+            //Check the norm mask
+            if (f.IsVisible(bounding_spheres[k]))
+            {
+                var norm_mask = bounding_norms[k];
+                var vc = bounding_spheres[k].Xyz - f.EyePosition;
+                var score = 0;
+                for (int i = 0; i < 6; i++)
+                {
+                    if ((norm_mask & (1 << i)) != 0 && Vector3.Dot(vc, ChunkConstants.Normals[i]) < 0)
+                        score++;
+                }
+                if (score == 0) return false;
+                return true;
+            }
+            else
+                return false;
         }
     }
 }

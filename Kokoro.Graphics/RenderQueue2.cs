@@ -140,7 +140,7 @@ namespace Kokoro.Graphics
                             idx++;
                         }
                     }
-                    data_ui[0] = 48;
+                    data_ui[0] = 24;
                     data_ui[1] = (uint)idx;
                     data_ui[2] = 1;
                     data_ui[3] = 0;
@@ -181,7 +181,7 @@ namespace Kokoro.Graphics
                 if (bkts[i].IndexBuffer != null)
                     GraphicsDevice.MultiDrawIndirectCount(PrimitiveType.Triangles, multiDrawParams.Offset + offset + sizeof(uint) * 4, multiDrawParams.Offset + offset + sizeof(uint), maxDrawCount, true, bkts[i].IndexBuffer.IsShort, 5 * sizeof(uint));
                 else
-                    GraphicsDevice.MultiDrawIndirectCount(PrimitiveType.Triangles, multiDrawParams.Offset + offset + sizeof(uint) * 4, multiDrawParams.Offset + offset + sizeof(uint), maxDrawCount, false, false, 5 * sizeof(uint));
+                    GraphicsDevice.MultiDrawIndirectCount(PrimitiveType.Triangles, multiDrawParams.Offset + offset + sizeof(uint) * 4, multiDrawParams.Offset + offset + sizeof(uint), maxDrawCount, false, bkts[i].IndexBuffer.IsShort, 5 * sizeof(uint));
 
                 //Ensure the buffers aren't in use before next update
                 RenderState state = bkts[i];
