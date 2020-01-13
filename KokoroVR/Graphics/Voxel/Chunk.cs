@@ -23,12 +23,13 @@ namespace KokoroVR.Graphics.Voxel
 
     public class Chunk
     {
-        private byte[] data;
         private object data_locker;
 
         internal int id;
         internal ChunkStreamer streamer;
         internal bool dirty, update_pending, empty;
+
+        internal byte[] data;
         internal byte[] faces;
         internal uint[] indices;
         internal Vector4[] bounds;
@@ -232,7 +233,7 @@ namespace KokoroVR.Graphics.Voxel
                 byte y = (byte)yi;
                 byte z = (byte)zi;
 
-                byte cur, top_v, btm_v, frt_v, bck_v, lft_v, rgt_v;
+                byte cur, top, btm, frt, bck, lft, rgt, top_v, btm_v, frt_v, bck_v, lft_v, rgt_v;
                 lock (data_locker)
                 {
                     cur = data[GetIndex(x, y, z)];
@@ -247,6 +248,13 @@ namespace KokoroVR.Graphics.Voxel
                     var lft_c = Owner.GetChunk(x_off + x - 1, y_off + y, z_off + z);
                     var rgt_c = Owner.GetChunk(x_off + x + 1, y_off + y, z_off + z);
 
+                    top = y > 0 ? data[GetIndex(x, y - 1, z)] : top_c == null ? (byte)0 : top_c.data[GetIndex(x, ChunkConstants.Side - 1, z)];
+                    btm = y < ChunkConstants.Side - 1 ? data[GetIndex(x, y + 1, z)] : btm_c == null ? (byte)0 : btm_c.data[GetIndex(x, 0, z)];
+                    frt = z > 0 ? data[GetIndex(x, y, z - 1)] : frt_c == null ? (byte)0 : frt_c.data[GetIndex(x, y, ChunkConstants.Side - 1)];
+                    bck = z < ChunkConstants.Side - 1 ? data[GetIndex(x, y, z + 1)] : bck_c == null ? (byte)0 : bck_c.data[GetIndex(x, y, 0)];
+                    lft = x > 0 ? data[GetIndex(x - 1, y, z)] : lft_c == null ? (byte)0 : lft_c.data[GetIndex(ChunkConstants.Side - 1, y, z)];
+                    rgt = x < ChunkConstants.Side - 1 ? data[GetIndex(x + 1, y, z)] : rgt_c == null ? (byte)0 : rgt_c.data[GetIndex(0, y, z)];
+
                     top_v = y > 0 ? vismap[GetIndex(x, y - 1, z)] : top_c == null ? (byte)2 : top_c.data[GetIndex(x, ChunkConstants.Side - 1, z)] == 0 ? (byte)2 : (byte)0;
                     btm_v = y < ChunkConstants.Side - 1 ? vismap[GetIndex(x, y + 1, z)] : btm_c == null ? (byte)2 : btm_c.data[GetIndex(x, 0, z)] == 0 ? (byte)2 : (byte)0;
                     frt_v = z > 0 ? vismap[GetIndex(x, y, z - 1)] : frt_c == null ? (byte)2 : frt_c.data[GetIndex(x, y, ChunkConstants.Side - 1)] == 0 ? (byte)2 : (byte)0;
@@ -259,6 +267,11 @@ namespace KokoroVR.Graphics.Voxel
                 //emit vertices for each faces based on this data
                 if (top_v == 2)
                 {
+                    //Emit a patch for lighting
+                    //Group patches based on planes
+                    //Compute and store visibility angles which exit the chunk (16x16 angles)
+                    //Build a list of locally visible voxels - propogate the lighting on these
+                    //raycast exiting angles onto other chunks, store intersection positions - lighting can be injected into chunks based on these locations
                     //0
                     var tmp = new byte[]
                     {
@@ -346,7 +359,6 @@ namespace KokoroVR.Graphics.Voxel
                     };
                     EmitFace(cur, (2 & 3) << 4 | (1 & 3) << 2 | (1 & 3), 5, tmp, indexDict, faces, indices, cluster_bnds, cluster_norms, ref minx, ref miny, ref minz, ref maxx, ref maxy, ref maxz, ref cur_norm_mask);
                 }
-                //TODO clean up and optimize this code
                 VoxelCount++;
             }
 

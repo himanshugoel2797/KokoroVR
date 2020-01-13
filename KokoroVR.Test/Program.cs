@@ -42,78 +42,7 @@ namespace KokoroVR.Test
             Engine.Initialize(ExperienceKind.Standing);
             Engine.LogMetrics = false;
             //For ray tracing, store 32x32x32 cubemaps with direct 
-            var w = new World("TestWorld", 10);
-            w.Initializer = () =>
-            {
-                MeshGroup grp = new MeshGroup(MeshGroupVertexFormat.X32F_Y32F_Z32F, 40000, 40000);
-
-                float m_off = 40;
-                float m_off_h = m_off * 0.5f;
-
-                w.LightManager.AddLight(new Graphics.Lights.PointLight()
-                {
-                    Color = Vector3.UnitX,
-                    Intensity = 640.0f,
-                    Position = Vector3.UnitX * -m_off + Vector3.UnitZ * m_off_h + Vector3.UnitY * m_off_h
-                });
-
-                w.LightManager.AddLight(new Graphics.Lights.PointLight()
-                {
-                    Color = Vector3.UnitY,
-                    Intensity = 640.0f,
-                    Position = Vector3.UnitY * -m_off + Vector3.UnitX * m_off_h + Vector3.UnitZ * m_off_h
-                });
-
-                w.LightManager.AddLight(new Graphics.Lights.PointLight()
-                {
-                    Color = Vector3.UnitZ,
-                    Intensity = 640.0f,
-                    Position = Vector3.UnitZ * -m_off + Vector3.UnitX * m_off_h + Vector3.UnitY * m_off_h
-                });
-
-                w.LightManager.AddLight(new Graphics.Lights.DirectionalLight()
-                {
-                    Color = Vector3.UnitZ,
-                    Intensity = 640.0f,
-                    Direction = new Vector3(0, -1, 0)
-                });
-
-                ChunkStreamer chunkStreamer = new ChunkStreamer(10240);
-                var mat_id = chunkStreamer.MaterialMap.Register(Vector3.One, Vector3.One * 0.5f, 1f);
-                ChunkObject obj = new ChunkObject(chunkStreamer);
-
-                Random rng = new Random(0);
-                var updates = new List<(int, int, int, byte)>();
-                ulong cnt = 0;
-                for (int x = ChunkConstants.Side * -10; x < ChunkConstants.Side * 10; x++)
-                {
-                    for (int y = ChunkConstants.Side * 0; y < ChunkConstants.Side * 1; y++)
-                        for (int z = ChunkConstants.Side * -10; z < ChunkConstants.Side * 10; z++)
-                        {
-                            //if (x == 11 && y == 0 && z == 11) continue;
-                            //if (x == 12 && y == 0 && z == 12) continue;
-                            if (rng.NextDouble() > 0.0f) 
-                            //if (x * x + y * y + z * z <= 200 * 200)
-                                updates.Add((y, z, x, mat_id));
-                        }
-                    if (x % 256 == 0)
-                    {
-                        obj.BulkSet(updates.ToArray());
-                        cnt += (ulong)updates.Count;
-                        updates = new List<(int, int, int, byte)>();
-                    }
-                }
-
-                Console.WriteLine(cnt);
-                updates = null;
-
-                //w.AddRenderable(new StaticRenderable(Kokoro.Graphics.Prefabs.SphereFactory.Create(grp)));
-                w.AddRenderable(chunkStreamer);
-                w.AddRenderable(obj);
-
-                w.AddRenderable(chunkStreamer.Ender);
-                //w.AddInterpreter(new Input.DefaultControlInterpreter("/actions/vrworld/in/hand_left", "/actions/vrworld/in/hand_right", grp));
-            };
+            var w = new VoxelWorld("TestWorld", 10);
             Engine.AddWorld(w);
             Engine.SetActiveWorld("TestWorld");
             Engine.Start();

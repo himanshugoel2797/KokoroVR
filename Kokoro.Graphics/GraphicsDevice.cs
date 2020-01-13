@@ -15,6 +15,7 @@ using System.Drawing;
 using Kokoro.Common;
 using Kokoro.Common.StateMachine;
 using Kokoro.Graphics.Profiling;
+using Kokoro.Input.LowLevel;
 
 namespace Kokoro.Graphics
 {
@@ -595,7 +596,7 @@ namespace Kokoro.Graphics
                 Console.ForegroundColor = consoleCol;
             }
 #endif
-
+            InputLL.IsFocused(Window.Focused);
             Update?.Invoke(e.Time);
         }
 

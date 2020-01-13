@@ -95,6 +95,7 @@
     <Compile Include="GraphicsDevice.cs" />
     <Compile Include="IMappedBuffer.cs" />
     <Compile Include="IndexBuffer.cs" />
+    <Compile Include="InputLL.cs" />
     <Compile Include="InverseDepth.cs" />
     <Compile Include="ITextureSource.cs" />
     <Compile Include="Mesh.cs" />

@@ -7,6 +7,7 @@ using System.Threading.Tasks;
 using Kokoro.Common.StateMachine;
 using Kokoro.Math;
 using Kokoro.Graphics.Profiling;
+using KokoroVR.Input;
 
 namespace KokoroVR
 {
@@ -25,6 +26,7 @@ namespace KokoroVR
         public static LocalPlayer CurrentPlayer { get; private set; }
         public static bool LogMetrics { get { return GenericMetrics.MetricsEnabled; } set { GenericMetrics.MetricsEnabled = value; } }
         public static Action<int, int> WindowResized { get { return GraphicsDevice.Resized; } set { GraphicsDevice.Resized = value; } }
+        public static Keyboard Keyboard { get; set; }
 
         static Engine()
         {
@@ -59,8 +61,9 @@ namespace KokoroVR
             iMeshGroup = new MeshGroup(MeshGroupVertexFormat.X32F_Y32F_Z32F, 256, 256);
             CurrentPlayer = new LocalPlayer(HMDClient);
 #else
+            Keyboard = new Keyboard();
             CurrentPlayer = new LocalPlayer();
-            CurrentPlayer.Position = Vector3.UnitX * -300; //new Vector3(0.577f, 0.577f, 0.577f) * 20;
+            CurrentPlayer.Position = Vector3.UnitX * -100; //new Vector3(0.577f, 0.577f, 0.577f) * 20;
             Projection = new Matrix4[]
             {
                 Matrix4.CreatePerspectiveFieldOfView(MathHelper.DegreesToRadians(90), 16f/9f, 0.001f)
@@ -88,9 +91,16 @@ namespace KokoroVR
 #endif
         }
 
+        private static void InputUpdate(double time)
+        {
+            Mouse.Update();
+            Keyboard.Update();
+        }
+
         public static void Start()
         {
             GraphicsDevice.Update = CurrentPlayer.Update + GraphicsDevice.Update;
+            GraphicsDevice.Update = InputUpdate + GraphicsDevice.Update;
             GraphicsDevice.ClearColor = new Vector4(0, 0.5f, 1.0f, 0.0f);
             GraphicsDevice.ClearDepth = InverseDepth.ClearDepth;
             GraphicsDevice.Run(0, 0);

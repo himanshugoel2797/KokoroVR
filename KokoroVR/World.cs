@@ -98,7 +98,7 @@ namespace KokoroVR
             Physics.Update(time);
         }
 
-        public void Enter(StateManager man, IState prev)
+        public virtual void Enter(StateManager man, IState prev)
         {
             WorldManager = man;
 
@@ -118,7 +118,7 @@ namespace KokoroVR
                 Initializer();
         }
 
-        public void Exit(IState next)
+        public virtual void Exit(IState next)
         {
 
         }

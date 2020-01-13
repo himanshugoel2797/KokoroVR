@@ -10,8 +10,8 @@ namespace KokoroVR
 {
     public abstract class Player
     {
-        public abstract Vector3 Position { get; internal set; }
-        public abstract Quaternion Orientation { get; internal set; }
+        public abstract Vector3 Position { get; set; }
+        public abstract Quaternion Orientation { get; set; }
         public abstract float Height { get; protected set; }
 
         public abstract void GetControl(string name, out AnalogData val);

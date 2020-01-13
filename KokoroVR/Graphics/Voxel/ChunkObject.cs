@@ -53,6 +53,27 @@ namespace KokoroVR.Graphics.Voxel
             }
         }
 
+        public void Set(int x, int y, int z, byte val)
+        {
+            var x_b = x & ~(ChunkConstants.Side - 1);
+            var y_b = y & ~(ChunkConstants.Side - 1);
+            var z_b = z & ~(ChunkConstants.Side - 1);
+
+            var x_o = x - x_b;
+            var y_o = y - y_b;
+            var z_o = z - z_b;
+
+            var coord = (x_b, y_b, z_b);
+
+            if (!ChunkSet.ContainsKey(coord))
+            {
+                ChunkSet[coord] = streamer.Allocate();
+                ChunkSet[coord].Owner = this;
+            }
+
+            ChunkSet[coord].EditLocalMesh(x_o, y_o, z_o, val);
+        }
+
         public Chunk GetChunk(int x, int y, int z)
         {
             var x_b = x & ~(ChunkConstants.Side - 1);

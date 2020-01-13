@@ -13,7 +13,7 @@ namespace KokoroVR.Graphics.Voxel
         public const int Side = (1 << SideLog);
         public const int DictionaryLen = 255;
         public const int WavefrontSize = 64;
-        public const int BlockSize = WavefrontSize * 24 * 6;
+        public const int BlockSize = WavefrontSize * 6 * 6;
 
         public static Vector3[] Normals = new Vector3[]
         {

@@ -83,8 +83,11 @@
     <Compile Include="Graphics\Voxel\MeshOptimizer.cs" />
     <Compile Include="Graphics\Voxel\RunEncoder.cs" />
     <Compile Include="Graphics\Voxel\VoxelDictionary.cs" />
+    <Compile Include="Graphics\Voxel\VoxelGI.cs" />
     <Compile Include="Input\ControlInterpreter.cs" />
     <Compile Include="Input\DefaultVRControlInterpreter.cs" />
+    <Compile Include="Input\Keyboard.cs" />
+    <Compile Include="Input\Mouse.cs" />
     <Compile Include="LocalPlayer.cs" />
     <Compile Include="Player.cs" />
     <Compile Include="Interactable.cs" />

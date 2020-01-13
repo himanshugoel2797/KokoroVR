@@ -12,7 +12,7 @@ namespace KokoroVR.Graphics.Voxel
     {
         //Receive chunk faces
         public const int VRAMCacheSize = 1024;  //TODO make this depend on total available vram
-        const uint blk_cnt = 8192 * 2;
+        const uint blk_cnt = 8192 * 16;
 
         private Chunk[] ChunkList;
         private (ChunkMesh, int, double)[] ChunkCache;
@@ -103,9 +103,12 @@ namespace KokoroVR.Graphics.Voxel
                 ChunkCache[lru].Item3 = cur_time;
                 ChunkCache[lru].Item2 = c.id;
 
-                //if (c.faces == null) c.RebuildFullMesh();
-                c.update_pending = true;
+                if (!c.empty && c.faces == null) c.RebuildFullMesh((int)offset.X, (int)offset.Y, (int)offset.Z);
+                if (!c.empty) c.update_pending = true;
             }
+
+            if (c.empty)
+                return;
 
             //Upload the current mesh state if it has been updated recently
             if (c.update_pending)
