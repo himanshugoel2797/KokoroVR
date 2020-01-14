@@ -18,11 +18,10 @@ layout(std430, binding = 0) buffer Objects_t {
     obj_t v[];
 } Object;
 
-vec2 encode (vec3 n)
+//pack into a single 32-bit float, for the gbuffer
+float encode (vec3 n)
 {
-    vec2 enc = normalize(n.xy) * (sqrt(-n.z*0.5+0.5));
-    enc = enc*0.5+0.5;
-    return enc;
+    return uintBitsToFloat(packSnorm4x8(vec4(n, 1)));
 }
 
 void main(){
@@ -30,9 +29,9 @@ void main(){
     vec4 _colorMap = texture(sampler2D(Object.v[drawID].c), UV);
     vec4 _specularMap = texture(sampler2D(Object.v[drawID].s), UV);
 
-    vec2 n_enc = encode(normal);
+    float n_enc = encode(normal);
 
     Color = _colorMap;
-    Normal = vec4(n_enc.x, pos.x, pos.y, pos.z);
-    Specular = vec4(_specularMap.rgb, n_enc.y);
+    Normal = vec4(n_enc, pos.x, pos.y, pos.z);
+    Specular = vec4(_specularMap.rgb, 1);
 }

@@ -26,13 +26,9 @@ layout(std430, binding = 0) buffer Lights_t {
     light_t v[];
 } Light;
 
-vec3 decode (vec2 enc)
+vec3 decode (float enc)
 {
-    vec4 nn = vec4(enc, 0, 0)*vec4(2,2,0,0) + vec4(-1,-1,1,-1);
-    float l = dot(nn.xyz,-nn.xyw);
-    nn.z = l;
-    nn.xy *= sqrt(l);
-    return nn.xyz * 2 + vec3(0,0,-1);
+    return unpackSnorm4x8(floatBitsToUint(enc)).xyz;
 }
 
 float G1_schlick(float NdV, float k){
@@ -51,7 +47,7 @@ void main(){
     vec4 _normalMap = texture(NormalMap, UV);
     vec4 _specularMap = texture(SpecularMap, UV);
 
-    vec3 obj_norm = decode(vec2(_normalMap.r, _specularMap.w));
+    vec3 obj_norm = decode(_normalMap.r);
     vec3 obj_wPos = _normalMap.yzw;
     vec3 obj_albedo = _colorMap.rgb;
     vec3 obj_specular = _specularMap.rgb;

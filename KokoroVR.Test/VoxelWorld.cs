@@ -22,7 +22,7 @@ namespace KokoroVR.Test
                 {
                     Color = Vector3.UnitZ,
                     Intensity = 640.0f,
-                    Direction = new Vector3(0, 0, 1)
+                    Direction = new Vector3(0.577f, 0.577f, 0.577f)
                 });
 
                 ChunkStreamer chunkStreamer = new ChunkStreamer(1 << 16);
@@ -32,9 +32,9 @@ namespace KokoroVR.Test
                 Random rng = new Random(0);
                 ulong cnt = 0;
                 Perlin p = new Perlin();
-                for (int x = ChunkConstants.Side * -40; x < ChunkConstants.Side * 40; x++)
+                for (int x = ChunkConstants.Side * -10; x < ChunkConstants.Side * 10; x++)
                     //for (int y = ChunkConstants.Side * 0; y < ChunkConstants.Side * 1; y++)
-                    for (int z = ChunkConstants.Side * -40; z < ChunkConstants.Side * 40; z++)
+                    for (int z = ChunkConstants.Side * -10; z < ChunkConstants.Side * 10; z++)
                     {
                         //if (x * x + y * y + z * z <= 200 * 200)
                         //if(y > -32 && y < 32)

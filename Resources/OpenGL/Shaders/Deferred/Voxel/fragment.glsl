@@ -19,11 +19,10 @@ layout(std430, binding = 0) buffer Objects_t {
     obj_t v[];
 } Object;
 
-vec2 encode (vec3 n)
+//pack into a single 32-bit float, for the gbuffer
+float encode (vec3 n)
 {
-    vec2 enc = normalize(n.xy) * (sqrt(-n.z*0.5+0.5));
-    enc = enc*0.5+0.5;
-    return enc;
+    return uintBitsToFloat(packSnorm4x8(vec4(n, 1)));
 }
 
 void main(){
@@ -35,9 +34,9 @@ void main(){
     vec3 dy_pos = dFdy(pos);
 
     vec3 normal = normalize(cross(dx_pos, dy_pos));
-    vec2 n_enc = encode(normal);
+    float n_enc = encode(normal);
 
     Color = _colorMap;
-    Normal = vec4(n_enc.x, pos.x + eyePos.x, pos.y + eyePos.y, pos.z + eyePos.z);
-    Specular = vec4(_specMap.x, _specMap.y, _specMap.z, n_enc.y);
+    Normal = vec4(n_enc, pos.x + eyePos.x, pos.y + eyePos.y, pos.z + eyePos.z);
+    Specular = vec4(_specMap.x, _specMap.y, _specMap.z, 1);
 }
