@@ -13,7 +13,7 @@ namespace KokoroVR.Graphics.Voxel
 {
     public enum FaceIndex
     {
-        Top = 0,
+        Top = 1,
         Bottom,
         Left,
         Right,
@@ -21,15 +21,29 @@ namespace KokoroVR.Graphics.Voxel
         Back,
     }
 
+    struct Run
+    {
+        public byte Start;
+        public byte Stop;
+        public byte Value;
+        public byte Visibility;
+    }
+
     public class Chunk
     {
+        private const byte VisibleBit = 1;
+
         private object data_locker;
 
         internal int id;
         internal ChunkStreamer streamer;
         internal bool dirty, update_pending, empty;
+        internal byte DefaultEdgeVisibility = 0;
 
         internal byte[] data;
+        internal byte[] vis;
+        internal Run[][] runs;
+
         internal byte[] faces;
         internal uint[] indices;
         internal Vector4[] bounds;
@@ -42,9 +56,11 @@ namespace KokoroVR.Graphics.Voxel
         {
             data_locker = new object();
             data = new byte[ChunkConstants.Side * ChunkConstants.Side * ChunkConstants.Side];
+            vis = new byte[ChunkConstants.Side * ChunkConstants.Side * ChunkConstants.Side];
+            runs = new Run[ChunkConstants.Side * ChunkConstants.Side][];
             this.streamer = streamer;
             this.id = id;
-            //RebuildFullMesh();  //Initialize the data block
+            empty = true;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -57,7 +73,7 @@ namespace KokoroVR.Graphics.Voxel
         {
             if (data[GetIndex(x, y, z)] != 0) return;
 
-            vis[GetIndex(x, y, z)] = 2;
+            vis[GetIndex(x, y, z)] = VisibleBit;
             Queue<(int, int, int)> nodes = new Queue<(int, int, int)>();
             nodes.Enqueue((x, y, z));
 
@@ -71,56 +87,56 @@ namespace KokoroVR.Graphics.Voxel
 
                 if (x > 0)
                 {
-                    if (vis[GetIndex(x - 1, y, z)] != 2 && data[GetIndex(x - 1, y, z)] == 0)
+                    if (vis[GetIndex(x - 1, y, z)] != VisibleBit && data[GetIndex(x - 1, y, z)] == 0)
                     {
-                        vis[GetIndex(x - 1, y, z)] = 2;
+                        vis[GetIndex(x - 1, y, z)] = VisibleBit;
                         nodes.Enqueue((x - 1, y, z));
                     }
                 }
                 if (y > 0)
                 {
-                    if (vis[GetIndex(x, y - 1, z)] != 2 && data[GetIndex(x, y - 1, z)] == 0)
+                    if (vis[GetIndex(x, y - 1, z)] != VisibleBit && data[GetIndex(x, y - 1, z)] == 0)
                     {
-                        vis[GetIndex(x, y - 1, z)] = 2;
+                        vis[GetIndex(x, y - 1, z)] = VisibleBit;
                         nodes.Enqueue((x, y - 1, z));
                     }
                 }
                 if (z > 0)
                 {
-                    if (vis[GetIndex(x, y, z - 1)] != 2 && data[GetIndex(x, y, z - 1)] == 0)
+                    if (vis[GetIndex(x, y, z - 1)] != VisibleBit && data[GetIndex(x, y, z - 1)] == 0)
                     {
-                        vis[GetIndex(x, y, z - 1)] = 2;
+                        vis[GetIndex(x, y, z - 1)] = VisibleBit;
                         nodes.Enqueue((x, y, z - 1));
                     }
                 }
                 if (x < ChunkConstants.Side - 1)
                 {
-                    if (vis[GetIndex(x + 1, y, z)] != 2 && data[GetIndex(x + 1, y, z)] == 0)
+                    if (vis[GetIndex(x + 1, y, z)] != VisibleBit && data[GetIndex(x + 1, y, z)] == 0)
                     {
-                        vis[GetIndex(x + 1, y, z)] = 2;
+                        vis[GetIndex(x + 1, y, z)] = VisibleBit;
                         nodes.Enqueue((x + 1, y, z));
                     }
                 }
                 if (y < ChunkConstants.Side - 1)
                 {
-                    if (vis[GetIndex(x, y + 1, z)] != 2 && data[GetIndex(x, y + 1, z)] == 0)
+                    if (vis[GetIndex(x, y + 1, z)] != VisibleBit && data[GetIndex(x, y + 1, z)] == 0)
                     {
-                        vis[GetIndex(x, y + 1, z)] = 2;
+                        vis[GetIndex(x, y + 1, z)] = VisibleBit;
                         nodes.Enqueue((x, y + 1, z));
                     }
                 }
                 if (z < ChunkConstants.Side - 1)
                 {
-                    if (vis[GetIndex(x, y, z + 1)] != 2 && data[GetIndex(x, y, z + 1)] == 0)
+                    if (vis[GetIndex(x, y, z + 1)] != VisibleBit && data[GetIndex(x, y, z + 1)] == 0)
                     {
-                        vis[GetIndex(x, y, z + 1)] = 2;
+                        vis[GetIndex(x, y, z + 1)] = VisibleBit;
                         nodes.Enqueue((x, y, z + 1));
                     }
                 }
             }
         }
 
-        private void ComputeVisibility(byte[] vis)
+        private void ComputeVisibility()
         {
             {
                 int x = 0;
@@ -158,6 +174,215 @@ namespace KokoroVR.Graphics.Voxel
                     for (int z = 0; z <= ChunkConstants.Side - 1; z++)
                         FloodFillVisibility(vis, z, y, x);
             }
+        }
+
+        private void ComputeFaceVisibility(Chunk[] neighbors)
+        {
+            var top_c = neighbors[0];
+            var btm_c = neighbors[1];
+            var frt_c = neighbors[2];
+            var bck_c = neighbors[3];
+            var lft_c = neighbors[4];
+            var rgt_c = neighbors[5];
+
+            for (int x = 0; x < ChunkConstants.Side; x++)
+                for (int y = 0; y < ChunkConstants.Side; y++)
+                    for (int z = 0; z < ChunkConstants.Side; z++)
+                    {
+                        byte top_v, btm_v, frt_v, bck_v, rgt_v, lft_v;
+                        if (data[GetIndex(x, y, z)] == 0)
+                            continue;
+
+                        if (y < ChunkConstants.Side - 1) top_v = vis[GetIndex(x, y + 1, z)];
+                        else if (top_c == null) top_v = DefaultEdgeVisibility;
+                        else top_v = top_c.data[GetIndex(x, 0, z)] == 0 ? (byte)1 : (byte)0;
+
+                        if (z < ChunkConstants.Side - 1) frt_v = vis[GetIndex(x, y, z + 1)];
+                        else if (frt_c == null) frt_v = DefaultEdgeVisibility;
+                        else frt_v = frt_c.data[GetIndex(x, y, 0)] == 0 ? (byte)1 : (byte)0;
+
+                        if (x < ChunkConstants.Side - 1) rgt_v = vis[GetIndex(x + 1, y, z)];
+                        else if (rgt_c == null) rgt_v = DefaultEdgeVisibility;
+                        else rgt_v = rgt_c.data[GetIndex(0, y, z)] == 0 ? (byte)1 : (byte)0;
+
+                        if (y > 0) btm_v = vis[GetIndex(x, y - 1, z)];
+                        else if (btm_c == null) btm_v = DefaultEdgeVisibility;
+                        else btm_v = btm_c.data[GetIndex(x, ChunkConstants.Side - 1, z)] == 0 ? (byte)1 : (byte)0;
+
+                        if (z > 0) bck_v = vis[GetIndex(x, y, z - 1)];
+                        else if (bck_c == null) bck_v = DefaultEdgeVisibility;
+                        else bck_v = bck_c.data[GetIndex(x, y, ChunkConstants.Side - 1)] == 0 ? (byte)1 : (byte)0;
+
+                        if (x > 0) lft_v = vis[GetIndex(x - 1, y, z)];
+                        else if (lft_c == null) lft_v = DefaultEdgeVisibility;
+                        else lft_v = lft_c.data[GetIndex(ChunkConstants.Side - 1, y, z)] == 0 ? (byte)1 : (byte)0;
+
+                        top_v &= 1;
+                        btm_v &= 1;
+                        frt_v &= 1;
+                        bck_v &= 1;
+                        rgt_v &= 1;
+                        lft_v &= 1;
+
+                        vis[GetIndex(x, y, z)] |= (byte)((top_v << 1) | (btm_v << 2) | (frt_v << 3) | (bck_v << 4) | (rgt_v << 5) | (lft_v << 6));
+                    }
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private void ProcessVoxel(byte x, byte y, byte z, byte run_start_idx, byte run_val, byte run_vis, byte run_len, Dictionary<uint, uint> indexDict, List<byte> faces, List<uint> indices, List<Vector4> cluster_bnds, List<byte> cluster_norms, ref byte minx, ref byte miny, ref byte minz, ref byte maxx, ref byte maxy, ref byte maxz, ref byte cur_norm_mask)
+        {
+            //Emit faces based on this run and its visibility
+            if ((run_vis & (1 << 1)) != 0)
+            {
+                //Emit a patch for lighting
+                //Group patches based on planes
+                //Compute and store visibility angles which exit the chunk (16x16 angles)
+                //Build a list of locally visible voxels - propogate the lighting on these
+                //raycast exiting angles onto other chunks, store intersection positions - lighting can be injected into chunks based on these locations
+                //0
+                var tmp = new byte[]
+                {
+                    x, (byte)(y + 1), run_start_idx,
+                    x, (byte)(y + 1), z,
+                    (byte)(x + 1), (byte)(y + 1), z,
+                    (byte)(x + 1), (byte)(y + 1), z,
+                    (byte)(x + 1), (byte)(y + 1), run_start_idx,
+                    x, (byte)(y + 1), run_start_idx,
+                };
+                EmitFace(run_val, (1 & 3) << 4 | (0 & 3) << 2 | (1 & 3), 0, tmp, indexDict, faces, indices, cluster_bnds, cluster_norms, ref minx, ref miny, ref minz, ref maxx, ref maxy, ref maxz, ref cur_norm_mask);
+            }
+            if ((run_vis & (1 << 2)) != 0)
+            {
+                //1
+                var tmp = new byte[]
+                {
+                    (byte)(x + 1), y, z,
+                    x, y, z,
+                    x, y, run_start_idx,
+                    x, y, run_start_idx,
+                    (byte)(x + 1), y, run_start_idx,
+                    (byte)(x + 1), y, z,
+                };
+                EmitFace(run_val, (1 & 3) << 4 | (2 & 3) << 2 | (1 & 3), 1, tmp, indexDict, faces, indices, cluster_bnds, cluster_norms, ref minx, ref miny, ref minz, ref maxx, ref maxy, ref maxz, ref cur_norm_mask);
+            }
+
+            if ((run_vis & (1 << 3)) != 0)
+            {
+                //2
+                var tmp = new byte[]
+                {
+                    (byte)(x + 1), (byte)(y + 1), z,
+                    x, (byte)(y + 1), z,
+                    x, y, z,
+                    x, y, z,
+                    (byte)(x + 1), y, z,
+                    (byte)(x + 1), (byte)(y + 1), z,
+                };
+                EmitFace(run_val, (1 & 3) << 4 | (1 & 3) << 2 | (0 & 3), 2, tmp, indexDict, faces, indices, cluster_bnds, cluster_norms, ref minx, ref miny, ref minz, ref maxx, ref maxy, ref maxz, ref cur_norm_mask);
+            }
+
+            if ((run_vis & (1 << 4)) != 0)
+            {
+                //3
+                var tmp = new byte[]
+                {
+                    x, y, (byte)(z - 1),
+                    x, (byte)(y + 1), (byte)(z - 1),
+                    (byte)(x + 1), (byte)(y + 1), (byte)(z - 1),
+                    (byte)(x + 1), (byte)(y + 1), (byte)(z - 1),
+                    (byte)(x + 1), y, (byte)(z - 1),
+                    x, y, (byte)(z - 1),
+                };
+                EmitFace(run_val, (1 & 3) << 4 | (1 & 3) << 2 | (2 & 3), 3, tmp, indexDict, faces, indices, cluster_bnds, cluster_norms, ref minx, ref miny, ref minz, ref maxx, ref maxy, ref maxz, ref cur_norm_mask);
+            }
+
+            if ((run_vis & (1 << 5)) != 0)
+            {
+                //4
+                var tmp = new byte[]
+                {
+                    (byte)(x + 1), (byte)(y + 1), run_start_idx,
+                    (byte)(x + 1), (byte)(y + 1), z,
+                    (byte)(x + 1), y, z,
+                    (byte)(x + 1), y, z,
+                    (byte)(x + 1), y, run_start_idx,
+                    (byte)(x + 1), (byte)(y + 1), run_start_idx,
+                };
+                EmitFace(run_val, (2 & 3) << 4 | (1 & 3) << 2 | (1 & 3), 4, tmp, indexDict, faces, indices, cluster_bnds, cluster_norms, ref minx, ref miny, ref minz, ref maxx, ref maxy, ref maxz, ref cur_norm_mask);
+            }
+
+            if ((run_vis & (1 << 6)) != 0)
+            {
+                //5
+                var tmp = new byte[]
+                {
+                    x, y, z,
+                    x, (byte)(y + 1), z,
+                    x, (byte)(y + 1), run_start_idx,
+                    x, (byte)(y + 1), run_start_idx,
+                    x, y, run_start_idx,
+                    x, y, z,
+                };
+                EmitFace(run_val, (0 & 3) << 4 | (1 & 3) << 2 | (1 & 3), 5, tmp, indexDict, faces, indices, cluster_bnds, cluster_norms, ref minx, ref miny, ref minz, ref maxx, ref maxy, ref maxz, ref cur_norm_mask);
+            }
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private void ComputeRun(byte x, byte y, Dictionary<uint, uint> indexDict, List<byte> faces, List<uint> indices, List<Vector4> cluster_bnds, List<byte> cluster_norms, ref byte minx, ref byte miny, ref byte minz, ref byte maxx, ref byte maxy, ref byte maxz, ref byte cur_norm_mask)
+        {
+            var runList = new List<Run>();
+            byte run_start_idx = 0;
+            byte run_val = data[GetIndex(x, y, 0)];
+            byte run_vis = vis[GetIndex(x, y, 0)];
+            byte run_len = 1;
+
+            for (byte z = 1; z < ChunkConstants.Side; z++)
+            {
+                byte cur_val = data[GetIndex(x, y, z)];
+                byte cur_vis = vis[GetIndex(x, y, z)];
+                if (run_val == 0 | run_vis == 0)
+                {
+                    run_start_idx = z;
+                    run_val = data[GetIndex(x, y, z)];
+                    run_vis = vis[GetIndex(x, y, z)];
+                    run_len = 1;
+                }
+                else if (cur_val == run_val && cur_vis == run_vis)
+                {
+                    run_len++;
+                    continue;
+                }
+                else
+                {
+                    runList.Add(new Run()
+                    {
+                        Start = run_start_idx,
+                        Stop = (byte)(run_start_idx + run_len),
+                        Value = run_val,
+                        Visibility = run_vis
+                    });
+
+                    ProcessVoxel(x, y, z, run_start_idx, run_val, run_vis, run_len, indexDict, faces, indices, cluster_bnds, cluster_norms, ref minx, ref miny, ref minz, ref maxx, ref maxy, ref maxz, ref cur_norm_mask);
+
+                    run_start_idx = z;
+                    run_val = cur_val;
+                    run_vis = cur_vis;
+                    run_len = 1;
+                }
+            }
+            if (run_val != 0 && run_vis != 0)
+            {
+                runList.Add(new Run()
+                {
+                    Start = run_start_idx,
+                    Stop = (byte)(run_start_idx + run_len),
+                    Value = run_val,
+                    Visibility = run_vis
+                });
+                ProcessVoxel(x, y, ChunkConstants.Side, run_start_idx, run_val, run_vis, run_len, indexDict, faces, indices, cluster_bnds, cluster_norms, ref minx, ref miny, ref minz, ref maxx, ref maxy, ref maxz, ref cur_norm_mask);
+            }
+
+            runs[x * ChunkConstants.Side + y] = runList.ToArray();
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -205,163 +430,29 @@ namespace KokoroVR.Graphics.Voxel
             }
         }
 
-        public void RebuildFullMesh(int x_off, int y_off, int z_off)
+        public void RebuildFullMesh(params Chunk[] neighbors)
         {
             VoxelCount = 0;
 
-            var vismap = new byte[ChunkConstants.Side * ChunkConstants.Side * ChunkConstants.Side];
-            ComputeVisibility(vismap);
-
+            System.Diagnostics.Stopwatch stopwatch = System.Diagnostics.Stopwatch.StartNew();
             var faces = new List<byte>();
             var indices = new List<uint>();
             var cluster_bnds = new List<Vector4>();
             var cluster_norms = new List<byte>();
-
-            //TODO implement neighbor visibility sampling instead of assuming visibility
             var indexDict = new Dictionary<uint, uint>();
             byte cur_norm_mask = 0;
             byte minx = byte.MaxValue, miny = byte.MaxValue, minz = byte.MaxValue, maxx = byte.MinValue, maxy = byte.MinValue, maxz = byte.MinValue;
-            for (int j = 0; j < data.Length; j++)
-            {
-                int xi, yi, zi;
-                //Use interleaved indexing to maintain locality for faces, eliminating a need for the clustering pass
-                xi = (j & 0x1) | ((j & 0x8) >> 2) | ((j & 0x40) >> 4) | ((j & 0x200) >> 6) | ((j & 0x1000) >> 8);
-                yi = (j & 0x2) >> 1 | ((j & 0x10) >> 3) | ((j & 0x80) >> 5) | ((j & 0x400) >> 7) | ((j & 0x2000) >> 9);
-                zi = (j & 0x4) >> 2 | ((j & 0x20) >> 4) | ((j & 0x100) >> 6) | ((j & 0x800) >> 8) | ((j & 0x4000) >> 10);
 
-                byte x = (byte)xi;
-                byte y = (byte)yi;
-                byte z = (byte)zi;
+            Array.Clear(vis, 0, vis.Length);
+            ComputeVisibility();
+            ComputeFaceVisibility(neighbors);
+            for (byte y = 0; y < ChunkConstants.Side; y++)
+                for (byte x = 0; x < ChunkConstants.Side; x++)
+                    ComputeRun(x, y, indexDict, faces, indices, cluster_bnds, cluster_norms, ref minx, ref miny, ref minz, ref maxx, ref maxy, ref maxz, ref cur_norm_mask);
 
-                byte cur, top, btm, frt, bck, lft, rgt, top_v, btm_v, frt_v, bck_v, lft_v, rgt_v;
-                lock (data_locker)
-                {
-                    cur = data[GetIndex(x, y, z)];
 
-                    if (cur == 0)
-                        continue;
-
-                    var top_c = Owner.GetChunk(x_off + x, y_off + y - 1, z_off + z);
-                    var btm_c = Owner.GetChunk(x_off + x, y_off + y + 1, z_off + z);
-                    var frt_c = Owner.GetChunk(x_off + x, y_off + y, z_off + z - 1);
-                    var bck_c = Owner.GetChunk(x_off + x, y_off + y, z_off + z + 1);
-                    var lft_c = Owner.GetChunk(x_off + x - 1, y_off + y, z_off + z);
-                    var rgt_c = Owner.GetChunk(x_off + x + 1, y_off + y, z_off + z);
-
-                    top = y > 0 ? data[GetIndex(x, y - 1, z)] : top_c == null ? (byte)0 : top_c.data[GetIndex(x, ChunkConstants.Side - 1, z)];
-                    btm = y < ChunkConstants.Side - 1 ? data[GetIndex(x, y + 1, z)] : btm_c == null ? (byte)0 : btm_c.data[GetIndex(x, 0, z)];
-                    frt = z > 0 ? data[GetIndex(x, y, z - 1)] : frt_c == null ? (byte)0 : frt_c.data[GetIndex(x, y, ChunkConstants.Side - 1)];
-                    bck = z < ChunkConstants.Side - 1 ? data[GetIndex(x, y, z + 1)] : bck_c == null ? (byte)0 : bck_c.data[GetIndex(x, y, 0)];
-                    lft = x > 0 ? data[GetIndex(x - 1, y, z)] : lft_c == null ? (byte)0 : lft_c.data[GetIndex(ChunkConstants.Side - 1, y, z)];
-                    rgt = x < ChunkConstants.Side - 1 ? data[GetIndex(x + 1, y, z)] : rgt_c == null ? (byte)0 : rgt_c.data[GetIndex(0, y, z)];
-
-                    top_v = y > 0 ? vismap[GetIndex(x, y - 1, z)] : top_c == null ? (byte)2 : top_c.data[GetIndex(x, ChunkConstants.Side - 1, z)] == 0 ? (byte)2 : (byte)0;
-                    btm_v = y < ChunkConstants.Side - 1 ? vismap[GetIndex(x, y + 1, z)] : btm_c == null ? (byte)2 : btm_c.data[GetIndex(x, 0, z)] == 0 ? (byte)2 : (byte)0;
-                    frt_v = z > 0 ? vismap[GetIndex(x, y, z - 1)] : frt_c == null ? (byte)2 : frt_c.data[GetIndex(x, y, ChunkConstants.Side - 1)] == 0 ? (byte)2 : (byte)0;
-                    bck_v = z < ChunkConstants.Side - 1 ? vismap[GetIndex(x, y, z + 1)] : bck_c == null ? (byte)2 : bck_c.data[GetIndex(x, y, 0)] == 0 ? (byte)2 : (byte)0;
-                    lft_v = x > 0 ? vismap[GetIndex(x - 1, y, z)] : lft_c == null ? (byte)2 : lft_c.data[GetIndex(ChunkConstants.Side - 1, y, z)] == 0 ? (byte)2 : (byte)0;
-                    rgt_v = x < ChunkConstants.Side - 1 ? vismap[GetIndex(x + 1, y, z)] : rgt_c == null ? (byte)2 : rgt_c.data[GetIndex(0, y, z)] == 0 ? (byte)2 : (byte)0;
-                }
-
-                //generate draws per face
-                //emit vertices for each faces based on this data
-                if (top_v == 2)
-                {
-                    //Emit a patch for lighting
-                    //Group patches based on planes
-                    //Compute and store visibility angles which exit the chunk (16x16 angles)
-                    //Build a list of locally visible voxels - propogate the lighting on these
-                    //raycast exiting angles onto other chunks, store intersection positions - lighting can be injected into chunks based on these locations
-                    //0
-                    var tmp = new byte[]
-                    {
-                        (byte)(x + 1), y, z,
-                        x, y, (byte)(z + 1),
-                        x, y, z,
-                        (byte)(x + 1), y, z,
-                        (byte)(x + 1), y, (byte)(z + 1),
-                        x, y, (byte)(z + 1),
-                    };
-                    EmitFace(cur, (1 & 3) << 4 | (0 & 3) << 2 | (1 & 3), 0, tmp, indexDict, faces, indices, cluster_bnds, cluster_norms, ref minx, ref miny, ref minz, ref maxx, ref maxy, ref maxz, ref cur_norm_mask);
-                }
-
-                if (btm_v == 2)
-                {
-                    //1
-                    var tmp = new byte[]
-                    {
-                        x, (byte)(y + 1), z,
-                        x, (byte)(y + 1), (byte)(z + 1),
-                        (byte)(x + 1), (byte)(y + 1), z,
-                        x, (byte)(y + 1), (byte)(z + 1),
-                        (byte)(x + 1), (byte)(y + 1), (byte)(z + 1),
-                        (byte)(x + 1), (byte)(y + 1), z,
-                    };
-                    EmitFace(cur, (1 & 3) << 4 | (2 & 3) << 2 | (1 & 3), 1, tmp, indexDict, faces, indices, cluster_bnds, cluster_norms, ref minx, ref miny, ref minz, ref maxx, ref maxy, ref maxz, ref cur_norm_mask);
-                }
-
-                if (lft_v == 2)
-                {
-                    //2
-                    var tmp = new byte[]
-                    {
-                        x, y, z,
-                        x, y, (byte)(z + 1),
-                        x, (byte)(y + 1), z,
-                        x, y, (byte)(z + 1),
-                        x, (byte)(y + 1), (byte)(z + 1),
-                        x, (byte)(y + 1), z,
-                    };
-                    EmitFace(cur, (1 & 3) << 4 | (1 & 3) << 2 | (0 & 3), 2, tmp, indexDict, faces, indices, cluster_bnds, cluster_norms, ref minx, ref miny, ref minz, ref maxx, ref maxy, ref maxz, ref cur_norm_mask);
-                }
-
-                if (rgt_v == 2)
-                {
-                    //3
-                    var tmp = new byte[]
-                    {
-                        (byte)(x + 1), (byte)(y + 1), z,
-                        (byte)(x + 1), y, (byte)(z + 1),
-                        (byte)(x + 1), y, z,
-                        (byte)(x + 1), (byte)(y + 1), z,
-                        (byte)(x + 1), (byte)(y + 1), (byte)(z + 1),
-                        (byte)(x + 1), y, (byte)(z + 1),
-                    };
-                    EmitFace(cur, (1 & 3) << 4 | (1 & 3) << 2 | (2 & 3), 3, tmp, indexDict, faces, indices, cluster_bnds, cluster_norms, ref minx, ref miny, ref minz, ref maxx, ref maxy, ref maxz, ref cur_norm_mask);
-                }
-
-                if (frt_v == 2)
-                {
-                    //4
-                    var tmp = new byte[]
-                    {
-                        x, y, z,
-                        x, (byte)(y + 1), z,
-                        (byte)(x + 1), y, z,
-                        x, (byte)(y + 1), z,
-                        (byte)(x + 1), (byte)(y + 1), z,
-                        (byte)(x + 1), y, z,
-                    };
-                    EmitFace(cur, (0 & 3) << 4 | (1 & 3) << 2 | (1 & 3), 4, tmp, indexDict, faces, indices, cluster_bnds, cluster_norms, ref minx, ref miny, ref minz, ref maxx, ref maxy, ref maxz, ref cur_norm_mask);
-                }
-
-                if (bck_v == 2)
-                {
-                    //5
-                    var tmp = new byte[]
-                    {
-                        (byte)(x + 1), y, (byte)(z + 1),
-                        x, (byte)(y + 1), (byte)(z + 1),
-                        x, y, (byte)(z + 1),
-                        (byte)(x + 1), y, (byte)(z + 1),
-                        (byte)(x + 1), (byte)(y + 1), (byte)(z + 1),
-                        x, (byte)(y + 1), (byte)(z + 1),
-                    };
-                    EmitFace(cur, (2 & 3) << 4 | (1 & 3) << 2 | (1 & 3), 5, tmp, indexDict, faces, indices, cluster_bnds, cluster_norms, ref minx, ref miny, ref minz, ref maxx, ref maxy, ref maxz, ref cur_norm_mask);
-                }
-                VoxelCount++;
-            }
-
+            //TODO redo system to compute visibility map once, apply neighbor face visibility too, compute to sets of runs along X or Y axes per layer
+            //TODO test rendering triangles with compute culling instead of cluster culling
             if (indices.Count % ChunkConstants.BlockSize != 0)
             {
                 //Compute bounds and set norm mask
@@ -377,8 +468,19 @@ namespace KokoroVR.Graphics.Voxel
             this.bounds = cluster_bnds.ToArray();
             this.norm_mask = cluster_norms.ToArray();
 
-            if (this.faces.Length == 0)
-                empty = true;
+            stopwatch.Stop();
+            Console.WriteLine($"[{id}] Meshing time: {stopwatch.Elapsed.TotalMilliseconds}ms");
+
+            /*
+            string str = "";
+            string indi = "";
+            for (int i = 0; i < indices.Count; i++)
+            {
+                str += $"v {faces[(int)(indices[i] & 0xffff) * 4]} {faces[(int)(indices[i] & 0xffff) * 4 + 1]} {faces[(int)(indices[i] & 0xffff) * 4 + 2]} {faces[(int)(indices[i] & 0xffff) * 4 + 3]}\n";
+                indi += $"f {i + 1} {i + 2} {i + 3}\n";
+            }
+            File.WriteAllText($"tmp{id}.obj", str + indi);*/
+            empty = (this.faces.Length == 0);
 
             dirty = false;
             update_pending = true;

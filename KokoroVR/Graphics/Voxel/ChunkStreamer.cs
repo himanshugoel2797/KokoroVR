@@ -103,7 +103,7 @@ namespace KokoroVR.Graphics.Voxel
                 ChunkCache[lru].Item3 = cur_time;
                 ChunkCache[lru].Item2 = c.id;
 
-                if (!c.empty && c.faces == null) c.RebuildFullMesh((int)offset.X, (int)offset.Y, (int)offset.Z);
+                //if (!c.empty && c.faces == null) c.RebuildFullMesh((int)offset.X, (int)offset.Y, (int)offset.Z);
                 if (!c.empty) c.update_pending = true;
             }
 

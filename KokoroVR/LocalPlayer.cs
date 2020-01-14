@@ -88,6 +88,7 @@ namespace KokoroVR
             if (!Engine.Keyboard.KeyMap.ContainsKey(AccelerateBinding)) Engine.Keyboard.KeyMap.Add(AccelerateBinding, Key.Home);
             if (!Engine.Keyboard.KeyMap.ContainsKey(DecelerateBinding)) Engine.Keyboard.KeyMap.Add(DecelerateBinding, Key.End);
 
+            this.Position = -Vector3.UnitX;
             this.Direction = Vector3.UnitX;
             this.Up = Vector3.UnitY;
         }

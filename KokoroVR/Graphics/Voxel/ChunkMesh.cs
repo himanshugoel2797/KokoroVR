@@ -95,7 +95,7 @@ namespace KokoroVR.Graphics.Voxel
                     if ((norm_mask & (1 << i)) != 0 && Vector3.Dot(vc, ChunkConstants.Normals[i]) < 0)
                         score++;
                 }
-                if (score == 0) return false;
+                //if (score == 0) return false;
                 return true;
             }
             else

@@ -45,12 +45,7 @@ namespace KokoroVR.Graphics.Voxel
 
                 ChunkSet[coord].EditLocalMesh(x_o, y_o, z_o, val);
             }
-
-            foreach (var c in ChunkSet)
-            {
-                var (x, y, z) = c.Key;
-                c.Value.RebuildFullMesh(x, y, z);
-            }
+            RebuildAll();
         }
 
         public void Set(int x, int y, int z, byte val)
@@ -72,6 +67,15 @@ namespace KokoroVR.Graphics.Voxel
             }
 
             ChunkSet[coord].EditLocalMesh(x_o, y_o, z_o, val);
+        }
+
+        public void RebuildAll()
+        {
+            foreach (var c in ChunkSet)
+            {
+                var (x, y, z) = c.Key;
+                c.Value.RebuildFullMesh(GetChunk(x, y + ChunkConstants.Side, z), GetChunk(x, y - ChunkConstants.Side, z), GetChunk(x, y, z + ChunkConstants.Side), GetChunk(x, y, z - ChunkConstants.Side), GetChunk(x - ChunkConstants.Side, y, z), GetChunk(x + ChunkConstants.Side, y, z));
+            }
         }
 
         public Chunk GetChunk(int x, int y, int z)

@@ -63,7 +63,7 @@ namespace KokoroVR
 #else
             Keyboard = new Keyboard();
             CurrentPlayer = new LocalPlayer();
-            CurrentPlayer.Position = Vector3.UnitX * -100; //new Vector3(0.577f, 0.577f, 0.577f) * 20;
+            CurrentPlayer.Position = Vector3.UnitX * -10; //new Vector3(0.577f, 0.577f, 0.577f) * 20;
             Projection = new Matrix4[]
             {
                 Matrix4.CreatePerspectiveFieldOfView(MathHelper.DegreesToRadians(90), 16f/9f, 0.001f)
