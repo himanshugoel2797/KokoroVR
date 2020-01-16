@@ -14,10 +14,12 @@ namespace KokoroVR.Graphics
         private Framebuffer[] _destFramebuffers;
         private Framebuffer[] _accumulators;
 
-        private Texture[] _colorMaps;
-        private Texture[] _normalMaps;
-        private Texture[] _specMaps;
-        private Texture[] _depthMaps;
+        public Texture[] _colorMaps;
+        public Texture[] _normalMaps;
+        public Texture[] _specMaps;
+        public Texture[] _depthMaps;
+        public Texture[] _accumulatorTexs;
+        public Texture[] _shadowTexs;
 
         private RenderState[] _pointL_state;
         private RenderState[] _spotL_state;
@@ -43,7 +45,7 @@ namespace KokoroVR.Graphics
             _fst = Kokoro.Graphics.Prefabs.FullScreenTriangleFactory.Create(Engine.iMeshGroup);
 
             //Color: 16DiffR:16DiffG:16DiffB:16Roughness
-            //Normal: 16NX|16NY:32WX:32WY:32WZ
+            //Normal: 8NX|8NY|8NZ:32WX:32WY:32WZ
             //Specular: 16SpecR:16SpecG:16SpecB
             //Depth: 32D
 
@@ -53,7 +55,10 @@ namespace KokoroVR.Graphics
             _spotL_state = new RenderState[_targetCount];
             _direcL_state = new RenderState[_targetCount];
             _state = new RenderState[_targetCount];
+            _queue = new RenderQueue[_targetCount];
             _queue_final = new RenderQueue[_targetCount];
+            _accumulatorTexs = new Texture[_targetCount];
+            _shadowTexs = new Texture[_targetCount];
             _colorMaps = new Texture[_targetCount];
             _normalMaps = new Texture[_targetCount];
             _specMaps = new Texture[_targetCount];
@@ -121,11 +126,20 @@ namespace KokoroVR.Graphics
                     InternalFormat = PixelInternalFormat.Rgba16f,
                     PixelType = PixelType.HalfFloat
                 };
-                var accumulator = new Texture();
-                accumulator.SetData(accumulatorSrc, 0);
+                _accumulatorTexs[i] = new Texture();
+                _accumulatorTexs[i].SetData(accumulatorSrc, 0);
+
+                var shadowSrc = new FramebufferTextureSource(dest[i].Width, dest[i].Height, 1)
+                {
+                    Format = PixelFormat.Bgra,
+                    InternalFormat = PixelInternalFormat.Rgba16f,
+                    PixelType = PixelType.HalfFloat
+                };
+                _shadowTexs[i] = new Texture();
+                _shadowTexs[i].SetData(shadowSrc, 0);
 
                 _accumulators[i] = new Framebuffer(dest[i].Width, dest[i].Height);
-                _accumulators[i][FramebufferAttachment.ColorAttachment0] = accumulator;
+                _accumulators[i][FramebufferAttachment.ColorAttachment0] = _accumulatorTexs[i];
 
                 _pointLightShader[i] = new ShaderProgram(
                             ShaderSource.Load(ShaderType.VertexShader, "Shaders/Deferred/vertex.glsl"),
@@ -149,6 +163,9 @@ namespace KokoroVR.Graphics
                 _queue_final[i] = new RenderQueue(4, true);
                 _queue_final[i].ClearFramebufferBeforeSubmit = false;
 
+                _queue[i] = new RenderQueue(4, true);
+                _queue[i].ClearFramebufferBeforeSubmit = false;
+
                 var colorHandle = _colorMaps[i].GetHandle(TextureSampler.Default);
                 colorHandle.SetResidency(Residency.Resident);
                 _pointLightShader[i].Set("ColorMap", colorHandle);
@@ -169,9 +186,29 @@ namespace KokoroVR.Graphics
                 _directionalLightShader[i].Set("NormalMap", normalHandle);
                 _directionalLightShader[i].Set("SpecularMap", specHandle);
 
-                var accumHandle = accumulator.GetHandle(TextureSampler.Default);
+                var accumHandle = _accumulatorTexs[i].GetHandle(TextureSampler.Default);
                 accumHandle.SetResidency(Residency.Resident);
                 _outputShader[i].Set("Accumulator", accumHandle);
+
+                var shadowHandle = _shadowTexs[i].GetImageHandle(0, 0, PixelInternalFormat.Rgba16f);
+                shadowHandle.SetResidency(Residency.Resident, AccessMode.ReadWrite);
+                _outputShader[i].Set("Shadow", shadowHandle);
+
+                _queue[i].ClearAndBeginRecording();
+                _queue[i].RecordDraw(new RenderQueue.DrawData()
+                {
+                    State = _state[i],
+                    Meshes = new RenderQueue.MeshData[]
+                    {
+                        new RenderQueue.MeshData()
+                        {
+                            BaseInstance = 0,
+                            InstanceCount = 1,
+                            Mesh = _fst
+                        }
+                    }
+                });
+                _queue[i].EndRecording();
             }
         }
 
@@ -259,22 +296,9 @@ namespace KokoroVR.Graphics
                         }
                     }
                 });
-                _queue_final[i].RecordDraw(new RenderQueue.DrawData()
-                {
-                    State = _state[i],
-                    Meshes = new RenderQueue.MeshData[]
-                    {
-                        new RenderQueue.MeshData()
-                        {
-                            BaseInstance = 0,
-                            InstanceCount = 1,
-                            Mesh = _fst
-                        }
-                    }
-                });
                 _queue_final[i].EndRecording();
                 _queue_final[i].Submit();
-
+                _queue[i].Submit();
             }
         }
 

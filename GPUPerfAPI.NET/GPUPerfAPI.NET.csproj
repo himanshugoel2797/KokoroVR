@@ -59,8 +59,24 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="Class1.cs" />
+    <Compile Include="Binding.cs" />
+    <Compile Include="Context.cs" />
+    <Compile Include="CounterValue.cs" />
+    <Compile Include="Pass.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="Session.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="..\x64\Debug\Kokoro.AMDGPUPerf.dll">
+      <Link>Kokoro.AMDGPUPerf.dll</Link>
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="..\GPUPerfAPIGL-x64.dll">
+      <Link>GPUPerfAPIGL-x64.dll</Link>
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>

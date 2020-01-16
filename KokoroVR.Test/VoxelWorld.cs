@@ -1,5 +1,6 @@
 ﻿using Kokoro.Graphics;
 using Kokoro.Math;
+using KokoroVR.Graphics;
 using KokoroVR.Graphics.Voxel;
 using SharpNoise.Modules;
 using System;
@@ -18,23 +19,28 @@ namespace KokoroVR.Test
             {
                 MeshGroup grp = new MeshGroup(MeshGroupVertexFormat.X32F_Y32F_Z32F, 40000, 40000);
 
-                LightManager.AddLight(new Graphics.Lights.DirectionalLight()
+                LightManager.AddLight(new Graphics.Lights.PointLight()
                 {
-                    Color = Vector3.UnitZ,
-                    Intensity = 640.0f,
-                    Direction = new Vector3(0.577f, 0.577f, 0.577f)
+                    Color = Vector3.One,
+                    Intensity = 50.0f,
+                    //Direction = new Vector3(0.577f, 0.577f, 0.577f)
+                    Position = Vector3.UnitY * 110
                 });
 
-                ChunkStreamer chunkStreamer = new ChunkStreamer(1 << 16);
-                var mat_id = chunkStreamer.MaterialMap.Register(Vector3.One, Vector3.One * 0.5f, 1f);
+                var green = new Vector3(0x7e, 0xc8, 0x50) / 255.0f;
+                GIMapRenderer gIMapRenderer = new GIMapRenderer();
+                ChunkStreamer chunkStreamer = new ChunkStreamer(1 << 16, gIMapRenderer, this.Renderer);
+                var mat_id = chunkStreamer.MaterialMap.Register(green, green * 0.25f, 0.9f);
                 ChunkObject obj = new ChunkObject(chunkStreamer);
+
+                Engine.CurrentPlayer.Position += Vector3.UnitY * 110;
 
                 Random rng = new Random(0);
                 ulong cnt = 0;
                 Perlin p = new Perlin();
-                for (int x = ChunkConstants.Side * -10; x < ChunkConstants.Side * 10; x++)
+                for (int x = ChunkConstants.Side * -5; x < ChunkConstants.Side * 5; x++)
                     //for (int y = ChunkConstants.Side * 0; y < ChunkConstants.Side * 1; y++)
-                    for (int z = ChunkConstants.Side * -10; z < ChunkConstants.Side * 10; z++)
+                    for (int z = ChunkConstants.Side * -5; z < ChunkConstants.Side * 5; z++)
                     {
                         //if (x * x + y * y + z * z <= 200 * 200)
                         //if(y > -32 && y < 32)
@@ -52,6 +58,7 @@ namespace KokoroVR.Test
                 obj.RebuildAll();
 
                 Console.WriteLine(cnt);
+
 
                 //w.AddRenderable(new StaticRenderable(Kokoro.Graphics.Prefabs.SphereFactory.Create(grp)));
                 AddRenderable(chunkStreamer);

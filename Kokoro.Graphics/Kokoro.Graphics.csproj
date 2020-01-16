@@ -54,10 +54,12 @@
   </PropertyGroup>
   <ItemGroup>
     <Reference Include="OpenTK, Version=3.1.0.0, Culture=neutral, PublicKeyToken=bad199fe84eb3df4, processorArchitecture=MSIL">
-      <HintPath>..\packages\OpenTK.3.1.0\lib\net20\OpenTK.dll</HintPath>
+      <SpecificVersion>False</SpecificVersion>
+      <HintPath>..\OpenTK.dll</HintPath>
     </Reference>
     <Reference Include="OpenTK.GLControl, Version=3.1.0.0, Culture=neutral, PublicKeyToken=bad199fe84eb3df4, processorArchitecture=MSIL">
-      <HintPath>..\packages\OpenTK.GLControl.3.1.0\lib\net20\OpenTK.GLControl.dll</HintPath>
+      <SpecificVersion>False</SpecificVersion>
+      <HintPath>..\OpenTK.GLControl.dll</HintPath>
     </Reference>
     <Reference Include="System" />
     <Reference Include="System.Core" />
@@ -81,7 +83,8 @@
     <Compile Include="BufferTextureSource.cs" />
     <Compile Include="BufferUsage.cs" />
     <Compile Include="CompressedTextureSource.cs" />
-    <Compile Include="CubeMapTextureSource.cs" />
+    <Compile Include="CubeMapFace.cs" />
+    <Compile Include="CubeMapFramebufferTextureSource.cs" />
     <Compile Include="CullFaceMode.cs" />
     <Compile Include="DepthFunc.cs" />
     <Compile Include="DepthTextureSource.cs" />
@@ -136,6 +139,10 @@
     <Compile Include="VertexArray.cs" />
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="..\GPUPerfAPI.NET\GPUPerfAPI.NET.csproj">
+      <Project>{82a8c5a6-543e-4ca9-ac1a-78533abff59b}</Project>
+      <Name>GPUPerfAPI.NET</Name>
+    </ProjectReference>
     <ProjectReference Include="..\Kokoro.Common\Kokoro.Common.csproj">
       <Project>{D768F549-CFF8-4022-A542-D4C0FCB90623}</Project>
       <Name>Kokoro.Common</Name>
@@ -144,10 +151,6 @@
       <Project>{043ecd5d-e71c-4954-8886-0418727ab661}</Project>
       <Name>Kokoro.Math</Name>
     </ProjectReference>
-  </ItemGroup>
-  <ItemGroup>
-    <None Include="OpenTK.dll.config" />
-    <None Include="packages.config" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>

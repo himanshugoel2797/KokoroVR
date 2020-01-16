@@ -31,6 +31,17 @@ namespace Kokoro.Graphics
         static ShaderProgram curProg;
         static Framebuffer curFramebuffer;
         static FaceWinding winding;
+        static GPUPerfAPI.NET.Context ctxt;
+        static GPUPerfAPI.NET.Session session;
+
+        public static GPUPerfAPI.NET.Session Session
+        {
+            get
+            {
+                return session;
+            }
+        }
+
         public static FaceWinding Winding
         {
             get
@@ -360,18 +371,19 @@ namespace Kokoro.Graphics
         private static readonly ConcurrentQueue<Tuple<int, GLObjectType>> DeletionQueue;
 
         [System.Security.SuppressUnmanagedCodeSecurity]
-        [System.Runtime.InteropServices.DllImport("opengl32.dll", EntryPoint = "wglGetCurrentDC")]
-        extern static IntPtr WglGetCurrentDC();
+        [System.Runtime.InteropServices.DllImport("opengl32.dll", EntryPoint = "wglGetCurrentContext")]
+        extern static IntPtr WglGetCurrentContext();
 
         static GraphicsDevice()
         {
             GraphicsContextFlags flags = GraphicsContextFlags.Default;
 #if !DEBUG
-            flags |= (GraphicsContextFlags)0x8; //Disable error checking
+            flags |= GraphicsContextFlags.NoError; //Disable error checking
 #else
+            GPUPerfAPI.NET.Context.Initialize();
             flags |= GraphicsContextFlags.Debug;
 #endif
-            Window = new GameWindow(1280, 720, GraphicsMode.Default, "Game Window", OpenTK.GameWindowFlags.Default, OpenTK.DisplayDevice.Default, 0, 0, flags);
+            Window = new GameWindow(1280, 720, GraphicsMode.Default, "Game Window", OpenTK.GameWindowFlags.Default, OpenTK.DisplayDevice.Default, 0, 0, flags | GraphicsContextFlags.ForwardCompatible);
 
             Window.Resize += Window_Resize;
             Window.Load += Game_Load;
@@ -483,6 +495,7 @@ namespace Kokoro.Graphics
             GL.Enable(EnableCap.DebugOutput);
             GL.DebugMessageInsert(DebugSourceExternal.DebugSourceApplication, DebugType.DebugTypePortability, 1, DebugSeverity.DebugSeverityNotification, 5, "test");
 #endif
+            GL.Enable(EnableCap.TextureCubeMapSeamless);
             Window.Run(ups, fps);
         }
 
@@ -570,6 +583,14 @@ namespace Kokoro.Graphics
         {
             DeleteSomeObjects();
 #if DEBUG
+            if (ctxt == null)
+            {
+                ctxt = new GPUPerfAPI.NET.Context(GraphicsContext.CurrentContextHandle.Handle);
+                session = ctxt.CreateSession();
+                session.EnableAllCounters();
+                session.Start();
+            }
+
             GenericMetrics.UpdateLog();
 
             updateCnt++;

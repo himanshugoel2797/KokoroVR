@@ -174,6 +174,47 @@ namespace Kokoro.Graphics
             return new ImageHandle(hndl, this);
         }
 
+        public virtual void SetData(ITextureSource src, int level, CubeMapFace face)
+        {
+            bool inited = false;
+            if (id == 0)
+            {
+                GL.CreateTextures(OpenTK.Graphics.OpenGL4.TextureTarget.TextureCubeMap, 1, out id);
+                inited = true;
+
+                this.Width = src.GetWidth();
+                this.Height = src.GetHeight();
+                this.Depth = src.GetDepth();
+                this.LevelCount = src.GetLevels();
+
+                this.format = src.GetFormat();
+                this.internalformat = src.GetInternalFormat();
+                this.texTarget = src.GetTextureTarget();
+                this.ptype = src.GetPixelType();
+            }
+            if (inited) GL.TextureStorage2D(id, LevelCount, (SizedInternalFormat)internalformat, Width, Height);
+            IntPtr ptr = src.GetPixelData(level);
+            if (ptr != IntPtr.Zero)
+                switch (internalformat)
+                {
+                    case PixelInternalFormat.CompressedRedRgtc1:    //BC4
+                    case PixelInternalFormat.CompressedRgRgtc2:     //BC5
+                    case PixelInternalFormat.CompressedRgbaBptcUnorm:    //BC7
+                        {
+                            int blockSize = (internalformat == PixelInternalFormat.CompressedRedRgtc1) ? 8 : 16;
+                            int size = ((src.GetWidth() >> level + 3) / 4) * ((src.GetHeight() >> level + 3) / 4) * blockSize;
+                            GL.CompressedTextureSubImage3D(id, level, src.GetBaseWidth() >> level, src.GetBaseHeight() >> level, (int)face, src.GetWidth() >> level, src.GetHeight() >> level, 1, (OpenTK.Graphics.OpenGL4.PixelFormat)src.GetFormat(), size, ptr);
+                        }
+                        break;
+                    default:
+                        GL.TextureSubImage3D(id, level, src.GetBaseWidth() >> level, src.GetBaseHeight() >> level, (int)face, src.GetWidth() >> level, src.GetHeight() >> level, 1, (OpenTK.Graphics.OpenGL4.PixelFormat)src.GetFormat(), (OpenTK.Graphics.OpenGL4.PixelType)src.GetPixelType(), ptr);
+                        break;
+                }
+
+            if (GenerateMipmaps)
+                GL.GenerateTextureMipmap(id);
+        }
+
         public virtual void SetData(ITextureSource src, int level)
         {
             bool inited = false;

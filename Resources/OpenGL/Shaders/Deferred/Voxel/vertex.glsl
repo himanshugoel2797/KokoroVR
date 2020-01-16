@@ -6,6 +6,7 @@ flat out uint vox_v;
 // Values that stay constant for the whole mesh.
 uniform mat4 ViewProj;
 uniform vec3 eyePos;
+uniform int curLayer;
 
 struct block_info_t {
 	vec4 o;
@@ -29,4 +30,5 @@ void main(){
 	pos = face_pos - eyePos;
 	//normal = vec3( bitfieldExtract(norm_v, 0, 2), bitfieldExtract(norm_v, 2, 2), bitfieldExtract(norm_v, 4, 2) ) - 1.0f;
 	gl_Position =  ViewProj * vec4(face_pos, 1);
+	gl_Layer = curLayer;
 }

@@ -7,7 +7,7 @@
         ],
         "executable": "I:\\Code\\KokoroVR\\KokoroVR.Test\\bin\\x64\\Debug\\KokoroVR.Test.exe",
         "inject": false,
-        "numQueuedFrames": 0,
+        "numQueuedFrames": 1,
         "options": {
             "allowFullscreen": true,
             "allowVSync": true,
@@ -21,7 +21,7 @@
             "refAllResources": false,
             "verifyBufferAccess": false
         },
-        "queuedFrameCap": 0,
+        "queuedFrameCap": 10,
         "workingDir": ""
     }
 }

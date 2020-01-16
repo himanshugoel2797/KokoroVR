@@ -22,6 +22,12 @@ namespace KokoroVR.Graphics.Voxel
         private RenderState state;
         private List<(int, Vector3)> Draws;
 
+        private RenderState cubeMapState;
+        private RenderQueue2[] cubeMapRender;
+        private GIMapRenderer gi;
+        private ShaderProgram voxelGiShader;
+        private DeferredRenderer renderer;
+
         private BufferAllocator indexBufferAllocator;
         private IndexBuffer indexBuffer;
 
@@ -32,13 +38,19 @@ namespace KokoroVR.Graphics.Voxel
         public int MaxChunkCount { get; private set; }
         public ChunkStreamerEnd Ender { get; private set; }
 
-        public ChunkStreamer(int max_count)
+        public ChunkStreamer(int max_count, GIMapRenderer gi, DeferredRenderer renderer)
         {
-            Ender = new ChunkStreamerEnd(this);
             Draws = new List<(int, Vector3)>();
 
             indexBufferAllocator = new BufferAllocator(ChunkConstants.BlockSize * sizeof(uint), blk_cnt, false, PixelInternalFormat.R32ui);
             indexBuffer = new IndexBuffer(indexBufferAllocator.BufferTex.Buffer, false);
+
+            this.gi = gi;
+
+            cubeMapRender = new RenderQueue2[6];
+            for (int i = 0; i < 6; i++)
+                cubeMapRender[i] = new RenderQueue2(blk_cnt, true);
+            this.renderer = renderer;
 
             MaxChunkCount = max_count;
             ChunkList = new Chunk[max_count];
@@ -54,8 +66,11 @@ namespace KokoroVR.Graphics.Voxel
             drawParams = new ShaderStorageBuffer(blk_cnt * 8 * sizeof(uint), false);
             voxelShader = new ShaderProgram(ShaderSource.Load(ShaderType.VertexShader, "Shaders/Deferred/Voxel/vertex.glsl"),
                                             ShaderSource.Load(ShaderType.FragmentShader, "Shaders/Deferred/Voxel/fragment.glsl"));
+            voxelGiShader = new ShaderProgram(ShaderSource.Load(ShaderType.VertexShader, "Shaders/Deferred/Voxel/vertex.glsl"),
+                                            ShaderSource.Load(ShaderType.FragmentShader, "Shaders/Deferred/Voxel/fragment_gi.glsl"));
 
             MaterialMap = new VoxelDictionary();
+            Ender = new ChunkStreamerEnd(this);
         }
 
         public Chunk Allocate()
@@ -82,8 +97,8 @@ namespace KokoroVR.Graphics.Voxel
             if (c.empty) return;
 
             //Don't proceed if this chunk isn't supposed to be visible
-            if (!Engine.Frustums[(int)cur_eye].IsVisible(new Vector4(offset - Vector3.One * ChunkConstants.Side * 0.5f, (float)(ChunkConstants.Side * 0.75f * System.Math.Sqrt(3)))))
-                return;
+            //if (!Engine.Frustums[(int)cur_eye].IsVisible(new Vector4(offset - Vector3.One * ChunkConstants.Side * 0.5f, (float)(ChunkConstants.Side * 0.75f * System.Math.Sqrt(3)))))
+            //    return;
 
             int mesh_idx = -1;
             for (int i = 0; i < ChunkCache.Length; i++) if (ChunkCache[i].Item2 == c.id) { mesh_idx = i; break; }
@@ -154,13 +169,23 @@ namespace KokoroVR.Graphics.Voxel
             Draws.Clear();
             voxelShader.Set("eyePos", Engine.CurrentPlayer.Position);
             voxelShader.Set("ViewProj", Engine.View[(int)eye] * Engine.Projection[(int)eye]);
+            voxelShader.Set("curLayer", 0);
             state = new RenderState(fbuf, voxelShader, new ShaderStorageBuffer[] { MaterialMap.voxelData, drawParams }, null, true, true, DepthFunc.Greater, InverseDepth.Far, InverseDepth.Near, BlendFactor.One, BlendFactor.Zero, Vector4.Zero, InverseDepth.ClearDepth, CullFaceMode.Back, indexBuffer);
+            cubeMapState = new RenderState(gi.CubeMap, voxelGiShader, new ShaderStorageBuffer[] { MaterialMap.voxelData, drawParams }, null, true, true, DepthFunc.Greater, InverseDepth.Far, InverseDepth.Near, BlendFactor.One, BlendFactor.Zero, Vector4.Zero, InverseDepth.ClearDepth, CullFaceMode.Back, indexBuffer);
             queue.ClearAndBeginRecording();
+
+            cubeMapRender[0].ClearFramebufferBeforeSubmit = true;
+            for (int i = 0; i < 6; i++)
+            {
+                cubeMapRender[i].ClearAndBeginRecording();
+            }
         }
 
         public class ChunkStreamerEnd : Interactable
         {
             ChunkStreamer parent;
+            ShaderProgram gi;
+
             internal ChunkStreamerEnd(ChunkStreamer p)
             {
                 parent = p;
@@ -183,10 +208,96 @@ namespace KokoroVR.Graphics.Voxel
                             }
                         }
                     });
+
+                    for (int i = 0; i < 6; i++)
+                        parent.cubeMapRender[i].RecordDraw(new RenderQueue2.DrawData()
+                        {
+                            State = parent.cubeMapState,
+                            Meshes = new RenderQueue2.MeshData[]
+                            {
+                            new RenderQueue2.MeshData(){
+                                BaseInstance = 0,
+                                InstanceCount = 1,
+                                Mesh = parent.ChunkCache[mesh_idx].Item1
+                            }
+                            }
+                        });
                 }
 
                 parent.queue.EndRecording(Engine.Frustums[(int)eye], Engine.CurrentPlayer.Position);
                 parent.queue.Submit();
+
+                var p = Matrix4.CreatePerspectiveFieldOfView(MathHelper.DegreesToRadians(90), 1, 0.001f);
+                var fX = Matrix4.LookAt(Engine.CurrentPlayer.Position, Engine.CurrentPlayer.Position + Vector3.UnitX, -Vector3.UnitY);
+                var nX = Matrix4.LookAt(Engine.CurrentPlayer.Position, Engine.CurrentPlayer.Position - Vector3.UnitX, -Vector3.UnitY);
+                var fY = Matrix4.LookAt(Engine.CurrentPlayer.Position, Engine.CurrentPlayer.Position + Vector3.UnitY, Vector3.UnitZ);
+                var nY = Matrix4.LookAt(Engine.CurrentPlayer.Position, Engine.CurrentPlayer.Position - Vector3.UnitY, -Vector3.UnitZ);
+                var fZ = Matrix4.LookAt(Engine.CurrentPlayer.Position, Engine.CurrentPlayer.Position + Vector3.UnitZ, -Vector3.UnitY);
+                var nZ = Matrix4.LookAt(Engine.CurrentPlayer.Position, Engine.CurrentPlayer.Position - Vector3.UnitZ, -Vector3.UnitY);
+
+                //parent.cubeMapRender.BeginRecording();
+                parent.voxelGiShader.Set("eyePos", Engine.CurrentPlayer.Position);
+                parent.voxelGiShader.Set("ViewProj", fX * p);
+                parent.voxelGiShader.Set("curLayer", 0);
+                parent.cubeMapRender[0].EndRecording(new Frustum(fX, p, Engine.CurrentPlayer.Position), Engine.CurrentPlayer.Position);
+                parent.cubeMapRender[0].Submit();
+
+                parent.voxelGiShader.Set("eyePos", Engine.CurrentPlayer.Position);
+                parent.voxelGiShader.Set("ViewProj", nX * p);
+                parent.voxelGiShader.Set("curLayer", 1);
+                parent.cubeMapRender[1].EndRecording(new Frustum(nX, p, Engine.CurrentPlayer.Position), Engine.CurrentPlayer.Position);
+                parent.cubeMapRender[1].Submit();
+                
+                parent.voxelGiShader.Set("eyePos", Engine.CurrentPlayer.Position);
+                parent.voxelGiShader.Set("ViewProj", fY * p);
+                parent.voxelGiShader.Set("curLayer", 2);
+                parent.cubeMapRender[2].EndRecording(new Frustum(fY, p, Engine.CurrentPlayer.Position), Engine.CurrentPlayer.Position);
+                parent.cubeMapRender[2].Submit();
+
+                parent.voxelGiShader.Set("eyePos", Engine.CurrentPlayer.Position);
+                parent.voxelGiShader.Set("ViewProj", nY * p);
+                parent.voxelGiShader.Set("curLayer", 3);
+                parent.cubeMapRender[3].EndRecording(new Frustum(nY, p, Engine.CurrentPlayer.Position), Engine.CurrentPlayer.Position);
+                parent.cubeMapRender[3].Submit();
+
+                parent.voxelGiShader.Set("eyePos", Engine.CurrentPlayer.Position);
+                parent.voxelGiShader.Set("ViewProj", fZ * p);
+                parent.voxelGiShader.Set("curLayer", 4);
+                parent.cubeMapRender[4].EndRecording(new Frustum(fZ, p, Engine.CurrentPlayer.Position), Engine.CurrentPlayer.Position);
+                parent.cubeMapRender[4].Submit();
+
+                parent.voxelGiShader.Set("eyePos", Engine.CurrentPlayer.Position);
+                parent.voxelGiShader.Set("ViewProj", nZ * p);
+                parent.voxelGiShader.Set("curLayer", 5);
+                parent.cubeMapRender[5].EndRecording(new Frustum(nZ, p, Engine.CurrentPlayer.Position), Engine.CurrentPlayer.Position);
+                parent.cubeMapRender[5].Submit();
+
+                if(gi == null)
+                {
+                    TextureSampler sampler = new TextureSampler();
+                    sampler.SetEnableLinearFilter(true);
+                    sampler.SetTileMode(false, false);
+
+                    gi = new ShaderProgram(ShaderSource.Load(ShaderType.ComputeShader, "Shaders/Deferred/SSGI/compute.glsl"));
+                    var colMap = parent.renderer._colorMaps[0].GetHandle(TextureSampler.Default).SetResidency(Residency.Resident);
+                    var normMap = parent.renderer._normalMaps[0].GetHandle(TextureSampler.Default).SetResidency(Residency.Resident);
+                    var specMap = parent.renderer._specMaps[0].GetHandle(TextureSampler.Default).SetResidency(Residency.Resident);
+                    var accumMap = parent.renderer._shadowTexs[0].GetImageHandle(0, 0, PixelInternalFormat.Rgba16f);//.SetResidency(Residency.Resident, AccessMode.Write);
+
+                    gi.Set("ColorMap", colMap);
+                    gi.Set("NormalMap", normMap);
+                    gi.Set("SpecularMap", specMap);
+                    gi.Set("accumulator", accumMap);
+
+                    gi.Set("positionBuf", parent.gi.CubeMapTex.GetHandle(sampler).SetResidency(Residency.Resident));
+                }
+
+                //wire up the testing gi shader
+                gi.Set("eyePos", Engine.CurrentPlayer.Position);
+                gi.Set("eyeDir", Engine.CurrentPlayer.Direction);
+                gi.Set("lightPos", Vector3.UnitY * 110);
+
+                GraphicsDevice.DispatchSyncComputeJob(gi, Engine.Framebuffers[0].Width, Engine.Framebuffers[0].Height, 1);
             }
 
             public override void Update(double time, World parent)

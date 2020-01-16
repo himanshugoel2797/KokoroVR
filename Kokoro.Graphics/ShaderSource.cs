@@ -78,7 +78,6 @@ namespace Kokoro.Graphics
             GraphicsDevice.Cleanup.Add(Dispose);
         }
 
-
         #region IDisposable Support
         private bool disposedValue = false; // To detect redundant calls
 
