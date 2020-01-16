@@ -715,21 +715,34 @@ namespace Kokoro.Graphics
         #region Compute Jobs
         public static void DispatchSyncComputeJob(ShaderProgram prog, int x, int y, int z)
         {
+#if DEBUG
+            PerfAPI.BeginCompute();
+#endif
             GL.MemoryBarrier(MemoryBarrierFlags.AllBarrierBits);
             var tmp = ShaderProgram;
             ShaderProgram = prog;
             GL.DispatchCompute(x, y, z);
             ShaderProgram = tmp;
+#if DEBUG
+            PerfAPI.EndSample();
+#endif
         }
 
         public static void DispatchIndirectSyncComputeJob(ShaderProgram prog, ShaderStorageBuffer buffer, int off)
         {
+#if DEBUG
+            PerfAPI.BeginComputeIndirect();
+#endif
+
             GL.MemoryBarrier(MemoryBarrierFlags.AllBarrierBits);
             var tmp = ShaderProgram;
             ShaderProgram = prog;
             SetDispatchIndirectBuffer(buffer.buf);
             GL.DispatchComputeIndirect((IntPtr)off);
             ShaderProgram = tmp;
+#if DEBUG
+            PerfAPI.EndSample();
+#endif
         }
         #endregion
 
@@ -770,6 +783,7 @@ namespace Kokoro.Graphics
         {
 #if DEBUG
             GenericMetrics.StartMeasurement();
+            PerfAPI.BeginMultiDrawIndirectCount();
 #endif
             GL.MemoryBarrier(MemoryBarrierFlags.AllBarrierBits);
             if (indexed)
@@ -777,6 +791,7 @@ namespace Kokoro.Graphics
             else
                 GL.Arb.MultiDrawArraysIndirectCount((OpenTK.Graphics.OpenGL4.PrimitiveType)type, (IntPtr)byteOffset, (IntPtr)countOffset, (int)maxCount, stride);
 #if DEBUG
+            PerfAPI.EndSample();
             GenericMetrics.StopMeasurement();
 #endif
         }

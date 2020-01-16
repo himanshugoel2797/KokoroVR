@@ -13,8 +13,18 @@ namespace Kokoro.Graphics.Profiling
         static Session cur_session;
         static Pass cur_pass;
         static StreamWriter logFile;
+        static List<string> sample_names;
+
+        static int multidrawindirectCount_idx = 0;
+        static int compute_idx = 0;
+        static int computeIndirect_idx = 0;
 
         public static bool MetricsEnabled { get; set; }
+
+        static PerfAPI()
+        {
+            sample_names = new List<string>();
+        }
 
         public static void BeginFrame()
         {
@@ -33,28 +43,44 @@ namespace Kokoro.Graphics.Profiling
                     {
                         logFile = new StreamWriter($"gpuperfapi_log_{DateTime.Now.Ticks}.csv", false);
 
-                        string hdr = "";
+                        string hdr = "TaskName,";
                         for (int i = 0; i < results[0].Counters.Length; i++)
                             hdr += results[0].Counters[i].Name + ",";
 
+                        hdr = hdr.Substring(0, hdr.Length - 1);
+                        logFile.WriteLine(hdr);
+
+                        hdr = "String,";
+                        for (int i = 0; i < results[0].Counters.Length; i++)
+                            hdr += results[0].Counters[i].Usage + ",";
                         hdr = hdr.Substring(0, hdr.Length - 1);
                         logFile.WriteLine(hdr);
                     }
 
                     for (int i = 0; i < results.Length; i++)
                     {
-                        var str = "";
+                        var str = sample_names[i] + ",";
                         for (int j = 0; j < results[i].Counters.Length; j++)
                             str += (results[i].Counters[j].IsDouble ? results[i].Counters[j].DoubleValue : results[i].Counters[j].ULongValue) + ",";
 
                         str = str.Substring(0, str.Length - 1);
                         logFile.WriteLine(str);
                     }
+
+                    var str2 = "FrameEnd,";
+                    for (int i = 0; i < results[0].Counters.Length; i++)
+                        str2 += ",";
+                    str2 = str2.Substring(0, str2.Length - 1);
+                    logFile.WriteLine(str2);
                 }
                 cur_session.Dispose();
                 cur_session = null;
             }
 
+            sample_names.Clear();
+            multidrawindirectCount_idx = 0;
+            compute_idx = 0;
+            computeIndirect_idx = 0;
 
             if (cur_session == null)
             {
@@ -65,7 +91,31 @@ namespace Kokoro.Graphics.Profiling
             cur_pass = cur_session.StartPass();
         }
 
-        public static void BeginSample()
+        public static void BeginMultiDrawIndirectCount()
+        {
+            sample_names.Add($"MultiDrawIndirectCount #{multidrawindirectCount_idx++}");
+            BeginSample();
+        }
+
+        public static void BeginCompute()
+        {
+            sample_names.Add($"Compute #{compute_idx++}");
+            BeginSample();
+        }
+
+        public static void BeginComputeIndirect()
+        {
+            sample_names.Add($"ComputeIndirect #{computeIndirect_idx++}");
+            BeginSample();
+        }
+
+        public static void BeginSample(string name)
+        {
+            sample_names.Add(name);
+            BeginSample();
+        }
+
+        internal static void BeginSample()
         {
             if (!MetricsEnabled)
                 return;
