@@ -60,7 +60,7 @@ void main(){
         float read_depth = length(read_pos - eyePos);
         float ray_depth = length(rayPos - eyePos);
 
-        if(read_depth - 0.000001f <= ray_depth){ //if read point is closer than the ray point, shadowed
+        if(read_depth + 0.000001f <= ray_depth){ //if read point is closer than the ray point, shadowed
             //shadowed
             imageStore(accumulator, pix_pos, vec4(0.2f));
             break;

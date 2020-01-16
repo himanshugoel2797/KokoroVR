@@ -1,4 +1,6 @@
-﻿using Kokoro.Graphics;
+﻿using GPUPerfAPI.NET;
+using Kokoro.Graphics;
+using Kokoro.Graphics.Profiling;
 using Kokoro.Math;
 using System;
 using System.Collections.Generic;
@@ -223,9 +225,14 @@ namespace KokoroVR.Graphics.Voxel
                             }
                         });
                 }
+                //var session = GraphicsDevice.Context.CreateSession();
+                //session.EnableAllCounters();
+                //session.Start();
 
+                PerfAPI.BeginSample();
                 parent.queue.EndRecording(Engine.Frustums[(int)eye], Engine.CurrentPlayer.Position);
                 parent.queue.Submit();
+                PerfAPI.EndSample();
 
                 var p = Matrix4.CreatePerspectiveFieldOfView(MathHelper.DegreesToRadians(90), 1, 0.001f);
                 var fX = Matrix4.LookAt(Engine.CurrentPlayer.Position, Engine.CurrentPlayer.Position + Vector3.UnitX, -Vector3.UnitY);
@@ -235,6 +242,7 @@ namespace KokoroVR.Graphics.Voxel
                 var fZ = Matrix4.LookAt(Engine.CurrentPlayer.Position, Engine.CurrentPlayer.Position + Vector3.UnitZ, -Vector3.UnitY);
                 var nZ = Matrix4.LookAt(Engine.CurrentPlayer.Position, Engine.CurrentPlayer.Position - Vector3.UnitZ, -Vector3.UnitY);
 
+                PerfAPI.BeginSample();
                 //parent.cubeMapRender.BeginRecording();
                 parent.voxelGiShader.Set("eyePos", Engine.CurrentPlayer.Position);
                 parent.voxelGiShader.Set("ViewProj", fX * p);
@@ -271,33 +279,48 @@ namespace KokoroVR.Graphics.Voxel
                 parent.voxelGiShader.Set("curLayer", 5);
                 parent.cubeMapRender[5].EndRecording(new Frustum(nZ, p, Engine.CurrentPlayer.Position), Engine.CurrentPlayer.Position);
                 parent.cubeMapRender[5].Submit();
+                PerfAPI.EndSample();
 
-                if(gi == null)
+                /*
+                for (int pass_i = 0; pass_i < session.PassCount; pass_i++)
                 {
-                    TextureSampler sampler = new TextureSampler();
-                    sampler.SetEnableLinearFilter(true);
-                    sampler.SetTileMode(false, false);
+                    var pass = session.StartPass();
+                    pass.BeginSample();*/
+                PerfAPI.BeginSample();
+                    if (gi == null)
+                    {
+                        TextureSampler sampler = new TextureSampler();
+                        sampler.SetEnableLinearFilter(true);
+                        sampler.SetTileMode(false, false);
 
-                    gi = new ShaderProgram(ShaderSource.Load(ShaderType.ComputeShader, "Shaders/Deferred/SSGI/compute.glsl"));
-                    var colMap = parent.renderer._colorMaps[0].GetHandle(TextureSampler.Default).SetResidency(Residency.Resident);
-                    var normMap = parent.renderer._normalMaps[0].GetHandle(TextureSampler.Default).SetResidency(Residency.Resident);
-                    var specMap = parent.renderer._specMaps[0].GetHandle(TextureSampler.Default).SetResidency(Residency.Resident);
-                    var accumMap = parent.renderer._shadowTexs[0].GetImageHandle(0, 0, PixelInternalFormat.Rgba16f);//.SetResidency(Residency.Resident, AccessMode.Write);
+                        gi = new ShaderProgram(ShaderSource.Load(ShaderType.ComputeShader, "Shaders/Deferred/SSGI/compute.glsl"));
+                        var colMap = parent.renderer._colorMaps[0].GetHandle(TextureSampler.Default).SetResidency(Residency.Resident);
+                        var normMap = parent.renderer._normalMaps[0].GetHandle(TextureSampler.Default).SetResidency(Residency.Resident);
+                        var specMap = parent.renderer._specMaps[0].GetHandle(TextureSampler.Default).SetResidency(Residency.Resident);
+                        var accumMap = parent.renderer._shadowTexs[0].GetImageHandle(0, 0, PixelInternalFormat.Rgba16f);//.SetResidency(Residency.Resident, AccessMode.Write);
 
-                    gi.Set("ColorMap", colMap);
-                    gi.Set("NormalMap", normMap);
-                    gi.Set("SpecularMap", specMap);
-                    gi.Set("accumulator", accumMap);
+                        gi.Set("ColorMap", colMap);
+                        gi.Set("NormalMap", normMap);
+                        gi.Set("SpecularMap", specMap);
+                        gi.Set("accumulator", accumMap);
 
-                    gi.Set("positionBuf", parent.gi.CubeMapTex.GetHandle(sampler).SetResidency(Residency.Resident));
+                        gi.Set("positionBuf", parent.gi.CubeMapTex.GetHandle(sampler).SetResidency(Residency.Resident));
+                    }
+
+                    //wire up the testing gi shader
+                    gi.Set("eyePos", Engine.CurrentPlayer.Position);
+                    gi.Set("eyeDir", Engine.CurrentPlayer.Direction);
+                    gi.Set("lightPos", Vector3.UnitY * 110);
+
+                    GraphicsDevice.DispatchSyncComputeJob(gi, Engine.Framebuffers[0].Width, Engine.Framebuffers[0].Height, 1);
+                PerfAPI.EndSample();
+                    /*pass.EndSample();
+                    session.EndPass(pass);
                 }
 
-                //wire up the testing gi shader
-                gi.Set("eyePos", Engine.CurrentPlayer.Position);
-                gi.Set("eyeDir", Engine.CurrentPlayer.Direction);
-                gi.Set("lightPos", Vector3.UnitY * 110);
-
-                GraphicsDevice.DispatchSyncComputeJob(gi, Engine.Framebuffers[0].Width, Engine.Framebuffers[0].Height, 1);
+                session.Stop();
+                var results = session.GetResults(1);
+                session.Dispose();*/
             }
 
             public override void Update(double time, World parent)

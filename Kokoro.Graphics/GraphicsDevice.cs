@@ -31,16 +31,8 @@ namespace Kokoro.Graphics
         static ShaderProgram curProg;
         static Framebuffer curFramebuffer;
         static FaceWinding winding;
-        static GPUPerfAPI.NET.Context ctxt;
-        static GPUPerfAPI.NET.Session session;
 
-        public static GPUPerfAPI.NET.Session Session
-        {
-            get
-            {
-                return session;
-            }
-        }
+        public static GPUPerfAPI.NET.Context Context { get; private set; }
 
         public static FaceWinding Winding
         {
@@ -583,12 +575,9 @@ namespace Kokoro.Graphics
         {
             DeleteSomeObjects();
 #if DEBUG
-            if (ctxt == null)
+            if (Context == null)
             {
-                ctxt = new GPUPerfAPI.NET.Context(GraphicsContext.CurrentContextHandle.Handle);
-                session = ctxt.CreateSession();
-                session.EnableAllCounters();
-                session.Start();
+                Context = new GPUPerfAPI.NET.Context(GraphicsContext.CurrentContextHandle.Handle);
             }
 
             GenericMetrics.UpdateLog();
@@ -643,7 +632,13 @@ namespace Kokoro.Graphics
 
         private static void Game_RenderFrame(object sender, FrameEventArgs e)
         {
+#if DEBUG
+            PerfAPI.BeginFrame();
+#endif
             Render?.Invoke(e.Time);
+#if DEBUG
+            PerfAPI.EndFrame();
+#endif
         }
 
         private static void Game_Load(object sender, EventArgs e)

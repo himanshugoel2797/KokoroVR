@@ -25,6 +25,7 @@ namespace KokoroVR
         public static Frustum[] Frustums { get; private set; }
         public static LocalPlayer CurrentPlayer { get; private set; }
         public static bool LogMetrics { get { return GenericMetrics.MetricsEnabled; } set { GenericMetrics.MetricsEnabled = value; } }
+        public static bool LogAMDMetrics { get { return PerfAPI.MetricsEnabled; } set { PerfAPI.MetricsEnabled = value; } }
         public static Action<int, int> WindowResized { get { return GraphicsDevice.Resized; } set { GraphicsDevice.Resized = value; } }
         public static Keyboard Keyboard { get; set; }
 

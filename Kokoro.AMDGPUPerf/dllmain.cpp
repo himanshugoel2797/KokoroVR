@@ -58,20 +58,20 @@ FEXPORT int GetNumCountersGPA(uint32_t* cnt) {
 	return gpaFuncTable->GPA_GetNumCounters(contextId, cnt);
 }
 
-FEXPORT int GetCounterNameGPA(uint32_t idx, const char* name) {
-	return gpaFuncTable->GPA_GetCounterName(contextId, idx, &name);
+FEXPORT int GetCounterNameGPA(uint32_t idx, const char** name) {
+	return gpaFuncTable->GPA_GetCounterName(contextId, idx, name);
 }
 
 FEXPORT int GetCounterIndexGPA(const char* name, uint32_t* idx) {
 	return gpaFuncTable->GPA_GetCounterIndex(contextId, name, idx);
 }
 
-FEXPORT int GetCounterGroupGPA(uint32_t idx, const char* name) {
-	return gpaFuncTable->GPA_GetCounterGroup(contextId, idx, &name);
+FEXPORT int GetCounterGroupGPA(uint32_t idx, const char** name) {
+	return gpaFuncTable->GPA_GetCounterGroup(contextId, idx, name);
 }
 
-FEXPORT int GetCounterDescriptionGPA(uint32_t idx, const char* name) {
-	return gpaFuncTable->GPA_GetCounterDescription(contextId, idx, &name);
+FEXPORT int GetCounterDescriptionGPA(uint32_t idx, const char** name) {
+	return gpaFuncTable->GPA_GetCounterDescription(contextId, idx, name);
 }
 
 FEXPORT int GetCounterDataTypeGPA(uint32_t idx, uint32_t* flags) {

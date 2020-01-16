@@ -97,6 +97,10 @@
     <Compile Include="World.cs" />
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="..\GPUPerfAPI.NET\GPUPerfAPI.NET.csproj">
+      <Project>{82a8c5a6-543e-4ca9-ac1a-78533abff59b}</Project>
+      <Name>GPUPerfAPI.NET</Name>
+    </ProjectReference>
     <ProjectReference Include="..\Kokoro.Common\Kokoro.Common.csproj">
       <Project>{d768f549-cff8-4022-a542-d4c0fcb90623}</Project>
       <Name>Kokoro.Common</Name>

@@ -21,8 +21,8 @@ namespace GPUPerfAPI.NET
 
     public enum DataType
     {
+        Double64,
         Ulong64,
-        Double64
     }
 
     public class Binding
@@ -49,7 +49,7 @@ namespace GPUPerfAPI.NET
         public static extern int GetNumCountersGPA(out uint cnt);
 
         [DllImport(DllName, CharSet = CharSet.Ansi)]
-        public static extern int GetCounterNameGPA(uint cnt, StringBuilder name);
+        public static extern int GetCounterNameGPA(uint cnt, out IntPtr name);
 
         [DllImport(DllName, CharSet = CharSet.Ansi)]
         public static extern int GetCounterIndexGPA([MarshalAs(UnmanagedType.AnsiBStr)] string name, uint cnt);
