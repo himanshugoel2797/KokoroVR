@@ -500,6 +500,7 @@ namespace Kokoro.Graphics
         //#endif
         public static void SwapBuffers()
         {
+            Window.SwapBuffers();
             //#if DEBUG
             if (renderer_name == "")
                 renderer_name = GL.GetString(StringName.Renderer);
@@ -512,10 +513,7 @@ namespace Kokoro.Graphics
                 renderCnt = 0;
                 updateCnt = 0;
             }
-
-            GenericMetrics.EndFrame();
             //#endif
-            Window.SwapBuffers();
         }
 
         private static void DeleteObject(int o, GLObjectType t)
@@ -573,12 +571,15 @@ namespace Kokoro.Graphics
 
         private static void Game_UpdateFrame(object sender, FrameEventArgs e)
         {
-            DeleteSomeObjects();
 #if DEBUG
             if (Context == null)
             {
                 Context = new GPUPerfAPI.NET.Context(GraphicsContext.CurrentContextHandle.Handle);
             }
+            PerfAPI.BeginFrame();
+#endif
+            DeleteSomeObjects();
+#if DEBUG
 
             GenericMetrics.UpdateLog();
 
@@ -608,6 +609,7 @@ namespace Kokoro.Graphics
 #endif
             InputLL.IsFocused(Window.Focused);
             Update?.Invoke(e.Time);
+
         }
 
         private static void InitRender(object sender, FrameEventArgs e)
@@ -632,12 +634,10 @@ namespace Kokoro.Graphics
 
         private static void Game_RenderFrame(object sender, FrameEventArgs e)
         {
-#if DEBUG
-            PerfAPI.BeginFrame();
-#endif
             Render?.Invoke(e.Time);
 #if DEBUG
             PerfAPI.EndFrame();
+            GenericMetrics.EndFrame();
 #endif
         }
 
@@ -730,19 +730,19 @@ namespace Kokoro.Graphics
 
         public static void DispatchIndirectSyncComputeJob(ShaderProgram prog, ShaderStorageBuffer buffer, int off)
         {
+
 #if DEBUG
             PerfAPI.BeginComputeIndirect();
 #endif
-
             GL.MemoryBarrier(MemoryBarrierFlags.AllBarrierBits);
             var tmp = ShaderProgram;
             ShaderProgram = prog;
             SetDispatchIndirectBuffer(buffer.buf);
             GL.DispatchComputeIndirect((IntPtr)off);
-            ShaderProgram = tmp;
 #if DEBUG
             PerfAPI.EndSample();
 #endif
+            ShaderProgram = tmp;
         }
         #endregion
 

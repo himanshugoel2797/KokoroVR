@@ -23,9 +23,9 @@ namespace Kokoro.Graphics
         ClippingOutputPrimitives = 0x82F7,
     }
 
-    public class PerfTimer
+    public class PerfTimer : IDisposable
     {
-        int id = -1;
+        int id = -1, tstamp_id = -1;
         QueryType queryType;
         long timestamp;
         public PerfTimer(QueryType qType)
@@ -35,15 +35,22 @@ namespace Kokoro.Graphics
 
         public long Timestamp()
         {
+            if (tstamp_id != -1)
+            {
+                GL.GetQueryObject(tstamp_id, GetQueryObjectParam.QueryResult, out timestamp);
+                GL.DeleteQuery(tstamp_id);
+                tstamp_id = -1;
+            }
+
             return timestamp;
         }
 
         public void Start()
         {
+            if (tstamp_id == -1) tstamp_id = GL.GenQuery();
+            GL.QueryCounter(tstamp_id, QueryCounterTarget.Timestamp);
             if (id == -1) id = GL.GenQuery();
             GL.BeginQuery((QueryTarget)queryType, id);
-            GL.GetQuery(QueryTarget.Timestamp, GetQueryParam.CurrentQuery, out int val);
-            timestamp = val;
         }
 
         public void Stop()
@@ -67,5 +74,44 @@ namespace Kokoro.Graphics
 
             return rVal;
         }
+
+        #region IDisposable Support
+        private bool disposedValue = false; // To detect redundant calls
+
+        protected virtual void Dispose(bool disposing)
+        {
+            if (!disposedValue)
+            {
+                if (disposing)
+                {
+                    // TODO: dispose managed state (managed objects).
+                }
+
+                // TODO: free unmanaged resources (unmanaged objects) and override a finalizer below.
+                // TODO: set large fields to null.
+                //if (id != -1) GL.DeleteQuery(id);
+                //if (tstamp_id != -1) GL.DeleteQuery(tstamp_id);
+
+                disposedValue = true;
+            }
+        }
+
+        // TODO: override a finalizer only if Dispose(bool disposing) above has code to free unmanaged resources.
+        ~PerfTimer()
+        {
+            // Do not change this code. Put cleanup code in Dispose(bool disposing) above.
+            Dispose(false);
+        }
+
+        // This code added to correctly implement the disposable pattern.
+        public void Dispose()
+        {
+            // Do not change this code. Put cleanup code in Dispose(bool disposing) above.
+            Dispose(true);
+            // TODO: uncomment the following line if the finalizer is overridden above.
+            GC.SuppressFinalize(this);
+        }
+        #endregion
+
     }
 }

@@ -34,6 +34,9 @@ EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "KokoroVR.Test", "KokoroVR.Test\KokoroVR.Test.csproj", "{B967395B-11AA-4811-8AC7-86DF15A07D95}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GPUPerfAPI.NET", "GPUPerfAPI.NET\GPUPerfAPI.NET.csproj", "{82A8C5A6-543E-4CA9-AC1A-78533ABFF59B}"
+	ProjectSection(ProjectDependencies) = postProject
+		{7C125B57-4671-4D0E-B5BE-E2E6CDBC7073} = {7C125B57-4671-4D0E-B5BE-E2E6CDBC7073}
+	EndProjectSection
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Kokoro.ShaderAnalyzer", "Kokoro.ShaderAnalyzer\Kokoro.ShaderAnalyzer.csproj", "{B379D4A9-18D5-404F-B100-71CFB6CEF717}"
 EndProject

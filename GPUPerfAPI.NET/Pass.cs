@@ -12,7 +12,7 @@ namespace GPUPerfAPI.NET
         private uint pass_idx;
 
         public int SampleIndex { get; private set; }
-
+        public bool IsSampling { get; private set; }
         internal Pass(uint pass_idx, ulong list_id)
         {
             this.list_id = list_id;
@@ -22,12 +22,14 @@ namespace GPUPerfAPI.NET
         public void BeginSample()
         {
             SampleIndex++;
+            IsSampling = true;
             Binding.BeginSampleGPA((uint)SampleIndex, list_id);
         }
 
         public void EndSample()
         {
             Binding.EndSampleGPA(list_id);
+            IsSampling = false;
         }
 
 

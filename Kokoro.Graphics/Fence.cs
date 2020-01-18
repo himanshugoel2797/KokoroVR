@@ -1,4 +1,5 @@
-﻿using OpenTK.Graphics.OpenGL4;
+﻿using Kokoro.Graphics.Profiling;
+using OpenTK.Graphics.OpenGL4;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -11,14 +12,19 @@ namespace Kokoro.Graphics
     {
         IntPtr id = IntPtr.Zero;
         bool raised = false;
+        int cur_local_id;
+
+        static int local_id = 0;
 
         public Fence()
-        {    
+        {
+            cur_local_id = local_id++;
             GraphicsDevice.Cleanup.Add(Dispose);
         }
 
         public void PlaceFence()
         {  
+            PerfAPI.PlaceFence(cur_local_id);
             id = GL.FenceSync(SyncCondition.SyncGpuCommandsComplete, WaitSyncFlags.None);
             raised = false;
         } 
@@ -32,6 +38,7 @@ namespace Kokoro.Graphics
 
             GL.WaitSync(id, WaitSyncFlags.None, (long)All.TimeoutIgnored);
             GL.DeleteSync(id);
+            PerfAPI.FenceRaised(cur_local_id);
             raised = true;
             return true;
 /*
