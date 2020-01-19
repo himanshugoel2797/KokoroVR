@@ -137,6 +137,7 @@
     <Compile Include="ShaderType.cs" />
     <Compile Include="TextDrawer.cs" />
     <Compile Include="Texture.cs" />
+    <Compile Include="Texture3DSource.cs" />
     <Compile Include="TextureCache.cs" />
     <Compile Include="TextureSampler.cs" />
     <Compile Include="TextureStreamer.cs" />

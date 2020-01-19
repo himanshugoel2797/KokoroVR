@@ -71,6 +71,8 @@ namespace Kokoro.Graphics.Profiling
 
         public static void PlaceFence(int id)
         {
+            if (!MetricsEnabled)
+                return;
             var p = new TimestampReader();
             p.Start();
             if (cur_pass != null && cur_pass.IsSampling) cur_pass.EndSample();
@@ -80,6 +82,8 @@ namespace Kokoro.Graphics.Profiling
 
         public static void FenceRaised(int id)
         {
+            if (!MetricsEnabled)
+                return;
             var p = new TimestampReader();
             p.Start();
             if (cur_pass != null && cur_pass.IsSampling) cur_pass.EndSample();

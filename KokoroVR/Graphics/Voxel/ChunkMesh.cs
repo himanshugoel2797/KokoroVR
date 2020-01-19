@@ -12,6 +12,7 @@ namespace KokoroVR.Graphics.Voxel
     {
         private BufferTexture vertex_buf;
         private BufferAllocator index_buf;
+        private Texture mesh_tex;
         private Vector4[] bounding_spheres;
         private byte[] bounding_norms;
 
@@ -20,6 +21,7 @@ namespace KokoroVR.Graphics.Voxel
         public uint BlockSize { get => index_buf.BlockSize; }
 
         public int[] AllocIndices { get; private set; }
+        public ImageHandle MeshTexture { get; private set; }
         public ImageHandle VertexBuffer { get => vertex_buf.Image; }
 
         public ChunkMesh(BufferAllocator index_buf)
@@ -27,8 +29,9 @@ namespace KokoroVR.Graphics.Voxel
             this.index_buf = index_buf;
         }
 
-        public void Reallocate(byte[] vertices, uint[] indices, Vector4[] bounds, byte[] norms, Vector3 offset)
+        public void Reallocate(byte[] chunk, byte[] vertices, uint[] indices, Vector4[] bounds, byte[] norms, Vector3 offset)
         {
+
             //allocate a new vertex buffer
             vertex_buf = new BufferTexture(vertices.Length, PixelInternalFormat.Rgba8ui, false);
             Length = indices.Length * sizeof(uint);
@@ -36,7 +39,7 @@ namespace KokoroVR.Graphics.Voxel
             bounding_spheres = bounds;
             bounding_norms = norms;
 
-            for(int i = 0; i < bounding_spheres.Length; i++)
+            for (int i = 0; i < bounding_spheres.Length; i++)
             {
                 bounding_spheres[i].X += offset.X;
                 bounding_spheres[i].Y += offset.Y;
@@ -47,6 +50,11 @@ namespace KokoroVR.Graphics.Voxel
             AllocIndices = index_buf.Allocate(indices.Length * sizeof(uint));
             unsafe
             {
+                mesh_tex = new Texture();
+                fixed (byte* chunk_ptr = chunk)
+                    mesh_tex.SetData(new Texture3DSource(ChunkConstants.Side, ChunkConstants.Side, ChunkConstants.Side, 1, PixelFormat.RedInteger, PixelInternalFormat.R8ui, PixelType.UnsignedByte, (IntPtr)chunk_ptr), 0);
+                MeshTexture = mesh_tex.GetImageHandle(0, -1, PixelInternalFormat.R8ui).SetResidency(Residency.Resident, AccessMode.Read);
+
                 //Upload the vertex data
                 var v_d_p = vertex_buf.Update();
                 fixed (byte* v_s_p = vertices)

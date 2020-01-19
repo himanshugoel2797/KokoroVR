@@ -24,7 +24,7 @@ namespace KokoroVR.Test
                     Color = Vector3.One,
                     Intensity = 50.0f,
                     //Direction = new Vector3(0.577f, 0.577f, 0.577f)
-                    Position = Vector3.UnitY * 110
+                    Position = Vector3.UnitY * 110// + Vector3.UnitX * 50
                 });
 
                 var green = new Vector3(0x7e, 0xc8, 0x50) / 255.0f;
@@ -38,14 +38,14 @@ namespace KokoroVR.Test
                 Random rng = new Random(0);
                 ulong cnt = 0;
                 Perlin p = new Perlin();
-                for (int x = ChunkConstants.Side * -5; x < ChunkConstants.Side * 5; x++)
+                for (int x = ChunkConstants.Side * -10; x < ChunkConstants.Side * 10; x++)
                     //for (int y = ChunkConstants.Side * 0; y < ChunkConstants.Side * 1; y++)
-                    for (int z = ChunkConstants.Side * -5; z < ChunkConstants.Side * 5; z++)
+                    for (int z = ChunkConstants.Side * -10; z < ChunkConstants.Side * 10; z++)
                     {
                         //if (x * x + y * y + z * z <= 200 * 200)
                         //if(y > -32 && y < 32)
                         {
-                            int y = (int)((p.GetValue(x * 0.001f, z * 0.001f, 0) * 0.5f + 0.5f) * 250);
+                            int y = (int)((p.GetValue(x * 0.0005f, z * 0.0005f, 0) * 0.5f + 0.5f) * 250);
                             //if (y >= 0)
                             for (int y0 = y; y0 >= 0; y0--)
                                 obj.Set(x, y0, z, mat_id);

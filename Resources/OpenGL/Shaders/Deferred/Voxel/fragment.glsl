@@ -2,6 +2,7 @@
 //in vec3 normal;
 in vec3 pos;
 flat in uint vox_v;
+flat in uint vox_idx;
 
 // Ouput data
 layout(location = 0) out vec4 Color;

@@ -132,7 +132,7 @@ namespace KokoroVR.Graphics.Voxel
             {
                 unsafe
                 {
-                    ChunkCache[mesh_idx].Item1.Reallocate(c.faces, c.indices, c.bounds, c.norm_mask, Vector3.One * ChunkConstants.Side * -0.5f + offset);
+                    ChunkCache[mesh_idx].Item1.Reallocate(c.data, c.faces, c.indices, c.bounds, c.norm_mask, Vector3.One * ChunkConstants.Side * -0.5f + offset);
 
                     var dP_p = (float*)drawParams.Update();
                     for (int j = 0; j < ChunkCache[mesh_idx].Item1.AllocIndices.Length; j++)
@@ -143,6 +143,7 @@ namespace KokoroVR.Graphics.Voxel
                         dP_p[idx * 8 + 2] = offset.Z - ChunkConstants.Side * 0.5f;
 
                         ((long*)dP_p)[idx * 4 + 2] = ChunkCache[mesh_idx].Item1.VertexBuffer;
+                        ((long*)dP_p)[idx * 4 + 3] = ChunkCache[mesh_idx].Item1.MeshTexture;
                     }
                     drawParams.UpdateDone();
                 }
@@ -275,10 +276,6 @@ namespace KokoroVR.Graphics.Voxel
 
                 if (gi == null)
                 {
-                    TextureSampler sampler = new TextureSampler();
-                    sampler.SetEnableLinearFilter(true);
-                    sampler.SetTileMode(false, false);
-
                     gi = new ShaderProgram(ShaderSource.Load(ShaderType.ComputeShader, "Shaders/Deferred/SSGI/compute.glsl"));
                     var colMap = parent.renderer._colorMaps[0].GetHandle(TextureSampler.Default).SetResidency(Residency.Resident);
                     var normMap = parent.renderer._normalMaps[0].GetHandle(TextureSampler.Default).SetResidency(Residency.Resident);
@@ -290,15 +287,17 @@ namespace KokoroVR.Graphics.Voxel
                     gi.Set("SpecularMap", specMap);
                     gi.Set("accumulator", accumMap);
 
-                    gi.Set("positionBuf", parent.gi.CubeMapTex.GetHandle(sampler).SetResidency(Residency.Resident));
+                    gi.Set("positionBuf", parent.gi.CubeMapHandle);
+                    gi.Set("colorBuf", parent.gi.CubeMapColorHandle);
                 }
 
                 //wire up the testing gi shader
                 gi.Set("eyePos", Engine.CurrentPlayer.Position);
                 gi.Set("eyeDir", Engine.CurrentPlayer.Direction);
-                gi.Set("lightPos", Vector3.UnitY * 110);
+                gi.Set("lightPos", Vector3.UnitY * 110);// + Vector3.UnitX * 50);
+                gi.Set("lightInten", 50.0f);
 
-                GraphicsDevice.DispatchSyncComputeJob(gi, Engine.Framebuffers[0].Width, Engine.Framebuffers[0].Height, 1);
+                GraphicsDevice.DispatchSyncComputeJob(gi, Engine.Framebuffers[0].Width / 64, Engine.Framebuffers[0].Height, 1);
             }
 
             public override void Update(double time, World parent)

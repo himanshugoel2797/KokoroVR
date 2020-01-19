@@ -22,6 +22,7 @@ namespace PerfAPIAnalyzer
             {
                 log = new PerformanceLogParser(openFileDialog2.FileName, curArch);
 
+                frameListBox.Items.Clear();
                 for (int i = 0; i < log.Frames.Length; i++)
                     frameListBox.Items.Add(log.Frames[i]);
             }

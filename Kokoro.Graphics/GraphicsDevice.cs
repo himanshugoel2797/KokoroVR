@@ -372,7 +372,6 @@ namespace Kokoro.Graphics
 #if !DEBUG
             flags |= GraphicsContextFlags.NoError; //Disable error checking
 #else
-            GPUPerfAPI.NET.Context.Initialize();
             flags |= GraphicsContextFlags.Debug;
 #endif
             Window = new GameWindow(1280, 720, GraphicsMode.Default, "Game Window", OpenTK.GameWindowFlags.Default, OpenTK.DisplayDevice.Default, 0, 0, flags | GraphicsContextFlags.ForwardCompatible);
@@ -465,6 +464,7 @@ namespace Kokoro.Graphics
 
         public static void Run(double ups, double fps)
         {
+            if (PerfAPI.MetricsEnabled) GPUPerfAPI.NET.Context.Initialize();
             Window.Title = gameName;
 #if DEBUG
             if (renderer_name == "")
@@ -502,7 +502,7 @@ namespace Kokoro.Graphics
         {
             Window.SwapBuffers();
             //#if DEBUG
-            if (renderer_name == "")
+            if (string.IsNullOrWhiteSpace(renderer_name))
                 renderer_name = GL.GetString(StringName.Renderer);
 
             if (renderCnt == 0) startTime = DateTime.Now;
@@ -572,7 +572,7 @@ namespace Kokoro.Graphics
         private static void Game_UpdateFrame(object sender, FrameEventArgs e)
         {
 #if DEBUG
-            if (Context == null)
+            if (Context == null && PerfAPI.MetricsEnabled)
             {
                 Context = new GPUPerfAPI.NET.Context(GraphicsContext.CurrentContextHandle.Handle);
             }

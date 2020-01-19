@@ -2,6 +2,7 @@
 //out vec3 normal;
 out vec3 pos;
 flat out uint vox_v;
+flat out uint vox_idx;
 
 // Values that stay constant for the whole mesh.
 uniform mat4 ViewProj;
@@ -23,6 +24,7 @@ void main(){
 	uint idx_val = gl_VertexID - gl_BaseVertex;
 	uint ver_idx = bitfieldExtract(idx_val, 0, 16);
 	vox_v = bitfieldExtract(idx_val, 16, 8);
+	vox_idx = _idx;
 	//uint norm_v = bitfieldExtract(idx_val, 24, 8);
 
 	vec3 vs_pos = imageLoad(uimageBuffer(BlockInfo.v[_idx].vbuf_hndl.xy), int(ver_idx)).xyz;
