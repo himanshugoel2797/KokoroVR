@@ -473,6 +473,8 @@ namespace Kokoro.Graphics
             if (gl_name == "")
                 gl_name = GL.GetString(StringName.Version);
 
+            GL.GetInteger(GetPName.MaxCombinedImageUniforms, out var img_val);
+
             GL.GetInteger((GetIndexedPName)All.MaxComputeWorkGroupCount, 0, out var x_wg_max);
             GL.GetInteger((GetIndexedPName)All.MaxComputeWorkGroupCount, 1, out var y_wg_max);
             GL.GetInteger((GetIndexedPName)All.MaxComputeWorkGroupCount, 2, out var z_wg_max);

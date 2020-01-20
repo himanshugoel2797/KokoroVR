@@ -13,7 +13,7 @@ namespace KokoroVR.Graphics.Voxel
     public class ChunkStreamer : Interactable
     {
         //Receive chunk faces
-        public const int VRAMCacheSize = 4096;  //TODO make this depend on total available vram
+        public const int VRAMCacheSize = 16384;  //TODO make this depend on total available vram
         const uint blk_cnt = 8192;
 
         private Chunk[] ChunkList;
@@ -143,7 +143,7 @@ namespace KokoroVR.Graphics.Voxel
                         dP_p[idx * 8 + 2] = offset.Z - ChunkConstants.Side * 0.5f;
 
                         ((long*)dP_p)[idx * 4 + 2] = ChunkCache[mesh_idx].Item1.VertexBuffer;
-                        ((long*)dP_p)[idx * 4 + 3] = ChunkCache[mesh_idx].Item1.MeshTexture;
+                        //((long*)dP_p)[idx * 4 + 3] = ChunkCache[mesh_idx].Item1.MeshTexture;
                     }
                     drawParams.UpdateDone();
                 }

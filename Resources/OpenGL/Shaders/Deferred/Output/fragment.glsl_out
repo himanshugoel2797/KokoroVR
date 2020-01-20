@@ -1,6 +1,9 @@
 //FragmentShader
 #version 460 core
 #extension GL_ARB_gpu_shader_int64 : require
+#extension GL_AMD_gpu_shader_half_float : require
+#extension GL_AMD_gpu_shader_half_float_fetch : require
+#extension GL_AMD_gpu_shader_int16 : require
 #extension GL_ARB_shader_ballot : require
 #extension GL_ARB_bindless_texture : require
 #extension GL_AMD_vertex_shader_viewport_index : require
@@ -19,7 +22,7 @@ layout(bindless_sampler) uniform sampler2D Accumulator;
 layout(bindless_image, rgba16f) uniform restrict readonly image2D Shadow;
 
 void main(){
-	vec3 color = texture(Accumulator, UV).rgb;// * imageLoad(Shadow, ivec2(UV * imageSize(Shadow))).r;
+	vec3 color = texture(Accumulator, UV).rgb * imageLoad(Shadow, ivec2(UV * imageSize(Shadow))).r;
     color *= 1;  // Hardcoded Exposure Adjustment
     vec3 x = color / (1 + color);
     f_color.rgb = pow(x, vec3(1.0f / 2.2f));

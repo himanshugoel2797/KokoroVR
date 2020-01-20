@@ -11,6 +11,31 @@ using System.Threading.Tasks;
 
 namespace KokoroVR.Test
 {
+    class StaticRenderable : Interactable
+    {
+        private Mesh mesh;
+        private TextureHandle def_handle;
+        private Vector3 rots;
+        public StaticRenderable(Mesh m)
+        {
+            mesh = m;
+            def_handle = Texture.Default.GetHandle(TextureSampler.Default);
+            def_handle.SetResidency(Residency.Resident);
+        }
+
+        public override void Render(double time, Framebuffer fbuf, StaticMeshRenderer staticMesh, DynamicMeshRenderer dynamicMesh, VREye eye)
+        {
+            staticMesh.DrawC(mesh, Matrix4.CreateRotationX(MathHelper.DegreesToRadians(rots.X)) * Matrix4.CreateRotationY(MathHelper.DegreesToRadians(rots.Y)) * Matrix4.CreateRotationZ(MathHelper.DegreesToRadians(rots.Z)) * Matrix4.CreateTranslation(Vector3.UnitX * 2), def_handle);
+        }
+
+        public override void Update(double time, World parent)
+        {
+            rots.X += 0.01f;
+            rots.Y += 0.01f;
+            rots.Z += 0.01f;
+        }
+    }
+
     public class VoxelWorld : World
     {
         public VoxelWorld(string name, int maxLights) : base(name, maxLights)
@@ -38,20 +63,20 @@ namespace KokoroVR.Test
                 Random rng = new Random(0);
                 ulong cnt = 0;
                 Perlin p = new Perlin();
-                for (int x = ChunkConstants.Side * 0; x < ChunkConstants.Side * 10; x++)
-                    for (int y = ChunkConstants.Side * 0; y < ChunkConstants.Side * 10; y++)
-                    for (int z = ChunkConstants.Side * 0; z < ChunkConstants.Side * 10; z++)
+                for (int x = ChunkConstants.Side * -10; x < ChunkConstants.Side * 10; x++)
+                    //for (int y = ChunkConstants.Side * 0; y < ChunkConstants.Side * 10; y++)
+                    for (int z = ChunkConstants.Side * -10; z < ChunkConstants.Side * 10; z++)
                     {
                         //if (x * x + y * y + z * z <= 200 * 200)
                         //if(y > -32 && y < 32)
                         {
-                            //int y = (int)((p.GetValue(x * 0.0005f, z * 0.0005f, 0) * 0.5f + 0.5f) * 250);
+                            int y = (int)((p.GetValue(x * 0.0005f, z * 0.0005f, 0) * 0.5f + 0.5f) * 250);
                             //if (y >= 0)
-                            //for (int y0 = y; y0 >= 0; y0--)
-                            //    obj.Set(x, y0, z, mat_id);
+                            for (int y0 = y; y0 >= 0; y0--)
+                                obj.Set(x, y0, z, mat_id);
                             //else
                             //if(rng.NextDouble() > 0.5f)
-                                obj.Set(x, y, z, mat_id);
+                            //    obj.Set(x, y, z, mat_id);
                             cnt++;
                         }
                     }
@@ -60,7 +85,7 @@ namespace KokoroVR.Test
                 Console.WriteLine(cnt);
 
 
-                //w.AddRenderable(new StaticRenderable(Kokoro.Graphics.Prefabs.SphereFactory.Create(grp)));
+                //AddRenderable(new StaticRenderable(Kokoro.Graphics.Prefabs.SphereFactory.Create(grp)));
                 AddRenderable(chunkStreamer);
                 AddRenderable(obj);
 
