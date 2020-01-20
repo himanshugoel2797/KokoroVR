@@ -13,8 +13,8 @@ namespace KokoroVR.Graphics.Voxel
     public class ChunkStreamer : Interactable
     {
         //Receive chunk faces
-        public const int VRAMCacheSize = 1024;  //TODO make this depend on total available vram
-        const uint blk_cnt = 8192 * 16;
+        public const int VRAMCacheSize = 4096;  //TODO make this depend on total available vram
+        const uint blk_cnt = 8192;
 
         private Chunk[] ChunkList;
         private (ChunkMesh, int, double)[] ChunkCache;
@@ -51,12 +51,12 @@ namespace KokoroVR.Graphics.Voxel
 
             cubeMapRender = new RenderQueue2[6];
             for (int i = 0; i < 6; i++)
-                cubeMapRender[i] = new RenderQueue2(blk_cnt, true);
+                cubeMapRender[i] = new RenderQueue2(blk_cnt, !true);
             this.renderer = renderer;
 
             MaxChunkCount = max_count;
             ChunkList = new Chunk[max_count];
-            ChunkCache = new (ChunkMesh, int, double)[blk_cnt];
+            ChunkCache = new (ChunkMesh, int, double)[VRAMCacheSize];
             for (int i = 0; i < ChunkCache.Length; i++)
             {
                 ChunkCache[i].Item1 = new ChunkMesh(indexBufferAllocator);
@@ -64,7 +64,7 @@ namespace KokoroVR.Graphics.Voxel
                 ChunkCache[i].Item3 = double.MinValue;
             }
 
-            queue = new RenderQueue2(blk_cnt, true);
+            queue = new RenderQueue2(blk_cnt, !true);
             drawParams = new ShaderStorageBuffer(blk_cnt * 8 * sizeof(uint), false);
             voxelShader = new ShaderProgram(ShaderSource.Load(ShaderType.VertexShader, "Shaders/Deferred/Voxel/vertex.glsl"),
                                             ShaderSource.Load(ShaderType.FragmentShader, "Shaders/Deferred/Voxel/fragment.glsl"));

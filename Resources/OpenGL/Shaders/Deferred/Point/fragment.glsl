@@ -63,7 +63,8 @@ void main(){
     float dist = length(l_pos - obj_wPos);
 
     float falloff = l_inten / (dist * dist);
-    if(falloff < 0.001f)discard;
+    light = vec4(obj_albedo, 1);
+    //if(falloff < 0.001f)discard;
     
     float NdL = min(max(dot(obj_norm, l_dir), 0), 1);
     float NdH = min(max(dot(obj_norm, l_half), 0), 1);
@@ -80,4 +81,5 @@ void main(){
     vec3 diffuse = (1 - fresnel) * obj_albedo / PI;
 
     light = vec4((specular + diffuse) * l_color * falloff * NdL , 1);
+    light = vec4(obj_albedo, 1);
 }

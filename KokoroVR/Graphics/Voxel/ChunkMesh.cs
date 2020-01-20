@@ -13,8 +13,6 @@ namespace KokoroVR.Graphics.Voxel
         private BufferTexture vertex_buf;
         private BufferAllocator index_buf;
         private Texture mesh_tex;
-        private Vector4[] bounding_spheres;
-        private byte[] bounding_norms;
 
         public int Length { get; private set; }
 
@@ -35,16 +33,6 @@ namespace KokoroVR.Graphics.Voxel
             //allocate a new vertex buffer
             vertex_buf = new BufferTexture(vertices.Length, PixelInternalFormat.Rgba8ui, false);
             Length = indices.Length * sizeof(uint);
-
-            bounding_spheres = bounds;
-            bounding_norms = norms;
-
-            for (int i = 0; i < bounding_spheres.Length; i++)
-            {
-                bounding_spheres[i].X += offset.X;
-                bounding_spheres[i].Y += offset.Y;
-                bounding_spheres[i].Z += offset.Z;
-            }
 
             if (AllocIndices != null) index_buf.Free(AllocIndices);
             AllocIndices = index_buf.Allocate(indices.Length * sizeof(uint));
@@ -87,27 +75,13 @@ namespace KokoroVR.Graphics.Voxel
                     else
                         blocks.Add((i, last_blk_len));
 
-            return blocks.OrderBy(a => (bounding_spheres[a.Item1].Xyz - eyePos).LengthSquared).ToArray();
+            return blocks.ToArray();
         }
 
         public bool IsVisible(Frustum f, int k)
         {
             //Check the norm mask
-            if (f.IsVisible(bounding_spheres[k]))
-            {
-                var norm_mask = bounding_norms[k];
-                var vc = bounding_spheres[k].Xyz - f.EyePosition;
-                var score = 0;
-                for (int i = 0; i < 6; i++)
-                {
-                    if ((norm_mask & (1 << i)) != 0 && Vector3.Dot(vc, ChunkConstants.Normals[i]) < 0)
-                        score++;
-                }
-                //if (score == 0) return false;
-                return true;
-            }
-            else
-                return false;
+            return true;
         }
     }
 }
