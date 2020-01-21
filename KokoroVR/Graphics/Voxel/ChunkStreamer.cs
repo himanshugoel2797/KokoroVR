@@ -177,11 +177,11 @@ namespace KokoroVR.Graphics.Voxel
             cubeMapState = new RenderState(gi.CubeMap, voxelGiShader, new ShaderStorageBuffer[] { MaterialMap.voxelData, drawParams }, null, true, true, DepthFunc.Greater, InverseDepth.Far, InverseDepth.Near, BlendFactor.One, BlendFactor.Zero, Vector4.Zero, InverseDepth.ClearDepth, CullFaceMode.Back, indexBuffer);
             queue.ClearAndBeginRecording();
 
-            cubeMapRender[0].ClearFramebufferBeforeSubmit = true;
-            for (int i = 0; i < 6; i++)
-            {
-                cubeMapRender[i].ClearAndBeginRecording();
-            }
+            //cubeMapRender[0].ClearFramebufferBeforeSubmit = true;
+            //for (int i = 0; i < 6; i++)
+            //{
+            //    cubeMapRender[i].ClearAndBeginRecording();
+            //}
         }
 
         public class ChunkStreamerEnd : Interactable
@@ -196,9 +196,12 @@ namespace KokoroVR.Graphics.Voxel
 
             public override void Render(double time, Framebuffer fbuf, StaticMeshRenderer staticMesh, DynamicMeshRenderer dynamicMesh, VREye eye)
             {
-                var sorted = parent.Draws.OrderBy(a => (a.Item2 - Engine.CurrentPlayer.Position).LengthSquared);
+                var sorted = parent.Draws;//.OrderBy(a => (a.Item2 - Engine.CurrentPlayer.Position).LengthSquared);
+                int ctr = 0;
                 foreach (var (mesh_idx, _) in sorted)
                 {
+                    if (ctr++ > 0) break;
+
                     parent.queue.RecordDraw(new RenderQueue2.DrawData()
                     {
                         State = parent.state,
@@ -211,7 +214,7 @@ namespace KokoroVR.Graphics.Voxel
                             }
                         }
                     });
-
+                    /*
                     for (int i = 0; i < 6; i++)
                         parent.cubeMapRender[i].RecordDraw(new RenderQueue2.DrawData()
                         {
@@ -224,12 +227,12 @@ namespace KokoroVR.Graphics.Voxel
                                 Mesh = parent.ChunkCache[mesh_idx].Item1
                             }
                             }
-                        });
+                        });*/
                 }
                 
                 parent.queue.EndRecording(Engine.Frustums[(int)eye], Engine.CurrentPlayer.Position);
                 parent.queue.Submit();
-                
+                /*
                 var p = Matrix4.CreatePerspectiveFieldOfView(MathHelper.DegreesToRadians(90), 1, 0.001f);
                 var fX = Matrix4.LookAt(Engine.CurrentPlayer.Position, Engine.CurrentPlayer.Position + Vector3.UnitX, -Vector3.UnitY);
                 var nX = Matrix4.LookAt(Engine.CurrentPlayer.Position, Engine.CurrentPlayer.Position - Vector3.UnitX, -Vector3.UnitY);
@@ -297,7 +300,7 @@ namespace KokoroVR.Graphics.Voxel
                 gi.Set("lightPos", Vector3.UnitY * 110);// + Vector3.UnitX * 50);
                 gi.Set("lightInten", 50.0f);
 
-                GraphicsDevice.DispatchSyncComputeJob(gi, Engine.Framebuffers[0].Width / 64, Engine.Framebuffers[0].Height, 1);
+                GraphicsDevice.DispatchSyncComputeJob(gi, Engine.Framebuffers[0].Width / 64, Engine.Framebuffers[0].Height, 1);*/
             }
 
             public override void Update(double time, World parent)

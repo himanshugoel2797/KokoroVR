@@ -259,7 +259,7 @@ namespace KokoroVR.Graphics
                 _directionalLightShader[i].Set("EyePos", pos);
 
                 //TODO apply shadow
-                _queue_final[i].ClearAndBeginRecording();
+                /*_queue_final[i].ClearAndBeginRecording();
                 _queue_final[i].RecordDraw(new RenderQueue.DrawData()
                 {
                     State = _pointL_state[i],
@@ -298,7 +298,7 @@ namespace KokoroVR.Graphics
                 });
                 _queue_final[i].EndRecording();
                 _queue_final[i].Submit();
-                _queue[i].Submit();
+                _queue[i].Submit();*/
             }
         }
 

@@ -39,17 +39,14 @@ namespace KokoroVR.Graphics.Voxel
             AllocIndices = index_buf.Allocate(indices.Length * sizeof(uint));
             unsafe
             {
-                for (int q = 0; q < 893; q++)
-                {
-                    //mesh_tex = new Texture();
+                mesh_tex = new Texture();
                     fixed (byte* chunk_ptr = chunk)
                     {
-                        //mesh_tex.SetData(new Texture3DSource(ChunkConstants.Side / 2, ChunkConstants.Side / 2, ChunkConstants.Side / 2, 1, PixelFormat.RedInteger, PixelInternalFormat.R8ui, PixelType.UnsignedByte, TextureTarget.Texture2DArray, (IntPtr)IntPtr.Zero), 0);
+                        mesh_tex.SetData(new Texture3DSource(ChunkConstants.Side / 2, ChunkConstants.Side / 2, ChunkConstants.Side / 2, 1, PixelFormat.RedInteger, PixelInternalFormat.R8ui, PixelType.UnsignedByte, TextureTarget.Texture3D, (IntPtr)chunk_ptr), 0);
                         //mesh_tex.SetData(new FramebufferTextureSource(32, 32, 1) { Format = PixelFormat.Red,InternalFormat = PixelInternalFormat.R32f, PixelType = PixelType.Float }, 0);
+                        MeshTexture = mesh_tex.GetImageHandle(0, 0, PixelInternalFormat.R8ui).SetResidency(Residency.Resident, AccessMode.ReadWrite);
                     }
-                    //MeshTexture = mesh_tex.GetImageHandle(0, 0, PixelInternalFormat.R32f).SetResidency(Residency.Resident, AccessMode.ReadWrite);
                     //mesh_tex.GetHandle(TextureSampler.Default).SetResidency(Residency.Resident);
-                }
                 
                 //Upload the vertex data
                 var v_d_p = vertex_buf.Update();
