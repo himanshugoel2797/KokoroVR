@@ -73,10 +73,10 @@ namespace Kokoro.Graphics
             }
 
 
-            vertices = new GPUBuffer(BufferUsage.VertexBuffer, (ulong)(vertex_cnt * vertex_size), false, true);
-            uvs = new GPUBuffer(BufferUsage.VertexBuffer, (ulong)(vertex_cnt * 2 * sizeof(float)), false, true);
-            normals = new GPUBuffer(BufferUsage.VertexBuffer, (ulong)(vertex_cnt * sizeof(uint)), false, true);
-            if (index_cnt != 0) indices = new GPUBuffer(BufferUsage.IndexBuffer, (ulong)(index_cnt * sizeof(ushort)), false, true);
+            vertices = new GPUBuffer(BufferUsage.VertexBuffer, (ulong)(vertex_cnt * vertex_size), false);
+            uvs = new GPUBuffer(BufferUsage.VertexBuffer, (ulong)(vertex_cnt * 2 * sizeof(float)), false);
+            normals = new GPUBuffer(BufferUsage.VertexBuffer, (ulong)(vertex_cnt * sizeof(uint)), false);
+            if (index_cnt != 0) indices = new GPUBuffer(BufferUsage.IndexBuffer, (ulong)(index_cnt * sizeof(ushort)), false);
 
             verticeF = new Fence();
             uvF = new Fence();

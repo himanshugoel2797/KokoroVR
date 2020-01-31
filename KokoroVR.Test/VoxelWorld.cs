@@ -58,14 +58,14 @@ namespace KokoroVR.Test
                 var mat_id = chunkStreamer.MaterialMap.Register(green, green * 0.25f, 0.9f);
                 ChunkObject obj = new ChunkObject(chunkStreamer);
 
-                Engine.CurrentPlayer.Position += Vector3.UnitY * 110;
+                //Engine.CurrentPlayer.Position += Vector3.UnitY * 110;
 
                 Random rng = new Random(0);
                 ulong cnt = 0;
                 Perlin p = new Perlin();
-                for (int x = ChunkConstants.Side * -10; x < ChunkConstants.Side * 10; x++)
-                    for (int y = ChunkConstants.Side * -10; y < ChunkConstants.Side * 10; y++)
-                    for (int z = ChunkConstants.Side * -10; z < ChunkConstants.Side * 10; z++)
+                for (int x = ChunkConstants.Side * -1; x < ChunkConstants.Side * 1; x++)
+                    for (int y = ChunkConstants.Side * -1; y < ChunkConstants.Side * 1; y++)
+                    for (int z = ChunkConstants.Side * -1; z < ChunkConstants.Side * 1; z++)
                     {
                         //if (x * x + y * y + z * z <= 200 * 200)
                         //if(y > -32 && y < 32)

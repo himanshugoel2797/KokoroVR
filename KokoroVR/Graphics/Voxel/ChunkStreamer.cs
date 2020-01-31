@@ -18,7 +18,7 @@ namespace KokoroVR.Graphics.Voxel
 
         private Chunk[] ChunkList;
         private (ChunkMesh, int, double)[] ChunkCache;
-        private ShaderStorageBuffer drawParams;
+        private StorageBuffer drawParams;
         private RenderQueue2 queue;
         private ShaderProgram voxelShader;
         private RenderState state;
@@ -65,7 +65,7 @@ namespace KokoroVR.Graphics.Voxel
             }
 
             queue = new RenderQueue2(blk_cnt, !true);
-            drawParams = new ShaderStorageBuffer(blk_cnt * 8 * sizeof(uint), false);
+            drawParams = new StorageBuffer(blk_cnt * 8 * sizeof(uint), false);
             voxelShader = new ShaderProgram(ShaderSource.Load(ShaderType.VertexShader, "Shaders/Deferred/Voxel/vertex.glsl"),
                                             ShaderSource.Load(ShaderType.FragmentShader, "Shaders/Deferred/Voxel/fragment.glsl"));
             voxelGiShader = new ShaderProgram(ShaderSource.Load(ShaderType.VertexShader, "Shaders/Deferred/Voxel/vertex.glsl"),
@@ -173,15 +173,15 @@ namespace KokoroVR.Graphics.Voxel
             voxelShader.Set("eyePos", Engine.CurrentPlayer.Position);
             voxelShader.Set("ViewProj", Engine.View[(int)eye] * Engine.Projection[(int)eye]);
             voxelShader.Set("curLayer", 0);
-            state = new RenderState(fbuf, voxelShader, new ShaderStorageBuffer[] { MaterialMap.voxelData, drawParams }, null, true, true, DepthFunc.Greater, InverseDepth.Far, InverseDepth.Near, BlendFactor.One, BlendFactor.Zero, Vector4.Zero, InverseDepth.ClearDepth, CullFaceMode.Back, indexBuffer);
-            cubeMapState = new RenderState(gi.CubeMap, voxelGiShader, new ShaderStorageBuffer[] { MaterialMap.voxelData, drawParams }, null, true, true, DepthFunc.Greater, InverseDepth.Far, InverseDepth.Near, BlendFactor.One, BlendFactor.Zero, Vector4.Zero, InverseDepth.ClearDepth, CullFaceMode.Back, indexBuffer);
+            state = new RenderState(fbuf, voxelShader, new StorageBuffer[] { MaterialMap.voxelData, drawParams }, null, true, true, DepthFunc.Greater, InverseDepth.Far, InverseDepth.Near, BlendFactor.One, BlendFactor.Zero, Vector4.Zero, InverseDepth.ClearDepth, CullFaceMode.Back, indexBuffer);
+            cubeMapState = new RenderState(gi.CubeMap, voxelGiShader, new StorageBuffer[] { MaterialMap.voxelData, drawParams }, null, true, true, DepthFunc.Greater, InverseDepth.Far, InverseDepth.Near, BlendFactor.One, BlendFactor.Zero, Vector4.Zero, InverseDepth.ClearDepth, CullFaceMode.Back, indexBuffer);
             queue.ClearAndBeginRecording();
 
-            //cubeMapRender[0].ClearFramebufferBeforeSubmit = true;
-            //for (int i = 0; i < 6; i++)
-            //{
-            //    cubeMapRender[i].ClearAndBeginRecording();
-            //}
+            cubeMapRender[0].ClearFramebufferBeforeSubmit = true;
+            for (int i = 0; i < 6; i++)
+            {
+                cubeMapRender[i].ClearAndBeginRecording();
+            }
         }
 
         public class ChunkStreamerEnd : Interactable
@@ -214,7 +214,7 @@ namespace KokoroVR.Graphics.Voxel
                             }
                         }
                     });
-                    /*
+                    
                     for (int i = 0; i < 6; i++)
                         parent.cubeMapRender[i].RecordDraw(new RenderQueue2.DrawData()
                         {
@@ -227,12 +227,12 @@ namespace KokoroVR.Graphics.Voxel
                                 Mesh = parent.ChunkCache[mesh_idx].Item1
                             }
                             }
-                        });*/
+                        });
                 }
                 
                 parent.queue.EndRecording(Engine.Frustums[(int)eye], Engine.CurrentPlayer.Position);
                 parent.queue.Submit();
-                /*
+                
                 var p = Matrix4.CreatePerspectiveFieldOfView(MathHelper.DegreesToRadians(90), 1, 0.001f);
                 var fX = Matrix4.LookAt(Engine.CurrentPlayer.Position, Engine.CurrentPlayer.Position + Vector3.UnitX, -Vector3.UnitY);
                 var nX = Matrix4.LookAt(Engine.CurrentPlayer.Position, Engine.CurrentPlayer.Position - Vector3.UnitX, -Vector3.UnitY);
@@ -300,7 +300,7 @@ namespace KokoroVR.Graphics.Voxel
                 gi.Set("lightPos", Vector3.UnitY * 110);// + Vector3.UnitX * 50);
                 gi.Set("lightInten", 50.0f);
 
-                GraphicsDevice.DispatchSyncComputeJob(gi, Engine.Framebuffers[0].Width / 64, Engine.Framebuffers[0].Height, 1);*/
+                GraphicsDevice.DispatchSyncComputeJob(gi, Engine.Framebuffers[0].Width / 64, Engine.Framebuffers[0].Height, 1);
             }
 
             public override void Update(double time, World parent)

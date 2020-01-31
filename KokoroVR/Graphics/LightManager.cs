@@ -15,9 +15,9 @@ namespace KokoroVR.Graphics
         private List<SpotLight> spotLights;
         private List<DirectionalLight> direcLights;
 
-        internal ShaderStorageBuffer pointLights_buffer;
-        internal ShaderStorageBuffer spotLights_buffer;
-        internal ShaderStorageBuffer direcLights_buffer;
+        internal StorageBuffer pointLights_buffer;
+        internal StorageBuffer spotLights_buffer;
+        internal StorageBuffer direcLights_buffer;
         internal int pointLightCnt, spotLightCnt, direcLightCnt;
 
         public LightManager(int pointLightCapacity, int spotLightCapacity, int direcLightCapacity)
@@ -29,9 +29,9 @@ namespace KokoroVR.Graphics
             spotLights = new List<SpotLight>(spotLightCapacity);
             direcLights = new List<DirectionalLight>(direcLightCapacity);
 
-            pointLights_buffer = new ShaderStorageBuffer(PointLight.Size * pointLightCapacity, false);
-            spotLights_buffer = new ShaderStorageBuffer(SpotLight.Size * spotLightCapacity, false);
-            direcLights_buffer = new ShaderStorageBuffer(DirectionalLight.Size * direcLightCapacity, false);
+            pointLights_buffer = new StorageBuffer(PointLight.Size * pointLightCapacity, false);
+            spotLights_buffer = new StorageBuffer(SpotLight.Size * spotLightCapacity, false);
+            direcLights_buffer = new StorageBuffer(DirectionalLight.Size * direcLightCapacity, false);
         }
 
         public void AddLight(PointLight light)

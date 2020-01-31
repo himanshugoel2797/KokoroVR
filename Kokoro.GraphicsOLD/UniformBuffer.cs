@@ -64,7 +64,7 @@ namespace Kokoro.Graphics
         public UniformBuffer(bool dynamic)
         {
             this.dynamic = dynamic;
-            buf = new GPUBuffer(BufferUsage.UniformBuffer, (ulong)UniformBufferSize, false, true);
+            buf = new GPUBuffer(BufferUsage.UniformBuffer, (ulong)UniformBufferSize, false);
             bindPoint = getFreeBindPoint();
 
             readyFence = new Fence[dynamic ? rungs : 1];

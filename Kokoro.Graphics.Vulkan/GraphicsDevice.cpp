@@ -1,5 +1,6 @@
 #include "GraphicsDevice.h"
 #include "GLFW/glfw3.h"
+
 #include <iostream>
 #include <vector>
 #include <map>
@@ -16,6 +17,7 @@ const std::vector<const char*> validationLayers = {
 
 const std::vector<const char*> deviceExtns = {
 	VK_KHR_SWAPCHAIN_EXTENSION_NAME,
+	VK_EXT_SUBGROUP_SIZE_CONTROL_EXTENSION_NAME,
 };
 
 #pragma unmanaged
@@ -65,6 +67,7 @@ void Kokoro::Graphics::GraphicsDevice::Destroy()
 		for (auto imgView : swapChainViews)
 			vkDestroyImageView(device, imgView, nullptr);
 		vkDestroySwapchainKHR(device, swapchain, nullptr);
+		delete allocator;
 		vkDestroyDevice(device, nullptr);
 		if (validationEnabled) DestroyDebugUtilsMessengerEXT(instance, debugMessenger, nullptr);
 		vkDestroySurfaceKHR(instance, surface, nullptr);
@@ -329,9 +332,21 @@ void Kokoro::Graphics::GraphicsDevice::CreateInstance(bool enableValidation)
 	if (transferFamily != graphicsFamily)qCreatInfos.push_back(transfer_qCreatInfo);
 	if (presentFamily != graphicsFamily)qCreatInfos.push_back(present_qCreatInfo);
 
+	int idx = 0;
+	queueFams = gcnew array<uint32_t>(qCreatInfos.size());
+	queueFams[idx++] = static_cast<uint32_t>(graphicsFamily);
+	queueFams[idx++] = static_cast<uint32_t>(computeFamily);
+	if (transferFamily != graphicsFamily)queueFams[idx++] = static_cast<uint32_t>(transferFamily);
+	if (presentFamily != graphicsFamily)queueFams[idx++] = static_cast<uint32_t>(presentFamily);
+
 	VkPhysicalDeviceFeatures devFeats = {};
 	devFeats.multiDrawIndirect = VK_TRUE;
 	devFeats.tessellationShader = VK_TRUE;
+	devFeats.fragmentStoresAndAtomics = VK_TRUE;
+	devFeats.vertexPipelineStoresAndAtomics = VK_TRUE;
+	if (enableValidation) {
+		devFeats.robustBufferAccess = VK_TRUE;
+	}
 
 	VkDeviceCreateInfo devCreatInfo = {};
 	devCreatInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
@@ -355,6 +370,8 @@ void Kokoro::Graphics::GraphicsDevice::CreateInstance(bool enableValidation)
 	if (result != VK_SUCCESS) {
 		throw gcnew System::Exception("Failed to create logical device.");
 	}
+
+	allocator = VmaWrapper::Create(physDevice, device);
 
 	pin_ptr<VkQueue> graph_q_hndl = &graphicsQueue;
 	pin_ptr<VkQueue> comp_q_hndl = &computeQueue;
@@ -437,4 +454,34 @@ void Kokoro::Graphics::GraphicsDevice::CreateInstance(bool enableValidation)
 	}
 
 	initialized = true;
+}
+
+int Kokoro::Graphics::GraphicsDevice::CreateBuffer(VkBufferCreateInfo* creatInfo, MemoryUsage memUsage, bool persistent_map, VkBuffer* buf, WVmaAllocation* alloc) {
+	pin_ptr<uint32_t> queueFams_ptr = &queueFams[0];
+	return allocator->CreateBuffer(creatInfo, memUsage, persistent_map, queueFams_ptr, queueFams->Length, buf, alloc);
+}
+
+void Kokoro::Graphics::GraphicsDevice::DestroyBuffer(VkBuffer buf, WVmaAllocation alloc) {
+	allocator->DestroyBuffer(buf, alloc);
+}
+
+int Kokoro::Graphics::GraphicsDevice::CreateImage(VkImageCreateInfo* creatInfo, VkImage* img, WVmaAllocation* alloc) {
+	pin_ptr<uint32_t> queueFams_ptr = &queueFams[0];
+	return allocator->CreateImage(creatInfo, queueFams_ptr, queueFams->Length, img, alloc);
+}
+
+void Kokoro::Graphics::GraphicsDevice::DestroyImage(VkImage img, WVmaAllocation alloc) {
+	allocator->DestroyImage(img, alloc);
+}
+
+VkDevice Kokoro::Graphics::GraphicsDevice::GetDevice() {
+	return device;
+}
+
+uint32_t Kokoro::Graphics::GraphicsDevice::GetWidth() {
+	return static_cast<uint32_t>(window->GetWidth());
+}
+
+uint32_t Kokoro::Graphics::GraphicsDevice::GetHeight() {
+	return static_cast<uint32_t>(window->GetHeight());
 }

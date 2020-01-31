@@ -13,7 +13,7 @@ namespace Kokoro.Graphics
 
         public PixelInternalFormat InternalFormat { get; set; }
 
-        public BufferTextureSource(ShaderStorageBuffer ssbo)
+        public BufferTextureSource(StorageBuffer ssbo)
         {
             buf = ssbo.buf;
             width = (int)ssbo.Size;

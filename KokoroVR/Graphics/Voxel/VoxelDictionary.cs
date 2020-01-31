@@ -20,11 +20,11 @@ namespace KokoroVR.Graphics.Voxel
         byte offset = 1;
         voxel_tex[] set;
 
-        internal ShaderStorageBuffer voxelData;
+        internal StorageBuffer voxelData;
 
         public VoxelDictionary()
         {
-            voxelData = new ShaderStorageBuffer(ChunkConstants.DictionaryLen * 32, false);
+            voxelData = new StorageBuffer(ChunkConstants.DictionaryLen * 32, false);
             set = new voxel_tex[ChunkConstants.DictionaryLen];
         }
 

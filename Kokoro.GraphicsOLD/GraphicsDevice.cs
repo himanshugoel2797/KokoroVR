@@ -414,7 +414,7 @@ namespace Kokoro.Graphics
 
             if (state.ShaderStorageBufferBindings != null)
             {
-                ShaderStorageBuffer[] pendingBindings = new ShaderStorageBuffer[state.ShaderStorageBufferBindings.Length];
+                StorageBuffer[] pendingBindings = new StorageBuffer[state.ShaderStorageBufferBindings.Length];
                 Array.Copy(state.ShaderStorageBufferBindings, pendingBindings, pendingBindings.Length);
                 int pendingCnt = pendingBindings.Length;
                 while (pendingCnt > 0)
@@ -474,8 +474,8 @@ namespace Kokoro.Graphics
                 gl_name = GL.GetString(StringName.Version);
 
             GL.GetInteger(GetPName.MaxCombinedImageUniforms, out var img_val);
-
-            GL.GetInteger((GetIndexedPName)All.MaxComputeWorkGroupCount, 0, out var x_wg_max);
+            GL.GetInteger((GetPName)All.SparseBufferPageSizeArb, out var psz);
+            GL.GetInteger((GetIndexedPName)All.MaxComputeWorkGroupCount, 0, out var x_wg_max); //Simplify buffer interface, get rid of individual uniforms, mandatory texture views, mandatory pbo streaming 
             GL.GetInteger((GetIndexedPName)All.MaxComputeWorkGroupCount, 1, out var y_wg_max);
             GL.GetInteger((GetIndexedPName)All.MaxComputeWorkGroupCount, 2, out var z_wg_max);
 
@@ -674,7 +674,7 @@ namespace Kokoro.Graphics
         }
 
         #region Shader Buffers
-        public static void SetShaderStorageBufferBinding(ShaderStorageBuffer buf, int index)
+        public static void SetShaderStorageBufferBinding(StorageBuffer buf, int index)
         {
             if (buf == null) return;
             GPUStateMachine.BindBuffer(OpenTK.Graphics.OpenGL4.BufferTarget.ShaderStorageBuffer, buf.buf.id, index, (IntPtr)(buf.GetReadyOffset()), (IntPtr)buf.size);
@@ -698,7 +698,7 @@ namespace Kokoro.Graphics
             GL.BindBuffer(OpenTK.Graphics.OpenGL4.BufferTarget.DispatchIndirectBuffer, buf.id);
         }
 
-        public static void SetMultiDrawParameterBuffer(ShaderStorageBuffer buf)
+        public static void SetMultiDrawParameterBuffer(StorageBuffer buf)
         {
             SetMultiDrawParameterBuffer(buf.buf);
         }
@@ -708,7 +708,7 @@ namespace Kokoro.Graphics
             GL.BindBuffer((OpenTK.Graphics.OpenGL4.BufferTarget)ArbIndirectParameters.ParameterBufferArb, buf.id);
         }
 
-        public static void SetParameterBuffer(ShaderStorageBuffer buf)
+        public static void SetParameterBuffer(StorageBuffer buf)
         {
             SetParameterBuffer(buf.buf);
         }
@@ -730,7 +730,7 @@ namespace Kokoro.Graphics
 #endif
         }
 
-        public static void DispatchIndirectSyncComputeJob(ShaderProgram prog, ShaderStorageBuffer buffer, int off)
+        public static void DispatchIndirectSyncComputeJob(ShaderProgram prog, StorageBuffer buffer, int off)
         {
 
 #if DEBUG

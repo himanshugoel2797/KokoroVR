@@ -32,7 +32,7 @@ namespace Kokoro.Graphics
         private List<RenderState> RenderStates;
         private Dictionary<RenderState, List<MeshGroup>> MeshGroups;
 
-        private ShaderStorageBuffer multiDrawParams;
+        private StorageBuffer multiDrawParams;
         private bool isRecording = false;
         private int maxDrawCount = 0;
 
@@ -53,7 +53,7 @@ namespace Kokoro.Graphics
                 MaxDrawCount = 4096;
 
             maxDrawCount = MaxDrawCount;
-            multiDrawParams = new ShaderStorageBuffer(MaxDrawCount * 5 * sizeof(uint), false);
+            multiDrawParams = new StorageBuffer(MaxDrawCount * 5 * sizeof(uint), false);
         }
 
         public void UpdateDrawParams(MeshGroup grp, RenderState state, MeshData data)

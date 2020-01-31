@@ -155,9 +155,9 @@ namespace KokoroVR.Graphics
                             ShaderSource.Load(ShaderType.FragmentShader, "Shaders/Deferred/Output/fragment.glsl"));
 
                 GraphicsDevice.AlphaEnabled = true;
-                _pointL_state[i] = new RenderState(_accumulators[i], _pointLightShader[i], new ShaderStorageBuffer[] { Lights.pointLights_buffer }, null, false, true, DepthFunc.Always, InverseDepth.Far, InverseDepth.Near, BlendFactor.One, BlendFactor.One, Vector4.Zero, InverseDepth.ClearDepth, CullFaceMode.None);
-                _spotL_state[i] = new RenderState(_accumulators[i], _spotLightShader[i], new ShaderStorageBuffer[] { Lights.spotLights_buffer }, null, false, true, DepthFunc.Always, InverseDepth.Far, InverseDepth.Near, BlendFactor.One, BlendFactor.One, Vector4.Zero, InverseDepth.ClearDepth, CullFaceMode.None);
-                _direcL_state[i] = new RenderState(_accumulators[i], _directionalLightShader[i], new ShaderStorageBuffer[] { Lights.direcLights_buffer }, null, false, true, DepthFunc.Always, InverseDepth.Far, InverseDepth.Near, BlendFactor.One, BlendFactor.One, Vector4.Zero, InverseDepth.ClearDepth, CullFaceMode.None);
+                _pointL_state[i] = new RenderState(_accumulators[i], _pointLightShader[i], new StorageBuffer[] { Lights.pointLights_buffer }, null, false, true, DepthFunc.Always, InverseDepth.Far, InverseDepth.Near, BlendFactor.One, BlendFactor.One, Vector4.Zero, InverseDepth.ClearDepth, CullFaceMode.None);
+                _spotL_state[i] = new RenderState(_accumulators[i], _spotLightShader[i], new StorageBuffer[] { Lights.spotLights_buffer }, null, false, true, DepthFunc.Always, InverseDepth.Far, InverseDepth.Near, BlendFactor.One, BlendFactor.One, Vector4.Zero, InverseDepth.ClearDepth, CullFaceMode.None);
+                _direcL_state[i] = new RenderState(_accumulators[i], _directionalLightShader[i], new StorageBuffer[] { Lights.direcLights_buffer }, null, false, true, DepthFunc.Always, InverseDepth.Far, InverseDepth.Near, BlendFactor.One, BlendFactor.One, Vector4.Zero, InverseDepth.ClearDepth, CullFaceMode.None);
                 _state[i] = new RenderState(_destFramebuffers[i], _outputShader[i], null, null, false, true, DepthFunc.Always, InverseDepth.Far, InverseDepth.Near, BlendFactor.One, BlendFactor.Zero, Vector4.Zero, InverseDepth.ClearDepth, CullFaceMode.None);
 
                 _queue_final[i] = new RenderQueue(4, true);
@@ -259,7 +259,7 @@ namespace KokoroVR.Graphics
                 _directionalLightShader[i].Set("EyePos", pos);
 
                 //TODO apply shadow
-                /*_queue_final[i].ClearAndBeginRecording();
+                _queue_final[i].ClearAndBeginRecording();
                 _queue_final[i].RecordDraw(new RenderQueue.DrawData()
                 {
                     State = _pointL_state[i],
@@ -298,7 +298,7 @@ namespace KokoroVR.Graphics
                 });
                 _queue_final[i].EndRecording();
                 _queue_final[i].Submit();
-                _queue[i].Submit();*/
+                _queue[i].Submit();
             }
         }
 

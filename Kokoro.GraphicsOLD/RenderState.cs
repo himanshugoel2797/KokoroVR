@@ -11,7 +11,7 @@ namespace Kokoro.Graphics
     {
         public Framebuffer Framebuffer { get; private set; }
         public ShaderProgram ShaderProgram { get; private set; }
-        public ShaderStorageBuffer[] ShaderStorageBufferBindings { get; private set; }
+        public StorageBuffer[] ShaderStorageBufferBindings { get; private set; }
         public UniformBuffer[] UniformBufferBindings { get; private set; }
 
         public bool DepthWrite { get; private set; }
@@ -30,7 +30,7 @@ namespace Kokoro.Graphics
 
         public RenderState(Framebuffer fbuf,
                            ShaderProgram prog,
-                           ShaderStorageBuffer[] ssboBindings,
+                           StorageBuffer[] ssboBindings,
                            UniformBuffer[] uboBindings,
                            bool dWrite,
                            bool colorWrite,

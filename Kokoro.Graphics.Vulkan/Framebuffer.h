@@ -1,12 +1,19 @@
 #pragma once
-#ifdef _WIN32
-#define VK_USE_PLATFORM_WIN32_KHR
-#endif
-#include "vulkan/vulkan.h"
+#include "GraphicsDevice.h"
+#include "ImageView.h"
+
+using namespace System::Collections::Generic;
 
 namespace Kokoro::Graphics {
 	ref class Framebuffer
 	{
+	private:
+		List<ImageView^>^ Images;
+	public:
+		Framebuffer();
+		~Framebuffer();
+
+		void AddAttachment();
 	};
 }
 

@@ -234,110 +234,23 @@ namespace Kokoro.Graphics
                 this.ptype = src.GetPixelType();
             }
 
-            if (src.GetTextureTarget() != TextureTarget.TextureBuffer)
+            switch (src.GetDimensions())
             {
-                IntPtr ptr = src.GetPixelData(level);
-                switch (src.GetDimensions())
-                {
-                    case 1:
-                        if (inited) GL.TextureStorage1D(id, LevelCount, (SizedInternalFormat)internalformat, Width);
-                        if (ptr != IntPtr.Zero)
-                        {
-                            switch (internalformat)
-                            {
-                                case PixelInternalFormat.CompressedRedRgtc1:    //BC4
-                                case PixelInternalFormat.CompressedRgRgtc2:     //BC5
-                                case PixelInternalFormat.CompressedRgbaBptcUnorm:    //BC7
-                                    {
-                                        int blockSize = (internalformat == PixelInternalFormat.CompressedRedRgtc1) ? 8 : 16;
-                                        int size = ((src.GetWidth() >> level + 3) / 4) * blockSize;
-                                        GL.CompressedTextureSubImage1D(id, level, src.GetBaseWidth() >> level, src.GetWidth() >> level, (OpenTK.Graphics.OpenGL4.PixelFormat)src.GetFormat(), size, ptr);
-                                    }
-                                    break;
-                                default:
-                                    GL.TextureSubImage1D(id, level, src.GetBaseWidth() >> level, src.GetWidth() >> level, (OpenTK.Graphics.OpenGL4.PixelFormat)src.GetFormat(), (OpenTK.Graphics.OpenGL4.PixelType)src.GetPixelType(), ptr);
-                                    break;
-                            }
-                        }
-                        break;
-                    case 2:
-                        if (inited) GL.TextureStorage2D(id, LevelCount, (SizedInternalFormat)internalformat, Width, Height);
-                        if (ptr != IntPtr.Zero)
-                        {
-                            switch (internalformat)
-                            {
-                                case PixelInternalFormat.CompressedRedRgtc1:    //BC4
-                                case PixelInternalFormat.CompressedRgRgtc2:     //BC5
-                                case PixelInternalFormat.CompressedRgbaBptcUnorm:    //BC7
-                                    {
-                                        int blockSize = (internalformat == PixelInternalFormat.CompressedRedRgtc1) ? 8 : 16;
-                                        int size = ((src.GetWidth() >> level + 3) / 4) * ((src.GetHeight() >> level + 3) / 4) * blockSize;
-                                        GL.CompressedTextureSubImage2D(id, level, src.GetBaseWidth() >> level, src.GetBaseHeight() >> level, src.GetWidth() >> level, src.GetHeight() >> level, (OpenTK.Graphics.OpenGL4.PixelFormat)src.GetFormat(), size, ptr);
-                                    }
-                                    break;
-                                default:
-                                    GL.TextureSubImage2D(id, level, src.GetBaseWidth() >> level, src.GetBaseHeight() >> level, src.GetWidth() >> level, src.GetHeight() >> level, (OpenTK.Graphics.OpenGL4.PixelFormat)src.GetFormat(), (OpenTK.Graphics.OpenGL4.PixelType)src.GetPixelType(), ptr);
-                                    break;
-                            }
-                        }
-                        break;
-                    case 3:
-                        if (inited) GL.TextureStorage3D(id, LevelCount, (SizedInternalFormat)internalformat, Width, Height, Depth);
-                        if (ptr != IntPtr.Zero)
-                        {
-
-                            switch (internalformat)
-                            {
-                                case PixelInternalFormat.CompressedRedRgtc1:    //BC4
-                                case PixelInternalFormat.CompressedRgRgtc2:     //BC5
-                                case PixelInternalFormat.CompressedRgbaBptcUnorm:    //BC7
-                                    {
-                                        int blockSize = (internalformat == PixelInternalFormat.CompressedRedRgtc1) ? 8 : 16;
-                                        int size = ((src.GetWidth() >> level + 3) / 4) * ((src.GetHeight() >> level + 3) / 4) * src.GetDepth() >> level * blockSize;
-                                        GL.CompressedTextureSubImage3D(id, level, src.GetBaseWidth() >> level, src.GetBaseHeight() >> level, src.GetBaseDepth() >> level, src.GetWidth() >> level, src.GetHeight() >> level, src.GetDepth() >> level, (OpenTK.Graphics.OpenGL4.PixelFormat)src.GetFormat(), size, ptr);
-                                    }
-                                    break;
-                                default:
-                                    GL.TextureSubImage3D(id, level, src.GetBaseWidth() >> level, src.GetBaseHeight() >> level, src.GetBaseDepth() >> level, src.GetWidth() >> level, src.GetHeight() >> level, src.GetDepth() >> level, (OpenTK.Graphics.OpenGL4.PixelFormat)src.GetFormat(), (OpenTK.Graphics.OpenGL4.PixelType)src.GetPixelType(), ptr);
-                                    break;
-                            }
-                        }
-                        break;
-                }
+                case 1:
+                    if (inited) GL.TextureStorage1D(id, LevelCount, (SizedInternalFormat)internalformat, Width);
+                    break;
+                case 2:
+                    if (inited) GL.TextureStorage2D(id, LevelCount, (SizedInternalFormat)internalformat, Width, Height);
+                    break;
+                case 3:
+                    if (inited) GL.TextureStorage3D(id, LevelCount, (SizedInternalFormat)internalformat, Width, Height, Depth);
+                    break;
             }
-            else
-            {
-                GL.TextureBufferRange(id, (SizedInternalFormat)src.GetInternalFormat(), (int)src.GetPixelData(level), (IntPtr)src.GetBaseWidth(), (IntPtr)(uint)src.GetWidth());
-            }
-
 
             if (GenerateMipmaps)
             {
                 GL.GenerateTextureMipmap(id);
             }
-        }
-
-        public void SetTileMode(bool tileX, bool tileY)
-        {
-            if (texTarget == TextureTarget.TextureBuffer) return;
-            if (handles.ContainsKey(0)) handles.Remove(0); //Force regeneration of the handle next time it's accessed
-            GL.TextureParameter(id, TextureParameterName.TextureWrapS, tileX ? (int)TextureWrapMode.Repeat : (int)TextureWrapMode.ClampToEdge);
-            GL.TextureParameter(id, TextureParameterName.TextureWrapT, tileY ? (int)TextureWrapMode.Repeat : (int)TextureWrapMode.ClampToEdge);
-        }
-
-        public void SetEnableLinearFilter(bool linear)
-        {
-            if (texTarget == TextureTarget.TextureBuffer) return;
-            if (handles.ContainsKey(0)) handles.Remove(0); //Force regeneration of the handle next time it's accessed
-            GL.TextureParameter(id, TextureParameterName.TextureMagFilter, linear ? (int)TextureMagFilter.Linear : (int)TextureMagFilter.Nearest);
-            GL.TextureParameter(id, TextureParameterName.TextureMinFilter, linear ? (int)TextureMinFilter.Linear : (int)TextureMinFilter.Nearest);
-        }
-
-        public void SetAnisotropicFilter(float taps)
-        {
-            if (texTarget == TextureTarget.TextureBuffer) return;
-            if (handles.ContainsKey(0)) handles.Remove(0); //Force regeneration of the handle next time it's accessed
-            GL.TextureParameter(id, (TextureParameterName)All.TextureMaxAnisotropyExt, taps);
         }
 
         public static explicit operator IntPtr(Texture t)

@@ -34,8 +34,8 @@ namespace KokoroVR.Graphics
 
         int _target_cnt;
         ShaderProgram[] csn_shader, cs_shader, c_shader;
-        ShaderStorageBuffer csn_ssbo, cs_ssbo, c_ssbo;
-        ShaderStorageBuffer csn_w_ssbo, cs_w_ssbo, c_w_ssbo;
+        StorageBuffer csn_ssbo, cs_ssbo, c_ssbo;
+        StorageBuffer csn_w_ssbo, cs_w_ssbo, c_w_ssbo;
         RenderState[] csn_state, cs_state, c_state;
         RenderQueue _queue;
 
@@ -55,13 +55,13 @@ namespace KokoroVR.Graphics
             cs_objs = new List<cs_struct>();
             c_objs = new List<c_struct>();
 
-            csn_ssbo = new ShaderStorageBuffer(maxDraws * csn_size, true);
-            cs_ssbo = new ShaderStorageBuffer(maxDraws * cs_size, true);
-            c_ssbo = new ShaderStorageBuffer(maxDraws * c_size, true);
+            csn_ssbo = new StorageBuffer(maxDraws * csn_size, true);
+            cs_ssbo = new StorageBuffer(maxDraws * cs_size, true);
+            c_ssbo = new StorageBuffer(maxDraws * c_size, true);
 
-            csn_w_ssbo = new ShaderStorageBuffer(maxDraws * sizeof(float) * 16, true);
-            cs_w_ssbo = new ShaderStorageBuffer(maxDraws * sizeof(float) * 16, true);
-            c_w_ssbo = new ShaderStorageBuffer(maxDraws * sizeof(float) * 16, true);
+            csn_w_ssbo = new StorageBuffer(maxDraws * sizeof(float) * 16, true);
+            cs_w_ssbo = new StorageBuffer(maxDraws * sizeof(float) * 16, true);
+            c_w_ssbo = new StorageBuffer(maxDraws * sizeof(float) * 16, true);
 
             this.renderer = renderer;
             _target_cnt = renderer.Framebuffers.Length;
@@ -93,9 +93,9 @@ namespace KokoroVR.Graphics
                 c_shader[i] = new ShaderProgram(ShaderSource.Load(ShaderType.VertexShader, "Shaders/Deferred/Mesh/C/vertex.glsl"),
                                                 ShaderSource.Load(ShaderType.FragmentShader, "Shaders/Deferred/Mesh/C/fragment.glsl"));
 
-                csn_state[i] = new RenderState(dest_fbufs[i], csn_shader[i], new ShaderStorageBuffer[] { csn_ssbo, csn_w_ssbo }, null, true, true, DepthFunc.Greater, InverseDepth.Far, InverseDepth.Near, BlendFactor.One, BlendFactor.Zero, Vector4.Zero, InverseDepth.ClearDepth, CullFaceMode.Back);
-                cs_state[i] = new RenderState(dest_fbufs[i], cs_shader[i], new ShaderStorageBuffer[] { cs_ssbo, cs_w_ssbo }, null, true, true, DepthFunc.Greater, InverseDepth.Far, InverseDepth.Near, BlendFactor.One, BlendFactor.Zero, Vector4.Zero, InverseDepth.ClearDepth, CullFaceMode.Back);
-                c_state[i] = new RenderState(dest_fbufs[i], c_shader[i], new ShaderStorageBuffer[] { c_ssbo, c_w_ssbo }, null, true, true, DepthFunc.Greater, InverseDepth.Far, InverseDepth.Near, BlendFactor.One, BlendFactor.Zero, Vector4.Zero, InverseDepth.ClearDepth, CullFaceMode.Back);
+                csn_state[i] = new RenderState(dest_fbufs[i], csn_shader[i], new StorageBuffer[] { csn_ssbo, csn_w_ssbo }, null, true, true, DepthFunc.Greater, InverseDepth.Far, InverseDepth.Near, BlendFactor.One, BlendFactor.Zero, Vector4.Zero, InverseDepth.ClearDepth, CullFaceMode.Back);
+                cs_state[i] = new RenderState(dest_fbufs[i], cs_shader[i], new StorageBuffer[] { cs_ssbo, cs_w_ssbo }, null, true, true, DepthFunc.Greater, InverseDepth.Far, InverseDepth.Near, BlendFactor.One, BlendFactor.Zero, Vector4.Zero, InverseDepth.ClearDepth, CullFaceMode.Back);
+                c_state[i] = new RenderState(dest_fbufs[i], c_shader[i], new StorageBuffer[] { c_ssbo, c_w_ssbo }, null, true, true, DepthFunc.Greater, InverseDepth.Far, InverseDepth.Near, BlendFactor.One, BlendFactor.Zero, Vector4.Zero, InverseDepth.ClearDepth, CullFaceMode.Back);
             }
         }
 

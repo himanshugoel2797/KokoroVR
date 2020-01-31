@@ -1,6 +1,7 @@
 ﻿using OpenTK.Graphics.OpenGL4;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.Contracts;
 using System.Linq;
 using System.Runtime.InteropServices;
 using System.Text;
@@ -8,10 +9,10 @@ using System.Threading.Tasks;
 
 namespace Kokoro.Graphics
 {
-    public class ShaderStorageBuffer : IMappedBuffer
+    public class StorageBuffer : IMappedBuffer
     {
         private static int alignmentRequirement = 0;
-        static ShaderStorageBuffer()
+        static StorageBuffer()
         {
             alignmentRequirement = GL.GetInteger((GetPName)All.ShaderStorageBufferOffsetAlignment);
         }
@@ -19,11 +20,10 @@ namespace Kokoro.Graphics
         const int rungs = 3;
 
         internal int curRung = 0;
-        internal GPUBuffer buf;
+        private GPUBuffer buf;
         internal Fence[] readyFence;
         internal ulong size;
 
-        bool dirty = false;
         bool stream = false;
 
         public long Size
@@ -36,9 +36,9 @@ namespace Kokoro.Graphics
             get { return curRung * Size; }
         }
 
-        public ShaderStorageBuffer(GPUBuffer buf, bool stream)
+        StorageBuffer(GPUBuffer buf, bool stream)
         {
-            size = buf.size / (ulong)(stream ? rungs : 1);
+            size = buf.Size / (ulong)(stream ? rungs : 1);
             this.buf = buf;
             this.stream = stream;
 
@@ -57,7 +57,7 @@ namespace Kokoro.Graphics
             return size + (alignmentRequirement - (size % alignmentRequirement));
         }
 
-        public ShaderStorageBuffer(long size, bool stream, bool read = false) : this(new GPUBuffer(BufferUsage.StorageBuffer, (ulong)(AlignSize(size) * (stream ? rungs : 1)), read, true), stream)
+        public StorageBuffer(long size, bool stream, bool read = false) : this(new GPUBuffer(BufferUsage.StorageBuffer, (ulong)(AlignSize(size) * (stream ? rungs : 1)), read), stream)
         {
 
         }
@@ -80,6 +80,12 @@ namespace Kokoro.Graphics
             }
 
             return (ulong)(curRung - 1);
+        }
+
+        public static explicit operator GPUBuffer(StorageBuffer s)
+        {
+            Contract.Requires<ArgumentNullException>(s.buf != null);
+            return s.buf;
         }
 
         public unsafe byte* Update()
@@ -108,11 +114,5 @@ namespace Kokoro.Graphics
                 return readyFence[curRung].Raised(1);
             }
         }
-
-        public static explicit operator GPUBuffer(ShaderStorageBuffer b)
-        {
-            return b.buf;
-        }
-
     }
 }

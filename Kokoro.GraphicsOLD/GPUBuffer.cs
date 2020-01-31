@@ -9,42 +9,18 @@ using Kokoro.Graphics;
 
 namespace Kokoro.Graphics
 {
-    public class GPUBuffer : IDisposable
+    public class GPUBuffer : IDisposable, IGPUBuffer
     {
-        internal int id;
-        internal BufferUsage target;
-        internal ulong size;
-        public int dataLen;
-
+        public ulong Size { get; private set; }
+        private int id;
         private IntPtr addr;
 
-        public GPUBuffer(BufferUsage target, ulong size, bool read, bool host_write)
+        public GPUBuffer(BufferUsage target, ulong size, bool read)
         {
             GL.CreateBuffers(1, out id);
-            this.target = target;
-
-            this.size = size;
+            this.Size = size;
             GL.NamedBufferStorage(id, (IntPtr)size, IntPtr.Zero, BufferStorageFlags.MapPersistentBit | BufferStorageFlags.MapWriteBit | (read ? BufferStorageFlags.MapReadBit : 0));
             addr = GL.MapNamedBufferRange(id, IntPtr.Zero, (IntPtr)size, BufferAccessMask.MapPersistentBit | BufferAccessMask.MapFlushExplicitBit | BufferAccessMask.MapUnsynchronizedBit | BufferAccessMask.MapWriteBit | (read ? BufferAccessMask.MapReadBit : 0));
-        }
-
-        public void BufferData<T>(ulong offset, T[] data, BufferUsageHint hint) where T : struct
-        {
-            //if (data.Length == 0) return;
-
-            dataLen = data.Length;
-
-            if (data.Length != 0) size = (ulong)(Marshal.SizeOf(data[0]) * data.Length);
-
-            if (addr == IntPtr.Zero)
-            {
-                if (data.Length < 1) throw new Exception("Buffer is empty!");
-                GL.NamedBufferData(id, (int)size, data, hint);
-            }
-            else
-            {
-                throw new Exception("This buffer is mapped!");
-            }
         }
 
         public IntPtr GetPtr()
@@ -57,26 +33,15 @@ namespace Kokoro.Graphics
             GL.FlushMappedNamedBufferRange(id, (IntPtr)offset, (int)size);
         }
 
-        public static void FlushAll()
-        {
-            GL.MemoryBarrier(MemoryBarrierFlags.ClientMappedBufferBarrierBit);
-        }
-
-        public void UnMapBuffer()
+        public void UnmapBuffer()
         {
             GL.UnmapNamedBuffer(id);
         }
 
-        public void MapBuffer(bool read)
+        public static implicit operator int(GPUBuffer s)
         {
-            addr = GL.MapNamedBufferRange(id, IntPtr.Zero, (int)size, BufferAccessMask.MapPersistentBit | BufferAccessMask.MapUnsynchronizedBit | BufferAccessMask.MapFlushExplicitBit | BufferAccessMask.MapWriteBit | (read ? BufferAccessMask.MapReadBit : 0));
+            return s.id;
         }
-
-        public void MapBuffer(bool read, ulong offset, ulong size)
-        {
-            addr = GL.MapNamedBufferRange(id, (IntPtr)offset, (int)size, BufferAccessMask.MapPersistentBit | BufferAccessMask.MapUnsynchronizedBit | BufferAccessMask.MapFlushExplicitBit | BufferAccessMask.MapWriteBit | (read ? BufferAccessMask.MapReadBit : 0));
-        }
-
 
         #region IDisposable Support
         private bool disposedValue = false; // To detect redundant calls

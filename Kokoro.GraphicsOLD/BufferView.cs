@@ -1,4 +1,5 @@
 ﻿using System;
+using OpenTK.Graphics.OpenGL4;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -6,48 +7,27 @@ using System.Threading.Tasks;
 
 namespace Kokoro.Graphics
 {
-    public class BufferTexture : IDisposable, IMappedBuffer
+    public class BufferView : IDisposable
     {
-        private ShaderStorageBuffer ssbo;
-        private Texture tex;
+        public PixelInternalFormat Format { get; set; }
 
-        public ShaderStorageBuffer Buffer { get => ssbo; }
-        public TextureHandle Texture { get; private set; }
-        public ImageHandle Image { get; private set; }
+        private bool locked;
+        private int id;
 
-        public long Size => ((IMappedBuffer)this.ssbo).Size;
+        public BufferView() {
+            locked = false;
+        }
 
-        public long Offset => ((IMappedBuffer)this.ssbo).Offset;
+        //TODO Add handle management
 
-        public BufferTexture(long sz, PixelInternalFormat iFmt, bool stream)
+        public void Build(StorageBuffer buf)
         {
-            ssbo = new ShaderStorageBuffer(sz, stream);
-            tex = new Texture();
-            tex.SetData(new BufferTextureSource(ssbo)
+            if (!locked)
             {
-                InternalFormat = iFmt
-            }, 0);
-
-            Texture = tex.GetHandle(TextureSampler.Default);
-            Image = tex.GetImageHandle(0, 0, iFmt);
-
-            Texture.SetResidency(Residency.Resident);
-            Image.SetResidency(Residency.Resident, AccessMode.ReadWrite);
-        }
-
-        public unsafe byte* Update()
-        {
-            return ((IMappedBuffer)this.ssbo).Update();
-        }
-
-        public void UpdateDone()
-        {
-            ((IMappedBuffer)this.ssbo).UpdateDone();
-        }
-
-        public void UpdateDone(long off, long usize)
-        {
-            ((IMappedBuffer)this.ssbo).UpdateDone(off, usize);
+                GL.CreateTextures(OpenTK.Graphics.OpenGL4.TextureTarget.TextureBuffer, 1, out id);
+                GL.TextureBuffer(id, (SizedInternalFormat)Format, (GPUBuffer)buf);
+                locked = true;
+            }
         }
 
         #region IDisposable Support
@@ -60,7 +40,6 @@ namespace Kokoro.Graphics
                 if (disposing)
                 {
                     // TODO: dispose managed state (managed objects).
-                    tex.Dispose();
                 }
 
                 // TODO: free unmanaged resources (unmanaged objects) and override a finalizer below.
@@ -71,7 +50,7 @@ namespace Kokoro.Graphics
         }
 
         // TODO: override a finalizer only if Dispose(bool disposing) above has code to free unmanaged resources.
-        // ~BufferTexture()
+        // ~BufferView()
         // {
         //   // Do not change this code. Put cleanup code in Dispose(bool disposing) above.
         //   Dispose(false);

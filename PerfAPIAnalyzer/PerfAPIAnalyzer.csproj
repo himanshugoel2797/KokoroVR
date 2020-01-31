@@ -116,9 +116,9 @@
       <Project>{d768f549-cff8-4022-a542-d4c0fcb90623}</Project>
       <Name>Kokoro.Common</Name>
     </ProjectReference>
-    <ProjectReference Include="..\Kokoro.Graphics\Kokoro.Graphics.csproj">
+    <ProjectReference Include="..\Kokoro.GraphicsOLD\Kokoro.GraphicsOLD.csproj">
       <Project>{357295c3-64cf-43df-a56f-99cd133b44a0}</Project>
-      <Name>Kokoro.Graphics</Name>
+      <Name>Kokoro.GraphicsOLD</Name>
     </ProjectReference>
     <ProjectReference Include="..\Kokoro.Math\Kokoro.Math.csproj">
       <Project>{043ecd5d-e71c-4954-8886-0418727ab661}</Project>
