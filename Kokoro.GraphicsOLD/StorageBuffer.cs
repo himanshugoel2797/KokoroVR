@@ -88,6 +88,12 @@ namespace Kokoro.Graphics
             return s.buf;
         }
 
+        public static explicit operator int(StorageBuffer s)
+        {
+            Contract.Requires<ArgumentNullException>(s.buf != null);
+            return s.buf;
+        }
+
         public unsafe byte* Update()
         {
             if (stream) curRung = (curRung + 1) % rungs;

@@ -16,7 +16,6 @@ namespace KokoroVR
 #if VR
         public static VRClient HMDClient { get; private set; }
 #endif
-        internal static MeshGroup iMeshGroup;
         private static StateManager stateMachine;
 
         public static Framebuffer[] Framebuffers { get; private set; }
@@ -81,7 +80,6 @@ namespace KokoroVR
             {
                 Framebuffer.Default
             };
-            iMeshGroup = new MeshGroup(MeshGroupVertexFormat.X32F_Y32F_Z32F, 256, 256);
 #endif
         }
 

@@ -59,6 +59,21 @@ namespace Kokoro.Graphics.Profiling
             BeginSample($"MultiDrawIndirectCount #{multidrawindirectCount_idx++}");
         }
 
+        public static void BeginMultiDrawIndirectIndexedCount()
+        {
+            BeginSample($"MultiDrawIndirectIndexedCount #{multidrawindirectCount_idx++}");
+        }
+
+        public static void BeginDraw()
+        {
+            BeginSample($"Draw #{multidrawindirectCount_idx++}");
+        }
+
+        public static void BeginDrawIndexed()
+        {
+            BeginSample($"DrawIndexed #{multidrawindirectCount_idx++}");
+        }
+
         public static void BeginCompute()
         {
             BeginSample($"Compute #{compute_idx++}");

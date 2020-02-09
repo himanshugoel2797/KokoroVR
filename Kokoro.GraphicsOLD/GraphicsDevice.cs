@@ -27,7 +27,6 @@ namespace Kokoro.Graphics
 
     public static class GraphicsDevice
     {
-        static VertexArray curVarray;
         static ShaderProgram curProg;
         static Framebuffer curFramebuffer;
         static FaceWinding winding;
@@ -354,11 +353,9 @@ namespace Kokoro.Graphics
             set
             {
                 curFramebuffer = value;
-                GL.BindFramebuffer(FramebufferTarget.Framebuffer, curFramebuffer.id);
+                GL.BindFramebuffer(FramebufferTarget.Framebuffer, (int)curFramebuffer);
             }
         }
-
-        public static MeshGroup CurrentMeshGroup { get; private set; }
 
         private static readonly ConcurrentQueue<Tuple<int, GLObjectType>> DeletionQueue;
 
@@ -385,13 +382,17 @@ namespace Kokoro.Graphics
             Cleanup = new WeakAction();
             DeletionQueue = new ConcurrentQueue<Tuple<int, GLObjectType>>();
 
-            curVarray = null;
             curProg = null;
         }
 
         internal static void QueueForDeletion(int o, GLObjectType t)
         {
             DeletionQueue.Enqueue(new Tuple<int, GLObjectType>(o, t));
+        }
+
+        public static void SetVertexArray(VertexArray varray)
+        {
+            GL.BindVertexArray(varray.id);
         }
 
         public static void SetRenderState(RenderState state)
@@ -454,23 +455,15 @@ namespace Kokoro.Graphics
                 GraphicsDevice.ShaderProgram = state.ShaderProgram;
         }
 
-        public static void SetCurrentMeshGroup(MeshGroup grp)
-        {
-            BackgroundTaskManager.ExecuteBackgroundTasksUntil(() => grp.IsReady);
-            while (!grp.IsReady) ;
-            CurrentMeshGroup = grp;
-            SetVertexArray(grp.varray);
-        }
-
         public static void Run(double ups, double fps)
         {
             if (PerfAPI.MetricsEnabled) GPUPerfAPI.NET.Context.Initialize();
             Window.Title = gameName;
 #if DEBUG
-            if (renderer_name == "")
+            if (string.IsNullOrWhiteSpace(renderer_name))
                 renderer_name = GL.GetString(StringName.Renderer);
 
-            if (gl_name == "")
+            if (string.IsNullOrWhiteSpace(gl_name))
                 gl_name = GL.GetString(StringName.Version);
 
             GL.GetInteger(GetPName.MaxCombinedImageUniforms, out var img_val);
@@ -655,7 +648,7 @@ namespace Kokoro.Graphics
 
         private static void Window_Resize(object sender, EventArgs e)
         {
-            GPUStateMachine.SetViewport(0, 0, 0, Window.ClientSize.Width, Window.ClientSize.Height);
+            GL.ViewportIndexed(0, 0, 0, Window.ClientSize.Width, Window.ClientSize.Height);
             GL.ClipControl(ClipOrigin.LowerLeft, ClipDepthMode.ZeroToOne);
             //Input.LowLevel.InputLL.SetWinXY(game.Location.X, game.Location.Y, game.ClientSize.Width, game.ClientSize.Height);
             Framebuffer.RecreateDefaultFramebuffer();
@@ -667,136 +660,19 @@ namespace Kokoro.Graphics
             GL.ViewportIndexed(idx, x, y, width, height);
         }
 
-        public static void SetVertexArray(VertexArray varray)
-        {
-            curVarray = varray;
-            GL.BindVertexArray(varray.id);
-        }
-
         #region Shader Buffers
         public static void SetShaderStorageBufferBinding(StorageBuffer buf, int index)
         {
             if (buf == null) return;
-            GPUStateMachine.BindBuffer(OpenTK.Graphics.OpenGL4.BufferTarget.ShaderStorageBuffer, buf.buf.id, index, (IntPtr)(buf.GetReadyOffset()), (IntPtr)buf.size);
+            GL.BindBufferBase(BufferRangeTarget.ShaderStorageBuffer, index, (int)buf);
         }
 
         public static void SetUniformBufferBinding(UniformBuffer buf, int index)
         {
             if (buf == null) return;
-            GPUStateMachine.BindBuffer(OpenTK.Graphics.OpenGL4.BufferTarget.UniformBuffer, buf.buf.id, index, (IntPtr)(buf.GetReadyOffset()), (IntPtr)buf.Size);
+            GL.BindBufferBase(BufferRangeTarget.UniformBuffer, index, (int)buf);
         }
 
-        #endregion
-
-        #region Indirect call buffers
-        public static void SetMultiDrawParameterBuffer(GPUBuffer buf)
-        {
-            GL.BindBuffer(OpenTK.Graphics.OpenGL4.BufferTarget.DrawIndirectBuffer, buf.id);
-        }
-        public static void SetDispatchIndirectBuffer(GPUBuffer buf)
-        {
-            GL.BindBuffer(OpenTK.Graphics.OpenGL4.BufferTarget.DispatchIndirectBuffer, buf.id);
-        }
-
-        public static void SetMultiDrawParameterBuffer(StorageBuffer buf)
-        {
-            SetMultiDrawParameterBuffer(buf.buf);
-        }
-
-        public static void SetParameterBuffer(GPUBuffer buf)
-        {
-            GL.BindBuffer((OpenTK.Graphics.OpenGL4.BufferTarget)ArbIndirectParameters.ParameterBufferArb, buf.id);
-        }
-
-        public static void SetParameterBuffer(StorageBuffer buf)
-        {
-            SetParameterBuffer(buf.buf);
-        }
-        #endregion
-
-        #region Compute Jobs
-        public static void DispatchSyncComputeJob(ShaderProgram prog, int x, int y, int z)
-        {
-#if DEBUG
-            PerfAPI.BeginCompute();
-#endif
-            GL.MemoryBarrier(MemoryBarrierFlags.AllBarrierBits);
-            var tmp = ShaderProgram;
-            ShaderProgram = prog;
-            GL.DispatchCompute(x, y, z);
-            ShaderProgram = tmp;
-#if DEBUG
-            PerfAPI.EndSample();
-#endif
-        }
-
-        public static void DispatchIndirectSyncComputeJob(ShaderProgram prog, StorageBuffer buffer, int off)
-        {
-
-#if DEBUG
-            PerfAPI.BeginComputeIndirect();
-#endif
-            GL.MemoryBarrier(MemoryBarrierFlags.AllBarrierBits);
-            var tmp = ShaderProgram;
-            ShaderProgram = prog;
-            SetDispatchIndirectBuffer(buffer.buf);
-            GL.DispatchComputeIndirect((IntPtr)off);
-#if DEBUG
-            PerfAPI.EndSample();
-#endif
-            ShaderProgram = tmp;
-        }
-        #endregion
-
-        #region Draw calls
-        public static void Draw(PrimitiveType type, int first, int count, bool indexed, bool short_idx)
-        {
-            if (count == 0) return;
-
-            curProg.Set(nameof(WindowSize), new Vector2(WindowSize.Width, WindowSize.Height));
-
-#if DEBUG
-            GenericMetrics.StartMeasurement();
-#endif
-            if (indexed) GL.DrawElements((OpenTK.Graphics.OpenGL4.PrimitiveType)type, count, short_idx ? DrawElementsType.UnsignedShort : DrawElementsType.UnsignedInt, IntPtr.Zero);
-            else GL.DrawArrays((OpenTK.Graphics.OpenGL4.PrimitiveType)type, first, count);
-#if DEBUG
-            GenericMetrics.StopMeasurement();
-#endif
-        }
-
-        public static void MultiDrawIndirect(PrimitiveType type, uint byteOffset, int count, bool indexed, bool short_idx)
-        {
-            if (count == 0) return;
-
-#if DEBUG
-            GenericMetrics.StartMeasurement();
-#endif
-            if (indexed)
-                GL.MultiDrawElementsIndirect((OpenTK.Graphics.OpenGL4.PrimitiveType)type, short_idx ? DrawElementsType.UnsignedShort : DrawElementsType.UnsignedInt, (IntPtr)byteOffset, count, 0);
-            else
-                GL.MultiDrawArraysIndirect((OpenTK.Graphics.OpenGL4.PrimitiveType)type, (IntPtr)byteOffset, count, 0);
-#if DEBUG
-            GenericMetrics.StopMeasurement();
-#endif
-        }
-
-        public static void MultiDrawIndirectCount(PrimitiveType type, long byteOffset, long countOffset, uint maxCount, bool indexed, bool short_idx, int stride = 0)
-        {
-#if DEBUG
-            GenericMetrics.StartMeasurement();
-            PerfAPI.BeginMultiDrawIndirectCount();
-#endif
-            GL.MemoryBarrier(MemoryBarrierFlags.AllBarrierBits);
-            if (indexed)
-                GL.Arb.MultiDrawElementsIndirectCount((OpenTK.Graphics.OpenGL4.PrimitiveType)type, short_idx ? DrawElementsType.UnsignedShort : DrawElementsType.UnsignedInt, (IntPtr)byteOffset, (IntPtr)countOffset, (int)maxCount, stride);
-            else
-                GL.Arb.MultiDrawArraysIndirectCount((OpenTK.Graphics.OpenGL4.PrimitiveType)type, (IntPtr)byteOffset, (IntPtr)countOffset, (int)maxCount, stride);
-#if DEBUG
-            PerfAPI.EndSample();
-            GenericMetrics.StopMeasurement();
-#endif
-        }
         #endregion
 
         #region Depth Range
@@ -814,58 +690,5 @@ namespace Kokoro.Graphics
             far = _far;
         }
         #endregion
-
-        public static void Clear()
-        {
-            // render graphics
-            GL.Clear(ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit);
-        }
-
-        public static void ClearDepthBuffer()
-        {
-            GL.Clear(ClearBufferMask.DepthBufferBit);
-        }
-
-        public static void SaveTexture(Texture t, string file)
-        {
-#if DEBUG
-            GL.MemoryBarrier(MemoryBarrierFlags.AllBarrierBits);
-            Bitmap bmp = new Bitmap(t.Width, t.Height);
-            System.Drawing.Imaging.BitmapData bmpData;
-
-            bmpData = bmp.LockBits(new Rectangle(0, 0, t.Width, t.Height), System.Drawing.Imaging.ImageLockMode.WriteOnly, System.Drawing.Imaging.PixelFormat.Format32bppArgb);
-
-            switch (t.ptype)
-            {
-                case Graphics.PixelType.HalfFloat:
-                    GL.GetTextureImage(t.id, 0, (OpenTK.Graphics.OpenGL4.PixelFormat)Graphics.PixelFormat.Bgra, (OpenTK.Graphics.OpenGL4.PixelType)Graphics.PixelType.UnsignedInt8888Reversed, bmpData.Stride * bmpData.Height, bmpData.Scan0);
-                    break;
-                case Graphics.PixelType.UnsignedInt:
-                    {
-                        GL.GetTextureImage(t.id, 0, (OpenTK.Graphics.OpenGL4.PixelFormat)t.format, (OpenTK.Graphics.OpenGL4.PixelType)Graphics.PixelType.UnsignedInt, bmpData.Stride * bmpData.Height, bmpData.Scan0);
-                        unsafe
-                        {
-                            uint* data = (uint*)bmpData.Scan0;
-                            var f = File.OpenWrite("pixels.txt");
-                            var fs = new StreamWriter(f);
-                            for (int y = 0; y < bmp.Height; y++)
-                            {
-                                for (int x = 0; x < bmp.Width; x++)
-                                    fs.Write($" {*(data++)}");
-                                fs.WriteLine();
-                            }
-                            fs.Close();
-                        }
-                    }
-                    break;
-            }
-            bmp.UnlockBits(bmpData);
-
-            bmp.RotateFlip(RotateFlipType.Rotate180FlipX);
-            bmp.Save(file);
-            bmp.Dispose();
-#endif
-        }
-
     }
 }

@@ -8,22 +8,19 @@ namespace Kokoro.Graphics.Prefabs
 {
     public class FullScreenTriangleFactory
     {
-        public static Mesh Create(MeshGroup group)
+        public static void Create(out float[] verts, out float[] uvs)
         {
-            return new Mesh(
-                group,
-                new float[]{
+            verts = new float[]{
                 -1, -1, 0.5f,
                 3, -1, 0.5f,
                 -1, 3, 0.5f
-            },
-            new float[] {
+            };
+
+            uvs = new float[] {
                 0,0,
                 2,0,
                 0,2
-            },
-            new uint[] { 0, 0, 0 },
-            new ushort[] { 0, 1, 2 });
+            };
         }
     }
 }

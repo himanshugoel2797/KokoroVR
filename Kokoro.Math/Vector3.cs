@@ -101,6 +101,11 @@ namespace Kokoro.Math
             SIMD_vec = new System.Numerics.Vector3(value[0], value[1], value[2]);
         }
 
+        public Vector3(System.Numerics.Vector3 value)
+        {
+            SIMD_vec = value;
+        }
+
         /// <summary>
         /// Constructs a new Vector3.
         /// </summary>
@@ -1063,10 +1068,7 @@ namespace Kokoro.Math
         /// <returns>The result of the calculation.</returns>
         public static Vector3 operator +(Vector3 left, Vector3 right)
         {
-            left.X += right.X;
-            left.Y += right.Y;
-            left.Z += right.Z;
-            return left;
+            return left.SIMD_vec + right.SIMD_vec;
         }
 
         /// <summary>
@@ -1077,10 +1079,7 @@ namespace Kokoro.Math
         /// <returns>The result of the calculation.</returns>
         public static Vector3 operator -(Vector3 left, Vector3 right)
         {
-            left.X -= right.X;
-            left.Y -= right.Y;
-            left.Z -= right.Z;
-            return left;
+            return left.SIMD_vec - right.SIMD_vec;
         }
 
         /// <summary>
@@ -1133,10 +1132,7 @@ namespace Kokoro.Math
         public static Vector3 operator /(Vector3 vec, float scale)
         {
             float mult = 1.0f / scale;
-            vec.X *= mult;
-            vec.Y *= mult;
-            vec.Z *= mult;
-            return vec;
+            return vec.SIMD_vec * mult;
         }
 
         /// <summary>
@@ -1238,10 +1234,10 @@ namespace Kokoro.Math
 
         public static implicit operator Vector3(System.Numerics.Vector3 v)
         {
-            return new Vector3(v.X, v.Y, v.Z);
+            return new Vector3(v);
         }
 
-        public static explicit operator float[] (Vector3 v)
+        public static explicit operator float[](Vector3 v)
         {
             return new float[] { v.X, v.Y, v.Z };
         }

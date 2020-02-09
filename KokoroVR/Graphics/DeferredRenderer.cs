@@ -31,7 +31,6 @@ namespace KokoroVR.Graphics
         private ShaderProgram[] _spotLightShader;
         private ShaderProgram[] _directionalLightShader;
         private ShaderProgram[] _outputShader;
-        private Mesh _fst;
 
         public Framebuffer[] Framebuffers { get; private set; }
         public LightManager Lights { get; private set; }
@@ -41,8 +40,6 @@ namespace KokoroVR.Graphics
             _targetCount = dest.Length;
             _destFramebuffers = dest;
             Lights = lights;
-
-            _fst = Kokoro.Graphics.Prefabs.FullScreenTriangleFactory.Create(Engine.iMeshGroup);
 
             //Color: 16DiffR:16DiffG:16DiffB:16Roughness
             //Normal: 8NX|8NY|8NZ:32WX:32WY:32WZ

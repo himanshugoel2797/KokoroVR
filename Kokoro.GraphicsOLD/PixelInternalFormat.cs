@@ -27,137 +27,9 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
     public enum PixelInternalFormat : int
     {
         /// <summary>
-        /// Original was GL_DEPTH_COMPONENT = 0x1902
-        /// </summary>
-        DepthComponent = ((int)0x1902),
-        /// <summary>
-        /// Original was GL_ALPHA = 0x1906
-        /// </summary>
-        Alpha = ((int)0x1906),
-        /// <summary>
-        /// Original was GL_RGB = 0x1907
-        /// </summary>
-        Rgb = ((int)0x1907),
-        /// <summary>
-        /// Original was GL_RGBA = 0x1908
-        /// </summary>
-        Rgba = ((int)0x1908),
-        /// <summary>
-        /// Original was GL_LUMINANCE = 0x1909
-        /// </summary>
-        Luminance = ((int)0x1909),
-        /// <summary>
-        /// Original was GL_LUMINANCE_ALPHA = 0x190A
-        /// </summary>
-        LuminanceAlpha = ((int)0x190A),
-        /// <summary>
         /// Original was GL_R3_G3_B2 = 0x2A10
         /// </summary>
         R3G3B2 = ((int)0x2A10),
-        /// <summary>
-        /// Original was GL_ALPHA4 = 0x803B
-        /// </summary>
-        Alpha4 = ((int)0x803B),
-        /// <summary>
-        /// Original was GL_ALPHA8 = 0x803C
-        /// </summary>
-        Alpha8 = ((int)0x803C),
-        /// <summary>
-        /// Original was GL_ALPHA12 = 0x803D
-        /// </summary>
-        Alpha12 = ((int)0x803D),
-        /// <summary>
-        /// Original was GL_ALPHA16 = 0x803E
-        /// </summary>
-        Alpha16 = ((int)0x803E),
-        /// <summary>
-        /// Original was GL_LUMINANCE4 = 0x803F
-        /// </summary>
-        Luminance4 = ((int)0x803F),
-        /// <summary>
-        /// Original was GL_LUMINANCE8 = 0x8040
-        /// </summary>
-        Luminance8 = ((int)0x8040),
-        /// <summary>
-        /// Original was GL_LUMINANCE12 = 0x8041
-        /// </summary>
-        Luminance12 = ((int)0x8041),
-        /// <summary>
-        /// Original was GL_LUMINANCE16 = 0x8042
-        /// </summary>
-        Luminance16 = ((int)0x8042),
-        /// <summary>
-        /// Original was GL_LUMINANCE4_ALPHA4 = 0x8043
-        /// </summary>
-        Luminance4Alpha4 = ((int)0x8043),
-        /// <summary>
-        /// Original was GL_LUMINANCE6_ALPHA2 = 0x8044
-        /// </summary>
-        Luminance6Alpha2 = ((int)0x8044),
-        /// <summary>
-        /// Original was GL_LUMINANCE8_ALPHA8 = 0x8045
-        /// </summary>
-        Luminance8Alpha8 = ((int)0x8045),
-        /// <summary>
-        /// Original was GL_LUMINANCE12_ALPHA4 = 0x8046
-        /// </summary>
-        Luminance12Alpha4 = ((int)0x8046),
-        /// <summary>
-        /// Original was GL_LUMINANCE12_ALPHA12 = 0x8047
-        /// </summary>
-        Luminance12Alpha12 = ((int)0x8047),
-        /// <summary>
-        /// Original was GL_LUMINANCE16_ALPHA16 = 0x8048
-        /// </summary>
-        Luminance16Alpha16 = ((int)0x8048),
-        /// <summary>
-        /// Original was GL_INTENSITY = 0x8049
-        /// </summary>
-        Intensity = ((int)0x8049),
-        /// <summary>
-        /// Original was GL_INTENSITY4 = 0x804A
-        /// </summary>
-        Intensity4 = ((int)0x804A),
-        /// <summary>
-        /// Original was GL_INTENSITY8 = 0x804B
-        /// </summary>
-        Intensity8 = ((int)0x804B),
-        /// <summary>
-        /// Original was GL_INTENSITY12 = 0x804C
-        /// </summary>
-        Intensity12 = ((int)0x804C),
-        /// <summary>
-        /// Original was GL_INTENSITY16 = 0x804D
-        /// </summary>
-        Intensity16 = ((int)0x804D),
-        /// <summary>
-        /// Original was GL_RGB2_EXT = 0x804E
-        /// </summary>
-        Rgb2Ext = ((int)0x804E),
-        /// <summary>
-        /// Original was GL_RGB4 = 0x804F
-        /// </summary>
-        Rgb4 = ((int)0x804F),
-        /// <summary>
-        /// Original was GL_RGB5 = 0x8050
-        /// </summary>
-        Rgb5 = ((int)0x8050),
-        /// <summary>
-        /// Original was GL_RGB8 = 0x8051
-        /// </summary>
-        Rgb8 = ((int)0x8051),
-        /// <summary>
-        /// Original was GL_RGB10 = 0x8052
-        /// </summary>
-        Rgb10 = ((int)0x8052),
-        /// <summary>
-        /// Original was GL_RGB12 = 0x8053
-        /// </summary>
-        Rgb12 = ((int)0x8053),
-        /// <summary>
-        /// Original was GL_RGB16 = 0x8054
-        /// </summary>
-        Rgb16 = ((int)0x8054),
         /// <summary>
         /// Original was GL_RGBA2 = 0x8055
         /// </summary>
@@ -179,117 +51,9 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
         /// </summary>
         Rgb10A2 = ((int)0x8059),
         /// <summary>
-        /// Original was GL_RGBA12 = 0x805A
-        /// </summary>
-        Rgba12 = ((int)0x805A),
-        /// <summary>
         /// Original was GL_RGBA16 = 0x805B
         /// </summary>
         Rgba16 = ((int)0x805B),
-        /// <summary>
-        /// Original was GL_DUAL_ALPHA4_SGIS = 0x8110
-        /// </summary>
-        DualAlpha4Sgis = ((int)0x8110),
-        /// <summary>
-        /// Original was GL_DUAL_ALPHA8_SGIS = 0x8111
-        /// </summary>
-        DualAlpha8Sgis = ((int)0x8111),
-        /// <summary>
-        /// Original was GL_DUAL_ALPHA12_SGIS = 0x8112
-        /// </summary>
-        DualAlpha12Sgis = ((int)0x8112),
-        /// <summary>
-        /// Original was GL_DUAL_ALPHA16_SGIS = 0x8113
-        /// </summary>
-        DualAlpha16Sgis = ((int)0x8113),
-        /// <summary>
-        /// Original was GL_DUAL_LUMINANCE4_SGIS = 0x8114
-        /// </summary>
-        DualLuminance4Sgis = ((int)0x8114),
-        /// <summary>
-        /// Original was GL_DUAL_LUMINANCE8_SGIS = 0x8115
-        /// </summary>
-        DualLuminance8Sgis = ((int)0x8115),
-        /// <summary>
-        /// Original was GL_DUAL_LUMINANCE12_SGIS = 0x8116
-        /// </summary>
-        DualLuminance12Sgis = ((int)0x8116),
-        /// <summary>
-        /// Original was GL_DUAL_LUMINANCE16_SGIS = 0x8117
-        /// </summary>
-        DualLuminance16Sgis = ((int)0x8117),
-        /// <summary>
-        /// Original was GL_DUAL_INTENSITY4_SGIS = 0x8118
-        /// </summary>
-        DualIntensity4Sgis = ((int)0x8118),
-        /// <summary>
-        /// Original was GL_DUAL_INTENSITY8_SGIS = 0x8119
-        /// </summary>
-        DualIntensity8Sgis = ((int)0x8119),
-        /// <summary>
-        /// Original was GL_DUAL_INTENSITY12_SGIS = 0x811A
-        /// </summary>
-        DualIntensity12Sgis = ((int)0x811A),
-        /// <summary>
-        /// Original was GL_DUAL_INTENSITY16_SGIS = 0x811B
-        /// </summary>
-        DualIntensity16Sgis = ((int)0x811B),
-        /// <summary>
-        /// Original was GL_DUAL_LUMINANCE_ALPHA4_SGIS = 0x811C
-        /// </summary>
-        DualLuminanceAlpha4Sgis = ((int)0x811C),
-        /// <summary>
-        /// Original was GL_DUAL_LUMINANCE_ALPHA8_SGIS = 0x811D
-        /// </summary>
-        DualLuminanceAlpha8Sgis = ((int)0x811D),
-        /// <summary>
-        /// Original was GL_QUAD_ALPHA4_SGIS = 0x811E
-        /// </summary>
-        QuadAlpha4Sgis = ((int)0x811E),
-        /// <summary>
-        /// Original was GL_QUAD_ALPHA8_SGIS = 0x811F
-        /// </summary>
-        QuadAlpha8Sgis = ((int)0x811F),
-        /// <summary>
-        /// Original was GL_QUAD_LUMINANCE4_SGIS = 0x8120
-        /// </summary>
-        QuadLuminance4Sgis = ((int)0x8120),
-        /// <summary>
-        /// Original was GL_QUAD_LUMINANCE8_SGIS = 0x8121
-        /// </summary>
-        QuadLuminance8Sgis = ((int)0x8121),
-        /// <summary>
-        /// Original was GL_QUAD_INTENSITY4_SGIS = 0x8122
-        /// </summary>
-        QuadIntensity4Sgis = ((int)0x8122),
-        /// <summary>
-        /// Original was GL_QUAD_INTENSITY8_SGIS = 0x8123
-        /// </summary>
-        QuadIntensity8Sgis = ((int)0x8123),
-        /// <summary>
-        /// Original was GL_DEPTH_COMPONENT16 = 0x81a5
-        /// </summary>
-        DepthComponent16 = ((int)0x81a5),
-        /// <summary>
-        /// Original was GL_DEPTH_COMPONENT16_SGIX = 0x81A5
-        /// </summary>
-        DepthComponent16Sgix = ((int)0x81A5),
-        /// <summary>
-        /// Original was GL_DEPTH_COMPONENT24 = 0x81a6
-        /// </summary>
-        DepthComponent24 = ((int)0x81a6),
-        /// <summary>
-        /// Original was GL_DEPTH_COMPONENT24_SGIX = 0x81A6
-        /// </summary>
-        DepthComponent24Sgix = ((int)0x81A6),
-        /// <summary>
-        /// Original was GL_DEPTH_COMPONENT32 = 0x81a7
-        /// </summary>
-        DepthComponent32 = ((int)0x81a7),
-        /// <summary>
-        /// Original was GL_DEPTH_COMPONENT32_SGIX = 0x81A7
-        /// </summary>
-        DepthComponent32Sgix = ((int)0x81A7),
         /// <summary>
         /// Original was GL_COMPRESSED_RED = 0x8225
         /// </summary>
@@ -298,22 +62,6 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
         /// Original was GL_COMPRESSED_RG = 0x8226
         /// </summary>
         CompressedRg = ((int)0x8226),
-        /// <summary>
-        /// Original was GL_R8 = 0x8229
-        /// </summary>
-        R8 = ((int)0x8229),
-        /// <summary>
-        /// Original was GL_R16 = 0x822A
-        /// </summary>
-        R16 = ((int)0x822A),
-        /// <summary>
-        /// Original was GL_RG8 = 0x822B
-        /// </summary>
-        Rg8 = ((int)0x822B),
-        /// <summary>
-        /// Original was GL_RG16 = 0x822C
-        /// </summary>
-        Rg16 = ((int)0x822C),
         /// <summary>
         /// Original was GL_R16F = 0x822D
         /// </summary>
@@ -395,54 +143,6 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
         /// </summary>
         CompressedRgbaS3tcDxt5Ext = ((int)0x83F3),
         /// <summary>
-        /// Original was GL_RGB_ICC_SGIX = 0x8460
-        /// </summary>
-        RgbIccSgix = ((int)0x8460),
-        /// <summary>
-        /// Original was GL_RGBA_ICC_SGIX = 0x8461
-        /// </summary>
-        RgbaIccSgix = ((int)0x8461),
-        /// <summary>
-        /// Original was GL_ALPHA_ICC_SGIX = 0x8462
-        /// </summary>
-        AlphaIccSgix = ((int)0x8462),
-        /// <summary>
-        /// Original was GL_LUMINANCE_ICC_SGIX = 0x8463
-        /// </summary>
-        LuminanceIccSgix = ((int)0x8463),
-        /// <summary>
-        /// Original was GL_INTENSITY_ICC_SGIX = 0x8464
-        /// </summary>
-        IntensityIccSgix = ((int)0x8464),
-        /// <summary>
-        /// Original was GL_LUMINANCE_ALPHA_ICC_SGIX = 0x8465
-        /// </summary>
-        LuminanceAlphaIccSgix = ((int)0x8465),
-        /// <summary>
-        /// Original was GL_R5_G6_B5_ICC_SGIX = 0x8466
-        /// </summary>
-        R5G6B5IccSgix = ((int)0x8466),
-        /// <summary>
-        /// Original was GL_R5_G6_B5_A8_ICC_SGIX = 0x8467
-        /// </summary>
-        R5G6B5A8IccSgix = ((int)0x8467),
-        /// <summary>
-        /// Original was GL_ALPHA16_ICC_SGIX = 0x8468
-        /// </summary>
-        Alpha16IccSgix = ((int)0x8468),
-        /// <summary>
-        /// Original was GL_LUMINANCE16_ICC_SGIX = 0x8469
-        /// </summary>
-        Luminance16IccSgix = ((int)0x8469),
-        /// <summary>
-        /// Original was GL_INTENSITY16_ICC_SGIX = 0x846A
-        /// </summary>
-        Intensity16IccSgix = ((int)0x846A),
-        /// <summary>
-        /// Original was GL_LUMINANCE16_ALPHA8_ICC_SGIX = 0x846B
-        /// </summary>
-        Luminance16Alpha8IccSgix = ((int)0x846B),
-        /// <summary>
         /// Original was GL_COMPRESSED_ALPHA = 0x84E9
         /// </summary>
         CompressedAlpha = ((int)0x84E9),
@@ -467,10 +167,6 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
         /// </summary>
         CompressedRgba = ((int)0x84EE),
         /// <summary>
-        /// Original was GL_DEPTH_STENCIL = 0x84F9
-        /// </summary>
-        DepthStencil = ((int)0x84F9),
-        /// <summary>
         /// Original was GL_RGBA32F = 0x8814
         /// </summary>
         Rgba32f = ((int)0x8814),
@@ -487,49 +183,17 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
         /// </summary>
         Rgb16f = ((int)0x881B),
         /// <summary>
-        /// Original was GL_DEPTH24_STENCIL8 = 0x88F0
-        /// </summary>
-        Depth24Stencil8 = ((int)0x88F0),
-        /// <summary>
         /// Original was GL_R11F_G11F_B10F = 0x8C3A
         /// </summary>
         R11fG11fB10f = ((int)0x8C3A),
-        /// <summary>
-        /// Original was GL_RGB9_E5 = 0x8C3D
-        /// </summary>
-        Rgb9E5 = ((int)0x8C3D),
-        /// <summary>
-        /// Original was GL_SRGB = 0x8C40
-        /// </summary>
-        Srgb = ((int)0x8C40),
         /// <summary>
         /// Original was GL_SRGB8 = 0x8C41
         /// </summary>
         Srgb8 = ((int)0x8C41),
         /// <summary>
-        /// Original was GL_SRGB_ALPHA = 0x8C42
-        /// </summary>
-        SrgbAlpha = ((int)0x8C42),
-        /// <summary>
         /// Original was GL_SRGB8_ALPHA8 = 0x8C43
         /// </summary>
         Srgb8Alpha8 = ((int)0x8C43),
-        /// <summary>
-        /// Original was GL_SLUMINANCE_ALPHA = 0x8C44
-        /// </summary>
-        SluminanceAlpha = ((int)0x8C44),
-        /// <summary>
-        /// Original was GL_SLUMINANCE8_ALPHA8 = 0x8C45
-        /// </summary>
-        Sluminance8Alpha8 = ((int)0x8C45),
-        /// <summary>
-        /// Original was GL_SLUMINANCE = 0x8C46
-        /// </summary>
-        Sluminance = ((int)0x8C46),
-        /// <summary>
-        /// Original was GL_SLUMINANCE8 = 0x8C47
-        /// </summary>
-        Sluminance8 = ((int)0x8C47),
         /// <summary>
         /// Original was GL_COMPRESSED_SRGB = 0x8C48
         /// </summary>
@@ -538,14 +202,6 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
         /// Original was GL_COMPRESSED_SRGB_ALPHA = 0x8C49
         /// </summary>
         CompressedSrgbAlpha = ((int)0x8C49),
-        /// <summary>
-        /// Original was GL_COMPRESSED_SLUMINANCE = 0x8C4A
-        /// </summary>
-        CompressedSluminance = ((int)0x8C4A),
-        /// <summary>
-        /// Original was GL_COMPRESSED_SLUMINANCE_ALPHA = 0x8C4B
-        /// </summary>
-        CompressedSluminanceAlpha = ((int)0x8C4B),
         /// <summary>
         /// Original was GL_COMPRESSED_SRGB_S3TC_DXT1_EXT = 0x8C4C
         /// </summary>
@@ -566,11 +222,6 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
         /// Original was GL_DEPTH_COMPONENT32F = 0x8CAC
         /// </summary>
         DepthComponent32f = ((int)0x8CAC),
-
-        /// <summary>
-        /// Original was GL_DEPTH32F_STENCIL8 = 0x8CAD
-        /// </summary>
-        Depth32fStencil8 = ((int)0x8CAD),
         /// <summary>
         /// Original was GL_RGBA32UI = 0x8D70
         /// </summary>
@@ -691,22 +342,6 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
         /// Original was GL_RGB10_A2UI = 0x906F
         /// </summary>
         Rgb10A2ui = ((int)0x906F),
-        /// <summary>
-        /// Original was GL_ONE = 1
-        /// </summary>
-        One = ((int)1),
-        /// <summary>
-        /// Original was GL_TWO = 2
-        /// </summary>
-        Two = ((int)2),
-        /// <summary>
-        /// Original was GL_THREE = 3
-        /// </summary>
-        Three = ((int)3),
-        /// <summary>
-        /// Original was GL_FOUR = 4
-        /// </summary>
-        Four = ((int)4),
     }
 
 }

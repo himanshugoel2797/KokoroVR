@@ -9,11 +9,10 @@ namespace Kokoro.Graphics
     public class BufferTexture : IDisposable, IMappedBuffer
     {
         private StorageBuffer ssbo;
-        private Texture tex;
+        private BufferView view;
 
         public StorageBuffer Buffer { get => ssbo; }
-        public TextureHandle Texture { get; private set; }
-        public ImageHandle Image { get; private set; }
+        public BufferView View { get => view; }
 
         public long Size => ((IMappedBuffer)this.ssbo).Size;
 
@@ -22,17 +21,9 @@ namespace Kokoro.Graphics
         public BufferTexture(long sz, PixelInternalFormat iFmt, bool stream)
         {
             ssbo = new StorageBuffer(sz, stream);
-            tex = new Texture();
-            tex.SetData(new BufferTextureSource(ssbo)
-            {
-                InternalFormat = iFmt
-            }, 0);
-
-            Texture = tex.GetHandle(TextureSampler.Default);
-            Image = tex.GetImageHandle(0, 0, iFmt);
-
-            Texture.SetResidency(Residency.Resident);
-            Image.SetResidency(Residency.Resident, AccessMode.ReadWrite);
+            view = new BufferView();
+            view.Format = iFmt;
+            view.Build(ssbo);
         }
 
         public unsafe byte* Update()
@@ -60,7 +51,7 @@ namespace Kokoro.Graphics
                 if (disposing)
                 {
                     // TODO: dispose managed state (managed objects).
-                    tex.Dispose();
+                    view.Dispose();
                 }
 
                 // TODO: free unmanaged resources (unmanaged objects) and override a finalizer below.

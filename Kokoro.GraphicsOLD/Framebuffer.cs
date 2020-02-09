@@ -29,8 +29,8 @@ namespace Kokoro.Graphics
             this.id = id;
         }
 
-        internal int id;
-        internal Dictionary<FramebufferAttachment, Texture> bindings;
+        private int id;
+        private Dictionary<FramebufferAttachment, TextureView> bindings;
 
         public int Width { get; private set; }
         public int Height { get; private set; }
@@ -41,7 +41,7 @@ namespace Kokoro.Graphics
             Height = height;
 
             GL.CreateFramebuffers(1, out id);
-            bindings = new Dictionary<FramebufferAttachment, Texture>();
+            bindings = new Dictionary<FramebufferAttachment, TextureView>();
             GraphicsDevice.Cleanup.Add(Dispose);
         }
 
@@ -50,19 +50,24 @@ namespace Kokoro.Graphics
             GL.BlitNamedFramebuffer(src.id, this.id, 0, 0, src.Width, src.Height, 0, 0, Width, Height, (blitColor ? ClearBufferMask.ColorBufferBit : 0) | (blitDepth ? ClearBufferMask.DepthBufferBit : 0), linearFilter ? BlitFramebufferFilter.Linear : BlitFramebufferFilter.Nearest);
         }
 
-        public Texture this[FramebufferAttachment attachment, CubeMapFace layer]
+        public static explicit operator int(Framebuffer f)
+        {
+            return f.id;
+        }
+
+        public TextureView this[FramebufferAttachment attachment, CubeMapFace layer]
         {
             set
             {
-                this[attachment, (int)layer] = value;
+                this[attachment, 0, (int)layer] = value;
             }
             get
             {
-                return this[attachment, (int)layer];
+                return this[attachment, 0, (int)layer];
             }
         }
 
-        public Texture this[FramebufferAttachment attachment, int layer]
+        public TextureView this[FramebufferAttachment attachment, int level, int layer]
         {
             set
             {
@@ -74,7 +79,7 @@ namespace Kokoro.Graphics
                 else
                 {
                     bindings[attachment] = value;
-                    GL.NamedFramebufferTextureLayer(id, (OpenTK.Graphics.OpenGL4.FramebufferAttachment)attachment, value.id, value.WriteLevel, layer);
+                    GL.NamedFramebufferTextureLayer(id, (OpenTK.Graphics.OpenGL4.FramebufferAttachment)attachment, (int)value, level, layer);
                 }
 
                 if (attachment != FramebufferAttachment.DepthAttachment)
@@ -96,7 +101,7 @@ namespace Kokoro.Graphics
             }
         }
 
-        public Texture this[FramebufferAttachment attachment]
+        public TextureView this[FramebufferAttachment attachment, int level]
         {
             set
             {
@@ -108,7 +113,41 @@ namespace Kokoro.Graphics
                 else
                 {
                     bindings[attachment] = value;
-                    GL.NamedFramebufferTexture(id, (OpenTK.Graphics.OpenGL4.FramebufferAttachment)attachment, value.id, value.WriteLevel);
+                    GL.NamedFramebufferTexture(id, (OpenTK.Graphics.OpenGL4.FramebufferAttachment)attachment, (int)value, level);
+                }
+
+                if (attachment != FramebufferAttachment.DepthAttachment)
+                {
+                    GL.NamedFramebufferDrawBuffers(id, bindings.Keys.Count,
+                        bindings.Keys.Except(new FramebufferAttachment[] { FramebufferAttachment.DepthAttachment })
+                        .OrderBy((a) => (int)a).Cast<DrawBuffersEnum>().ToArray());
+                }
+
+                if (GL.CheckNamedFramebufferStatus(id, FramebufferTarget.Framebuffer) != FramebufferStatus.FramebufferComplete)
+                {
+                    throw new Exception(GL.CheckNamedFramebufferStatus(id, FramebufferTarget.Framebuffer).ToString());
+                }
+            }
+            get
+            {
+                if (bindings.ContainsKey(attachment)) return bindings[attachment];
+                else return null;
+            }
+        }
+
+        public TextureView this[FramebufferAttachment attachment]
+        {
+            set
+            {
+                if (value == null)
+                {
+                    bindings.Remove(attachment);
+                    GL.NamedFramebufferTexture(id, (OpenTK.Graphics.OpenGL4.FramebufferAttachment)attachment, 0, 0);
+                }
+                else
+                {
+                    bindings[attachment] = value;
+                    GL.NamedFramebufferTexture(id, (OpenTK.Graphics.OpenGL4.FramebufferAttachment)attachment, (int)value, 0);
                 }
 
                 if (attachment != FramebufferAttachment.DepthAttachment)

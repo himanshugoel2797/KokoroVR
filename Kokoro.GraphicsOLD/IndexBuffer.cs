@@ -25,7 +25,7 @@ namespace Kokoro.Graphics
             is_short_idx = short_idx;
             this.buffer = buffer;
             varray = new VertexArray();
-            varray.SetElementBufferObject(Buffer.buf);
+            varray.SetElementBufferObject((GPUBuffer)Buffer);
         }
 
         public unsafe byte* Update()

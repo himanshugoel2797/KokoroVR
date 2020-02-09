@@ -17,7 +17,10 @@ namespace Kokoro.Graphics
         public int LayerCount { get => layerCount; set => layerCount = locked ? layerCount : value; }
 
         private int id;
+        private Texture t;
+        private ImageHandle imgHandle;
         private bool locked;
+
         public TextureView()
         {
             locked = false;
@@ -27,6 +30,7 @@ namespace Kokoro.Graphics
         {
             if (!locked)
             {
+                this.t = t;
                 GL.CreateTextures((OpenTK.Graphics.OpenGL4.TextureTarget)Target, 1, out id);
                 GL.TextureView(id, (OpenTK.Graphics.OpenGL4.TextureTarget)Target, (int)t, (OpenTK.Graphics.OpenGL4.PixelInternalFormat)Format, BaseLevel, LevelCount, BaseLayer, LayerCount);
 
@@ -34,6 +38,18 @@ namespace Kokoro.Graphics
             }
             else
                 throw new Exception("View is already locked.");
+        }
+
+        public ImageHandle GetImageHandle()
+        {
+            if (imgHandle == null)
+                imgHandle = new ImageHandle(GL.Arb.GetImageHandle(id, BaseLevel, false, BaseLayer, (OpenTK.Graphics.OpenGL4.PixelFormat)Format), this);
+            return imgHandle;
+        }
+
+        public static explicit operator int(TextureView v)
+        {
+            return v.id;
         }
 
         #region IDisposable Support

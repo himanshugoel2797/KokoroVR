@@ -11,7 +11,7 @@ namespace Kokoro.Graphics
     {
         public static TextureSampler Default { get; private set; } = new TextureSampler(0);
 
-        internal int id;
+        private int id;
         private int _maxReadLevel, _baseReadLevel;
         private bool locked = false;
 
@@ -52,6 +52,11 @@ namespace Kokoro.Graphics
         {
             locked = true;
             return GL.Arb.GetTextureSamplerHandle(tex, id);
+        }
+
+        public static explicit operator int(TextureSampler s)
+        {
+            return s.id;
         }
 
         public void SetTileMode(bool tileX)

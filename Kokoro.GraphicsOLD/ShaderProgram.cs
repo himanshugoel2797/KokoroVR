@@ -48,13 +48,6 @@ namespace Kokoro.Graphics
             GraphicsDevice.Cleanup.Add(Dispose);
         }
 
-
-        public void SetVaryings(params string[] varyings)
-        {
-            GL.TransformFeedbackVaryings(id, varyings.Length, varyings, TransformFeedbackMode.SeparateAttribs);
-            GL.LinkProgram(id);
-        }
-
         private int GetLoc(string name)
         {
             int loc = 0;
@@ -65,25 +58,6 @@ namespace Kokoro.Graphics
             }
             else loc = locs[name];
             return loc;
-        }
-
-        public void Set(string name, TextureHandle handle)
-        {
-            int loc = GetLoc(name);
-            if (loc >= 0) GL.Arb.ProgramUniformHandle(id, loc, handle);
-        }
-
-        public void Set(string name, ImageHandle handle)
-        {
-            int loc = GetLoc(name);
-            if (loc >= 0) GL.Arb.ProgramUniformHandle(id, loc, handle);
-        }
-
-        public void Set(string name, UniformBuffer ubo)
-        {
-            GPUStateMachine.BindBuffer(OpenTK.Graphics.OpenGL4.BufferTarget.UniformBuffer, ubo.buf.id, ubo.bindPoint, IntPtr.Zero, IntPtr.Zero);
-            int loc = GL.GetUniformBlockIndex(id, name);
-            GL.UniformBlockBinding(id, loc, ubo.bindPoint);
         }
 
         public int GetUniformBlockLocation(string name)
@@ -111,7 +85,6 @@ namespace Kokoro.Graphics
         public void Set(string name, Vector3 vec)
         {
             int loc = GetLoc(name);
-
             if (loc >= 0) GL.ProgramUniform3(id, loc, vec.X, vec.Y, vec.Z);
         }
 

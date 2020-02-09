@@ -1,6 +1,7 @@
 ﻿using OpenTK.Graphics.OpenGL;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.Contracts;
 using System.Linq;
 using System.Runtime.InteropServices;
 using System.Text;
@@ -111,7 +112,17 @@ namespace Kokoro.Graphics
             readyFence[curRung].PlaceFence();
         }
 
+        public static explicit operator GPUBuffer(UniformBuffer s)
+        {
+            Contract.Requires<ArgumentNullException>(s.buf != null);
+            return s.buf;
+        }
 
+        public static explicit operator int(UniformBuffer s)
+        {
+            Contract.Requires<ArgumentNullException>(s.buf != null);
+            return s.buf;
+        }
 
     }
 }

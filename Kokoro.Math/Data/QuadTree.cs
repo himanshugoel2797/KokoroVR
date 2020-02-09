@@ -49,9 +49,41 @@ namespace Kokoro.Math.Data
             }
         }
 
-        //Sample grid, isolevel is density after which surface is present
-        //Store 8 samples per grid, sharing samples
-        //Implement procedural generation algorithms in Kokoro.Native
+        public void Insert(Vector2 min, Vector2 max, T val)
+        {
+            var c = (Min + Max) * 0.5f;
+            if(max == Max && min == Min)
+            {
+                Value = val;
+                return;
+            }
+
+            if (IsLeaf)
+                Split();
+
+            if(min.X >= c.X)
+            {
+                if (min.Y >= c.Y)
+                {
+                    TopRight.Insert(min, max, val);
+                }
+                else
+                {
+                    BottomRight.Insert(min, max, val);
+                }
+            }
+            else
+            {
+                if(min.Y >= c.Y)
+                {
+                    TopLeft.Insert(min, max, val);
+                }
+                else
+                {
+                    BottomLeft.Insert(min, max, val);
+                }
+            }
+        }
 
         public void Split()
         {

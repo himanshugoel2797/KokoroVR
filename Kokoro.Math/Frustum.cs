@@ -16,7 +16,7 @@ namespace Kokoro.Math
             //inverse(v * p) applied to clip space vectors is then used to extract frustum planes
             //determine which side of each plane the sphere is on
             var iVP = Matrix4.Invert(v * p);
-            
+
             var ntl = Vector4.Transform(new Vector4(-1, 1, 1f, 1), iVP);
             var ntr = Vector4.Transform(new Vector4(1, 1, 1f, 1), iVP);
             var nbl = Vector4.Transform(new Vector4(-1, -1, 1f, 1), iVP);
@@ -67,6 +67,48 @@ namespace Kokoro.Math
             if (near_d > limit) return false;
 
             return !false;
+        }
+
+        private int CalcPlaneBox(Vector3 min, Vector3 max, Plane p)
+        {
+            Vector3 vmi = Vector3.Zero;
+
+            Vector3 a = new Vector3(min.X, min.Y, min.Z);
+            Vector3 b = new Vector3(max.X, min.Y, min.Z);
+            Vector3 c = new Vector3(min.X, max.Y, min.Z);
+            Vector3 d = new Vector3(max.X, max.Y, min.Z);
+            Vector3 e = new Vector3(min.X, min.Y, max.Z);
+            Vector3 f = new Vector3(max.X, min.Y, max.Z);
+            Vector3 g = new Vector3(min.X, max.Y, max.Z);
+            Vector3 h = new Vector3(max.X, max.Y, max.Z);
+
+            int o = 0;
+            o += (PlaneHelper.ClassifyPoint(ref a, ref p) < 0.0f) ? 1 : 0;
+            o += (PlaneHelper.ClassifyPoint(ref b, ref p) < 0.0f) ? 1 : 0;
+            o += (PlaneHelper.ClassifyPoint(ref c, ref p) < 0.0f) ? 1 : 0;
+            o += (PlaneHelper.ClassifyPoint(ref d, ref p) < 0.0f) ? 1 : 0;
+            o += (PlaneHelper.ClassifyPoint(ref e, ref p) < 0.0f) ? 1 : 0;
+            o += (PlaneHelper.ClassifyPoint(ref f, ref p) < 0.0f) ? 1 : 0;
+            o += (PlaneHelper.ClassifyPoint(ref g, ref p) < 0.0f) ? 1 : 0;
+            o += (PlaneHelper.ClassifyPoint(ref h, ref p) < 0.0f) ? 1 : 0;
+            if (o == 8) return 0;
+
+            return 1;
+        }
+
+        public bool IsVisible(Vector3 min, Vector3 max)
+        {
+            if (CalcPlaneBox(min, max, lft) == 0)
+                return false;
+            if (CalcPlaneBox(min, max, rgt) == 0)
+                return false;
+            if (CalcPlaneBox(min, max, top) == 0)
+                return false;
+            if (CalcPlaneBox(min, max, btm) == 0)
+                return false;
+            if (CalcPlaneBox(min, max, near) == 0)
+                return false;
+            return true;
         }
     }
 }
