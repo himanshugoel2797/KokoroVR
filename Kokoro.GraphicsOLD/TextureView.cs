@@ -26,7 +26,7 @@ namespace Kokoro.Graphics
             locked = false;
         }
 
-        public void CreateView(Texture t)
+        public TextureView Build(Texture t)
         {
             if (!locked)
             {
@@ -38,6 +38,7 @@ namespace Kokoro.Graphics
             }
             else
                 throw new Exception("View is already locked.");
+            return this;
         }
 
         public ImageHandle GetImageHandle()

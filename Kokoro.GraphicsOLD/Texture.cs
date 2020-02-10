@@ -24,11 +24,17 @@ namespace Kokoro.Graphics
     {
         internal long hndl = 0;
         internal TextureView parent;
+        internal BufferView bufView;
 
         internal ImageHandle(long hndl, TextureView parent)
         {
             this.hndl = hndl;
             this.parent = parent;
+        }
+        internal ImageHandle(long hndl, BufferView parent)
+        {
+            this.hndl = hndl;
+            this.bufView = parent;
         }
 
         public ImageHandle SetResidency(Residency residency, AccessMode m)
@@ -48,6 +54,7 @@ namespace Kokoro.Graphics
     {
         internal long hndl = 0;
         internal TextureView parent;
+        internal BufferView bufferView;
         private bool isResident = false;
 
         public TextureSampler Sampler { get; private set; }
@@ -57,6 +64,11 @@ namespace Kokoro.Graphics
             this.hndl = hndl;
             this.parent = parent;
             this.Sampler = sampler;
+        }
+        internal TextureHandle(long hndl, BufferView parent)
+        {
+            this.hndl = hndl;
+            this.bufferView = parent;
         }
 
         public TextureHandle SetResidency(Residency residency)
@@ -110,7 +122,7 @@ namespace Kokoro.Graphics
             GraphicsDevice.Cleanup.Add(Dispose);
         }
 
-        public virtual void Build()
+        public virtual Texture Build()
         {
             if (id == 0)
             {
@@ -133,6 +145,7 @@ namespace Kokoro.Graphics
                         break;
                 }
             }
+            return this;
         }
 
         public static explicit operator int(Texture t)

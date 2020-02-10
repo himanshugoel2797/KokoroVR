@@ -11,7 +11,7 @@ namespace KokoroVR.Graphics.Voxel
     {
         public const int SideLog = 5;
         public const int Side = (1 << SideLog);
-        public const int DictionaryLen = 255;
+        public const int DictionaryLen = (1 << 16) - 1;
         public const int WavefrontSize = 64;
         public const int BlockSize = WavefrontSize * 3 * 6;
 

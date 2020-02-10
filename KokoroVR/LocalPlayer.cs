@@ -93,17 +93,17 @@ namespace KokoroVR
             this.Up = Vector3.UnitY;
         }
 
-        public override void GetControl(string name, out VRClient.AnalogData val)
+        public override void GetControl(string name, out AnalogData val)
         {
             throw new NotImplementedException();
         }
 
-        public override void GetControl(string name, out VRClient.DigitalData val)
+        public override void GetControl(string name, out DigitalData val)
         {
             throw new NotImplementedException();
         }
 
-        public override void GetControl(string name, out VRClient.PoseData val)
+        public override void GetControl(string name, out PoseData val)
         {
             throw new NotImplementedException();
         }

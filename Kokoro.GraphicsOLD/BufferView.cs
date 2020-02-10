@@ -13,12 +13,13 @@ namespace Kokoro.Graphics
 
         private bool locked;
         private int id;
+        private ImageHandle imgHandle;
+        private TextureHandle texHandle;
 
-        public BufferView() {
+        public BufferView()
+        {
             locked = false;
         }
-
-        //TODO Add handle management
 
         public void Build(StorageBuffer buf)
         {
@@ -28,6 +29,25 @@ namespace Kokoro.Graphics
                 GL.TextureBuffer(id, (SizedInternalFormat)Format, (GPUBuffer)buf);
                 locked = true;
             }
+        }
+
+        public ImageHandle GetImageHandle()
+        {
+            if (imgHandle == null)
+                imgHandle = new ImageHandle(GL.Arb.GetImageHandle(id, 0, false, 0, (OpenTK.Graphics.OpenGL4.PixelFormat)Format), this);
+            return imgHandle;
+        }
+
+        public TextureHandle GetTextureHandle()
+        {
+            if (texHandle == null)
+                texHandle = new TextureHandle(GL.Arb.GetTextureHandle(id), this);
+            return texHandle;
+        }
+
+        public static explicit operator int(BufferView v)
+        {
+            return v.id;
         }
 
         #region IDisposable Support

@@ -20,10 +20,8 @@ namespace KokoroVR
         private List<ControlInterpreter> _interpreterList;
         private int maxLights;
 
-        public DeferredRenderer Renderer { get; protected set; }
         public Action Initializer { get; set; }
-        public StaticMeshRenderer StaticMeshRenderer { get; protected set; }
-        public DynamicMeshRenderer DynamicMeshRenderer { get; protected set; }
+        public DeferredRenderer Renderer { get; protected set; }
         public LightManager LightManager { get; protected set; }
         public PhysicsWorld Physics { get; protected set; }
         public string Name { get; private set; }
@@ -67,16 +65,14 @@ namespace KokoroVR
             var v = Engine.View.Select(a => Engine.CurrentPlayer.Pose * a).ToArray();
             var p = Engine.Projection;
 
-            StaticMeshRenderer.SetMatrices(p, v);
             for (int i = 0; i < Engine.Framebuffers.Length; i++)
             {
                 foreach (var r in ControlInterpreters)
-                    r.Render(time, Renderer.Framebuffers[i], StaticMeshRenderer, DynamicMeshRenderer, (i == 0) ? VREye.Left : VREye.Right, VRHand.Get(i));
+                    r.Render(time, Renderer.Framebuffers[i], (i == 0) ? VREye.Left : VREye.Right, VRHand.Get(i));
 
                 foreach (var r in Interactables)
-                    r.Render(time, Renderer.Framebuffers[i], StaticMeshRenderer, DynamicMeshRenderer, (i == 0) ? VREye.Left : VREye.Right);
+                    r.Render(time, Renderer.Framebuffers[i], (i == 0) ? VREye.Left : VREye.Right);
             }
-            StaticMeshRenderer.Submit();
             Renderer.Submit(v, p, Engine.CurrentPlayer.Position);
             Engine.Submit();
 
@@ -98,6 +94,7 @@ namespace KokoroVR
             Physics.Update(time);
         }
 
+        //Deferred Renderer Rework - New GBuffer - 16 bits: material ID, 2 bits: NIndex, 30 bits: chunk ID, 1 bits: NSign, 15 bits: voxel ID
         public virtual void Enter(StateManager man, IState prev)
         {
             WorldManager = man;
@@ -107,12 +104,6 @@ namespace KokoroVR
 
             if (Renderer == null)
                 Renderer = new DeferredRenderer(Engine.Framebuffers, LightManager);
-
-            if (StaticMeshRenderer == null)
-                StaticMeshRenderer = new StaticMeshRenderer(50000, Renderer);
-
-            if (DynamicMeshRenderer == null)
-                DynamicMeshRenderer = new DynamicMeshRenderer();
 
             if (Initializer != null)
                 Initializer();

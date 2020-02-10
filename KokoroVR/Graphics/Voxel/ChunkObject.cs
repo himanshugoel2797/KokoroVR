@@ -91,7 +91,7 @@ namespace KokoroVR.Graphics.Voxel
             return null;
         }
 
-        public override void Render(double time, Framebuffer fbuf, StaticMeshRenderer staticMesh, DynamicMeshRenderer dynamicMesh, VREye eye)
+        public override void Render(double time, Framebuffer fbuf, VREye eye)
         {
             foreach (var coord_chunk_pair in ChunkSet)
             {

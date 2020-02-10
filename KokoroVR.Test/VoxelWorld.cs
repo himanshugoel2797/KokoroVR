@@ -11,39 +11,12 @@ using System.Threading.Tasks;
 
 namespace KokoroVR.Test
 {
-    class StaticRenderable : Interactable
-    {
-        private Mesh mesh;
-        private TextureHandle def_handle;
-        private Vector3 rots;
-        public StaticRenderable(Mesh m)
-        {
-            mesh = m;
-            def_handle = Texture.Default.GetHandle(TextureSampler.Default);
-            def_handle.SetResidency(Residency.Resident);
-        }
-
-        public override void Render(double time, Framebuffer fbuf, StaticMeshRenderer staticMesh, DynamicMeshRenderer dynamicMesh, VREye eye)
-        {
-            staticMesh.DrawC(mesh, Matrix4.CreateRotationX(MathHelper.DegreesToRadians(rots.X)) * Matrix4.CreateRotationY(MathHelper.DegreesToRadians(rots.Y)) * Matrix4.CreateRotationZ(MathHelper.DegreesToRadians(rots.Z)) * Matrix4.CreateTranslation(Vector3.UnitX * 2), def_handle);
-        }
-
-        public override void Update(double time, World parent)
-        {
-            rots.X += 0.01f;
-            rots.Y += 0.01f;
-            rots.Z += 0.01f;
-        }
-    }
-
     public class VoxelWorld : World
     {
         public VoxelWorld(string name, int maxLights) : base(name, maxLights)
         {
             Initializer = () =>
             {
-                MeshGroup grp = new MeshGroup(MeshGroupVertexFormat.X32F_Y32F_Z32F, 40000, 40000);
-
                 LightManager.AddLight(new Graphics.Lights.PointLight()
                 {
                     Color = Vector3.One,
@@ -53,8 +26,7 @@ namespace KokoroVR.Test
                 });
 
                 var green = new Vector3(0x7e, 0xc8, 0x50) / 255.0f;
-                GIMapRenderer gIMapRenderer = new GIMapRenderer();
-                ChunkStreamer chunkStreamer = new ChunkStreamer(1 << 16, gIMapRenderer, this.Renderer);
+                ChunkStreamer chunkStreamer = new ChunkStreamer(1 << 16, this.Renderer);
                 var mat_id = chunkStreamer.MaterialMap.Register(green, green * 0.25f, 0.9f);
                 ChunkObject obj = new ChunkObject(chunkStreamer);
 
