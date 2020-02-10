@@ -8,8 +8,8 @@ namespace Kokoro.Graphics
 {
     public class BufferTexture : IDisposable, IMappedBuffer
     {
-        private StorageBuffer ssbo;
-        private BufferView view;
+        private readonly StorageBuffer ssbo;
+        private readonly BufferView view;
 
         public StorageBuffer Buffer { get => ssbo; }
         public BufferView View { get => view; }
@@ -21,8 +21,10 @@ namespace Kokoro.Graphics
         public BufferTexture(long sz, PixelInternalFormat iFmt, bool stream)
         {
             ssbo = new StorageBuffer(sz, stream);
-            view = new BufferView();
-            view.Format = iFmt;
+            view = new BufferView
+            {
+                Format = iFmt
+            };
             view.Build(ssbo);
         }
 

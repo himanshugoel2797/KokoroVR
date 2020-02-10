@@ -31,28 +31,21 @@ namespace Kokoro.Math.Data
 
         public QuadTree<T> this[int idx]
         {
-            get
-            {
-                switch (idx)
+            get =>
+                idx switch
                 {
-                    case 0:
-                        return TopLeft;
-                    case 1:
-                        return TopRight;
-                    case 2:
-                        return BottomLeft;
-                    case 3:
-                        return BottomRight;
-                    default:
-                        throw new IndexOutOfRangeException();
-                }
-            }
+                    0 => TopLeft,
+                    1 => TopRight,
+                    2 => BottomLeft,
+                    3 => BottomRight,
+                    _ => throw new IndexOutOfRangeException()
+                };
         }
 
         public void Insert(Vector2 min, Vector2 max, T val)
         {
             var c = (Min + Max) * 0.5f;
-            if(max == Max && min == Min)
+            if (max == Max && min == Min)
             {
                 Value = val;
                 return;
@@ -61,7 +54,7 @@ namespace Kokoro.Math.Data
             if (IsLeaf)
                 Split();
 
-            if(min.X >= c.X)
+            if (min.X >= c.X)
             {
                 if (min.Y >= c.Y)
                 {
@@ -74,7 +67,7 @@ namespace Kokoro.Math.Data
             }
             else
             {
-                if(min.Y >= c.Y)
+                if (min.Y >= c.Y)
                 {
                     TopLeft.Insert(min, max, val);
                 }

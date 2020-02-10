@@ -14,7 +14,7 @@ namespace Kokoro.Graphics.Profiling
         static Session cur_session;
         static Pass cur_pass;
         static StreamWriter logFile;
-        static List<(string, int, double, TimestampReader)> sample_names;
+        static readonly List<(string, int, double, TimestampReader)> sample_names;
 
         static int multidrawindirectCount_idx = 0;
         static int compute_idx = 0;
@@ -156,13 +156,13 @@ namespace Kokoro.Graphics.Profiling
                         for (int i = 0; i < results[0].Counters.Length; i++)
                             hdr += results[0].Counters[i].Name + ",";
 
-                        hdr = hdr.Substring(0, hdr.Length - 1);
+                        hdr = hdr[0..^1];
                         logFile.WriteLine(hdr);
 
                         hdr = "String,Nanoseconds,Nanoseconds,Nanoseconds,";
                         for (int i = 0; i < results[0].Counters.Length; i++)
                             hdr += results[0].Counters[i].Usage + ",";
-                        hdr = hdr.Substring(0, hdr.Length - 1);
+                        hdr = hdr[0..^1];
                         logFile.WriteLine(hdr);
                     }
 
@@ -179,14 +179,14 @@ namespace Kokoro.Graphics.Profiling
                             }
                         if (sample_names[i].Item2 != -1) res_idx++;
 
-                        str = str.Substring(0, str.Length - 1);
+                        str = str[0..^1];
                         logFile.WriteLine(str);
                     }
 
                     var str2 = $"FrameEnd,{ticks * 1000000000.0f / Stopwatch.Frequency},{p.Timestamp() + latency}," + latency + ",";
                     for (int i = 0; i < results[0].Counters.Length; i++)
                         str2 += ",";
-                    str2 = str2.Substring(0, str2.Length - 1);
+                    str2 = str2[0..^1];
                     logFile.WriteLine(str2);
                 }
                 cur_session.Dispose();

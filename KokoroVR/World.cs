@@ -16,9 +16,9 @@ namespace KokoroVR
     /// </summary>
     public class World : IState
     {
-        private List<Interactable> _interactableList;
-        private List<ControlInterpreter> _interpreterList;
-        private int maxLights;
+        private readonly List<Interactable> _interactableList;
+        private readonly List<ControlInterpreter> _interpreterList;
+        private readonly int maxLights;
 
         public Action Initializer { get; set; }
         public DeferredRenderer Renderer { get; protected set; }
@@ -106,8 +106,7 @@ namespace KokoroVR
                 Renderer = new DeferredRenderer(Engine.Framebuffers, LightManager);
             Engine.DeferredRenderer = Renderer;
 
-            if (Initializer != null)
-                Initializer();
+            Initializer?.Invoke();
         }
 
         public virtual void Exit(IState next)

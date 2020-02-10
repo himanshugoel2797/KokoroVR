@@ -71,8 +71,6 @@ namespace Kokoro.Math
 
         private int CalcPlaneBox(Vector3 min, Vector3 max, Plane p)
         {
-            Vector3 vmi = Vector3.Zero;
-
             Vector3 a = new Vector3(min.X, min.Y, min.Z);
             Vector3 b = new Vector3(max.X, min.Y, min.Z);
             Vector3 c = new Vector3(min.X, max.Y, min.Z);

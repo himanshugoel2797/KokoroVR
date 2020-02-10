@@ -15,6 +15,7 @@ namespace Kokoro.Graphics
         {
             TexUpload,
             Clear,
+            Invalidate,
             SetState,
             Draw,
             DrawIndexed,
@@ -68,7 +69,7 @@ namespace Kokoro.Graphics
             public BarrierType BarrierType { get; set; }
         }
 
-        List<CommandEntry> Commands;
+        private readonly List<CommandEntry> Commands;
 
         public CommandBuffer()
         {
@@ -100,6 +101,14 @@ namespace Kokoro.Graphics
                 Type = CommandType.Clear,
                 ClearColorBuffer = color,
                 ClearDepthBuffer = depth
+            });
+        }
+
+        public void Invalidate()
+        {
+            Commands.Add(new CommandEntry()
+            {
+                Type = CommandType.Invalidate
             });
         }
 
@@ -225,6 +234,11 @@ namespace Kokoro.Graphics
                     case CommandType.Clear:
                         {
                             GL.Clear((c.ClearColorBuffer ? ClearBufferMask.ColorBufferBit : 0) | (c.ClearDepthBuffer ? ClearBufferMask.DepthBufferBit : 0));
+                        }
+                        break;
+                    case CommandType.Invalidate:
+                        {
+                            GraphicsDevice.Framebuffer.Invalidate();
                         }
                         break;
                     case CommandType.TexUpload:

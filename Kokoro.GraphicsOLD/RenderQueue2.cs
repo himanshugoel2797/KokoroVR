@@ -17,11 +17,10 @@ namespace Kokoro.Graphics
     public class RenderQueue2
     {
 
-        private List<MeshData> MeshGroups;
-        private ulong MeshGroupOffset;
-        private uint maxDrawCount = 0;
-        private bool transient;
-        private IndexType idxType;
+        private readonly List<MeshData> MeshGroups;
+        private readonly uint maxDrawCount = 0;
+        private readonly bool transient;
+        private readonly IndexType idxType;
 
         public bool ClearFramebufferBeforeSubmit { get; set; } = false;
         public StorageBuffer MultidrawParams { get; }
@@ -63,10 +62,7 @@ namespace Kokoro.Graphics
 
                 //Start computing and writing all the data
                 uint* data_ui = (uint*)data;
-
                 float* data_ui_fp = (float*)data_ui;
-
-                MeshGroupOffset = (ulong)data_ui - (ulong)data;
 
                 //Index 0 contains the draw count, so all the draw commands themselves are at an offset of 1
                 int idx = 0;

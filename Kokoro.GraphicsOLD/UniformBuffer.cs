@@ -15,7 +15,7 @@ namespace Kokoro.Graphics
         private static int freebindPoint = 0;
         private static int maxBindPoints = 0;
 
-        private static int getFreeBindPoint()
+        private static int GetFreeBindPoint()
         {
             if (freebindPoint >= maxBindPoints)
                 throw new Exception("Too many UBOs!");
@@ -66,7 +66,7 @@ namespace Kokoro.Graphics
         {
             this.dynamic = dynamic;
             buf = new GPUBuffer(BufferUsage.UniformBuffer, (ulong)UniformBufferSize, false);
-            bindPoint = getFreeBindPoint();
+            bindPoint = GetFreeBindPoint();
 
             readyFence = new Fence[dynamic ? rungs : 1];
             for (int i = 0; i < readyFence.Length; i++)

@@ -50,6 +50,12 @@ namespace Kokoro.Graphics
             GL.BlitNamedFramebuffer(src.id, this.id, 0, 0, src.Width, src.Height, 0, 0, Width, Height, (blitColor ? ClearBufferMask.ColorBufferBit : 0) | (blitDepth ? ClearBufferMask.DepthBufferBit : 0), linearFilter ? BlitFramebufferFilter.Linear : BlitFramebufferFilter.Nearest);
         }
 
+        public void Invalidate()
+        {
+            GL.InvalidateNamedFramebufferData(id, bindings.Count, bindings.Keys.Except(new FramebufferAttachment[] { FramebufferAttachment.DepthAttachment })
+                        .OrderBy((a) => (int)a).Cast<OpenTK.Graphics.OpenGL4.FramebufferAttachment>().ToArray());
+        }
+
         public static explicit operator int(Framebuffer f)
         {
             return f.id;
@@ -87,7 +93,7 @@ namespace Kokoro.Graphics
                     GL.NamedFramebufferDrawBuffers(id, bindings.Keys.Count,
                         bindings.Keys.Except(new FramebufferAttachment[] { FramebufferAttachment.DepthAttachment })
                         .OrderBy((a) => (int)a).Cast<DrawBuffersEnum>().ToArray());
-                } 
+                }
 
                 if (GL.CheckNamedFramebufferStatus(id, FramebufferTarget.Framebuffer) != FramebufferStatus.FramebufferComplete)
                 {

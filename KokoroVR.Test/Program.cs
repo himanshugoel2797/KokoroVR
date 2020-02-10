@@ -14,7 +14,7 @@ namespace KokoroVR.Test
     {
 
 
-        static void Main(string[] args)
+        static void Main()
         {
             Engine.Initialize(ExperienceKind.Standing);
             Engine.LogMetrics = false;

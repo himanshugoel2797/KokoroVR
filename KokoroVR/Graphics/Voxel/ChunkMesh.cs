@@ -59,7 +59,6 @@ namespace KokoroVR.Graphics.Voxel
         public (int, uint)[] Sort(Frustum f, Vector3 eyePos)
         {
             var blocks = new List<(int, uint)>();
-            long cnt = 0;
             uint last_blk_len = (uint)(Length - (AllocIndices.Length - 1) * BlockSize);
 
             for (int i = 0; i < AllocIndices.Length; i++)

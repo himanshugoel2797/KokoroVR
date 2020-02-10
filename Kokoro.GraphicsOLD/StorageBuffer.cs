@@ -11,7 +11,7 @@ namespace Kokoro.Graphics
 {
     public class StorageBuffer : IMappedBuffer
     {
-        private static int alignmentRequirement = 0;
+        private static readonly int alignmentRequirement = 0;
         static StorageBuffer()
         {
             alignmentRequirement = GL.GetInteger((GetPName)All.ShaderStorageBufferOffsetAlignment);
@@ -20,11 +20,11 @@ namespace Kokoro.Graphics
         const int rungs = 3;
 
         internal int curRung = 0;
-        private GPUBuffer buf;
-        internal Fence[] readyFence;
-        internal ulong size;
+        private readonly GPUBuffer buf;
+        internal readonly Fence[] readyFence;
+        internal readonly ulong size;
 
-        bool stream = false;
+        readonly bool stream = false;
 
         public long Size
         {
