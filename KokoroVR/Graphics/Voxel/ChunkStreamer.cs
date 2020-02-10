@@ -160,10 +160,8 @@ namespace KokoroVR.Graphics.Voxel
             cur_eye = eye;
 
             Draws.Clear();
-            voxelShader.Set("eyePos", Engine.CurrentPlayer.Position);
-            voxelShader.Set("ViewProj", Engine.View[(int)eye] * Engine.Projection[(int)eye]);
-            voxelShader.Set("curLayer", 0);
-            state = new RenderState(fbuf, voxelShader, new StorageBuffer[] { MaterialMap.voxelData, drawParams }, null, true, true, DepthFunc.Greater, InverseDepth.Far, InverseDepth.Near, BlendFactor.One, BlendFactor.Zero, Vector4.Zero, InverseDepth.ClearDepth, CullFaceMode.Back, indexBuffer);
+            voxelShader.Set("EyeIdx", (int)eye);
+            state = new RenderState(fbuf, voxelShader, new StorageBuffer[] { MaterialMap.voxelData, drawParams }, new UniformBuffer[] { Engine.GlobalParameters }, true, true, DepthFunc.Greater, InverseDepth.Far, InverseDepth.Near, BlendFactor.One, BlendFactor.Zero, Vector4.Zero, InverseDepth.ClearDepth, CullFaceMode.Back, indexBuffer);
             queue.Clear();
         }
 

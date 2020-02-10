@@ -8,6 +8,8 @@ using Kokoro.Common.StateMachine;
 using Kokoro.Math;
 using Kokoro.Graphics.Profiling;
 using KokoroVR.Input;
+using KokoroVR.Graphics;
+using System.Runtime.InteropServices;
 
 namespace KokoroVR
 {
@@ -18,11 +20,14 @@ namespace KokoroVR
 #endif
         private static StateManager stateMachine;
 
+        public static int EyeCount { get => GraphicsDevice.EyeCount; private set => GraphicsDevice.EyeCount = value; }
         public static Framebuffer[] Framebuffers { get; private set; }
         public static Matrix4[] Projection { get; private set; }
         public static Matrix4[] View { get; private set; }
         public static Frustum[] Frustums { get; private set; }
         public static LocalPlayer CurrentPlayer { get; private set; }
+        public static DeferredRenderer DeferredRenderer { get; set; }
+        public static UniformBuffer GlobalParameters { get; set; }
         public static bool LogMetrics { get { return GenericMetrics.MetricsEnabled; } set { GenericMetrics.MetricsEnabled = value; } }
         public static bool LogAMDMetrics { get { return PerfAPI.MetricsEnabled; } set { PerfAPI.MetricsEnabled = value; } }
         public static Action<int, int> WindowResized { get { return GraphicsDevice.Resized; } set { GraphicsDevice.Resized = value; } }
@@ -38,6 +43,7 @@ namespace KokoroVR
         {
 #if VR
             HMDClient = VRClient.Create(kind);
+            EyeCount = 2;
             Projection = new Matrix4[]
             {
                 HMDClient.GetEyeProjection(VRHand.Left, 0.01f),
@@ -61,6 +67,7 @@ namespace KokoroVR
             iMeshGroup = new MeshGroup(MeshGroupVertexFormat.X32F_Y32F_Z32F, 256, 256);
             CurrentPlayer = new LocalPlayer(HMDClient);
 #else
+            EyeCount = 1;
             Keyboard = new Keyboard();
             CurrentPlayer = new LocalPlayer();
             CurrentPlayer.Position = Vector3.UnitX * -10; //new Vector3(0.577f, 0.577f, 0.577f) * 20;
@@ -81,6 +88,7 @@ namespace KokoroVR
                 Framebuffer.Default
             };
 #endif
+            GlobalParameters = new UniformBuffer(false);
         }
 
         public static void SetupControllers(string file, params VRActionSet[] actions)
@@ -96,8 +104,70 @@ namespace KokoroVR
             Keyboard.Update();
         }
 
+        private static void ParamsUpdate(double time)
+        {
+            unsafe
+            {
+                float* p = (float*)GlobalParameters.Update();
+                int off = 0;
+
+                for (int i = 0; i < Engine.EyeCount; i++)
+                {
+                    var f = (float[])Projection[i];
+                    for (int j = 0; j < f.Length; j++)
+                        p[off++] = f[j];
+                }
+
+                for (int i = 0; i < Engine.EyeCount; i++)
+                {
+                    var f = (float[])View[i];
+                    for (int j = 0; j < f.Length; j++)
+                        p[off++] = f[j];
+                }
+
+                for (int i = 0; i < Engine.EyeCount; i++)
+                {
+                    var f = (float[])(View[i] * Projection[i]);
+                    for (int j = 0; j < f.Length; j++)
+                        p[off++] = f[j];
+                }
+
+                for (int i = 0; i < Engine.EyeCount; i++)
+                {
+                    var f = (float[])(DeferredRenderer?.InfoBindings[i].GetTextureHandle());
+                    for (int j = 0; j < f.Length; j++)
+                        p[off++] = f[j];
+                }
+
+                for (int i = 0; i < Engine.EyeCount; i++)
+                {
+                    var f = (float[])(DeferredRenderer?.DepthBindings[i].GetTextureHandle());
+                    for (int j = 0; j < f.Length; j++)
+                        p[off++] = f[j];
+                }
+
+                p[off++] = CurrentPlayer.Position.X;
+                p[off++] = CurrentPlayer.Position.Y;
+                p[off++] = CurrentPlayer.Position.Z;
+                p[off++] = 0;
+
+                p[off++] = CurrentPlayer.Up.X;
+                p[off++] = CurrentPlayer.Up.Y;
+                p[off++] = CurrentPlayer.Up.Z;
+                p[off++] = 0;
+
+                p[off++] = CurrentPlayer.Direction.X;
+                p[off++] = CurrentPlayer.Direction.Y;
+                p[off++] = CurrentPlayer.Direction.Z;
+                p[off++] = 0;
+
+                GlobalParameters.UpdateDone();
+            }
+        }
+
         public static void Start()
         {
+            GraphicsDevice.Update = ParamsUpdate + GraphicsDevice.Update;
             GraphicsDevice.Update = CurrentPlayer.Update + GraphicsDevice.Update;
             GraphicsDevice.Update = InputUpdate + GraphicsDevice.Update;
             GraphicsDevice.ClearColor = new Vector4(0, 0.5f, 1.0f, 0.0f);

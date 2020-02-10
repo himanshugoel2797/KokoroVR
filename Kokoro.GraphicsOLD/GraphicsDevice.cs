@@ -132,6 +132,8 @@ namespace Kokoro.Graphics
             }
         }
 
+        public static int EyeCount { get; set; }
+
         static bool wframe = false;
         public static bool Wireframe
         {
@@ -652,7 +654,7 @@ namespace Kokoro.Graphics
             GL.ClipControl(ClipOrigin.LowerLeft, ClipDepthMode.ZeroToOne);
             //Input.LowLevel.InputLL.SetWinXY(game.Location.X, game.Location.Y, game.ClientSize.Width, game.ClientSize.Height);
             Framebuffer.RecreateDefaultFramebuffer();
-            Resized(Window.ClientSize.Width, Window.ClientSize.Height);
+            Resized?.Invoke(Window.ClientSize.Width, Window.ClientSize.Height);
         }
 
         public static void SetViewport(int idx, float x, float y, float width, float height)

@@ -20,6 +20,8 @@ namespace KokoroVR.Graphics
         }
 
         public Framebuffer[] Framebuffers { get; }
+        public TextureBinding[] InfoBindings { get; private set; }
+        public TextureBinding[] DepthBindings { get; private set; }
 
         private LightManager lMan;
         private CommandBuffer cBuffer;
@@ -39,7 +41,9 @@ namespace KokoroVR.Graphics
             Framebuffers = fbufs;
             lMan = man;
             cBuffer = new CommandBuffer();
-            
+
+            InfoBindings = new TextureBinding[fbufs.Length];
+            DepthBindings = new TextureBinding[fbufs.Length];
             views = new ViewData[fbufs.Length];
             for (int i = 0; i < views.Length; i++)
             {
@@ -94,12 +98,25 @@ namespace KokoroVR.Graphics
                 views[i].gbuffer[FramebufferAttachment.DepthAttachment] = views[i].depthView;
 
                 views[i].program = new ShaderProgram(
-                    ShaderSource.Load(ShaderType.VertexShader, "RenderToTexture/FrameBufferTriangle/vertex.glsl"), 
-                    ShaderSource.Load(ShaderType.FragmentShader, "RenderToTexture/FrameBufferTriangle/fragment.glsl")
+                    ShaderSource.Load(ShaderType.VertexShader, "Shaders\\RenderToTexture\\FrameBufferTriangle\\vertex.glsl"),
+                    ShaderSource.Load(ShaderType.FragmentShader, "Shaders\\RenderToTexture\\FrameBufferTriangle\\fragment.glsl")
                     );
 
-                views[i].state = new RenderState(fbufs[i], views[i].program, null, null, false, true, DepthFunc.Always, InverseDepth.Far, InverseDepth.Near, BlendFactor.SrcAlpha, BlendFactor.OneMinusSrcAlpha, Vector4.Zero, InverseDepth.ClearDepth, CullFaceMode.None);
-                //Set the appropriate texture handles in a ubo
+                views[i].state = new RenderState(fbufs[i], views[i].program, null, new UniformBuffer[] { Engine.GlobalParameters }, false, true, DepthFunc.Always, InverseDepth.Far, InverseDepth.Near, BlendFactor.SrcAlpha, BlendFactor.OneMinusSrcAlpha, Vector4.Zero, InverseDepth.ClearDepth, CullFaceMode.None);
+                
+                InfoBindings[i] = new TextureBinding()
+                {
+                    View = views[i].infoView,
+                    Sampler = TextureSampler.Default
+                };
+                InfoBindings[i].GetTextureHandle().SetResidency(Residency.Resident);
+
+                DepthBindings[i] = new TextureBinding()
+                {
+                    View = views[i].depthView,
+                    Sampler = TextureSampler.Default,
+                };
+                DepthBindings[i].GetTextureHandle().SetResidency(Residency.Resident);
 
                 cBuffer.SetRenderState(views[i].state);
                 cBuffer.Draw(PrimitiveType.Triangles, 0, 3, 1, 0);
@@ -113,7 +130,6 @@ namespace KokoroVR.Graphics
 
         public void Submit(Matrix4[] v, Matrix4[] p, Vector3 position)
         {
-            //Set v[], p[] and position in uniform buffers
             cBuffer.Submit();
         }
     }

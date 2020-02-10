@@ -1,0 +1,26 @@
+//VertexShader
+#version 460 core
+#extension GL_ARB_gpu_shader_int64 : require
+#extension GL_AMD_gpu_shader_half_float : require
+#extension GL_AMD_gpu_shader_half_float_fetch : require
+#extension GL_AMD_gpu_shader_int16 : require
+#extension GL_ARB_shader_ballot : require
+#extension GL_ARB_bindless_texture : require
+#extension GL_AMD_vertex_shader_viewport_index : require
+#extension GL_ARB_shader_draw_parameters : require
+#define MAX_DRAWS_UBO 256
+#define MAX_DRAWS_SSBO 1024
+#define PI 3.141592653589793
+#define EYECOUNT 1
+// Output data ; will be interpolated for each fragment.
+out vec2 UV;
+
+void main(){
+	float x = -1.0f + float((gl_VertexID & 1) << 2);
+	float y = -1.0f + float((gl_VertexID & 2) << 1);
+
+	UV.x = (x + 1.0f) * 0.5f;
+	UV.y = (y + 1.0f) * 0.5f;
+
+	gl_Position = vec4(x, y, 0.5f, 1);
+}

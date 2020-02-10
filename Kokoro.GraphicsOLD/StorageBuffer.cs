@@ -84,7 +84,6 @@ namespace Kokoro.Graphics
 
         public static explicit operator GPUBuffer(StorageBuffer s)
         {
-            Contract.Requires<ArgumentNullException>(s.buf != null);
             return s.buf;
         }
 

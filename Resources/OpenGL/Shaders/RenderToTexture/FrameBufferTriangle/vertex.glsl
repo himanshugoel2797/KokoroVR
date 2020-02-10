@@ -2,8 +2,11 @@
 out vec2 UV;
 
 void main(){
-	const vec4 verts = vec4(3, -1, -1, 3);
-	const vec4 uvs = vec4(2, 0, 0, 2);
-	gl_Position = vec4(verts[(gl_VertexID + 1) % 4], verts[(gl_VertexID + 2) % 4], 0.5f, 1);
-	UV = vec2(uvs[(gl_VertexID + 1) % 4], uvs[(gl_VertexID + 2) % 4]);
+	float x = -1.0f + float((gl_VertexID & 1) << 2);
+	float y = -1.0f + float((gl_VertexID & 2) << 1);
+
+	UV.x = (x + 1.0f) * 0.5f;
+	UV.y = (y + 1.0f) * 0.5f;
+
+	gl_Position = vec4(x, y, 0.5f, 1);
 }

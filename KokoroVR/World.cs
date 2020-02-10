@@ -104,6 +104,7 @@ namespace KokoroVR
 
             if (Renderer == null)
                 Renderer = new DeferredRenderer(Engine.Framebuffers, LightManager);
+            Engine.DeferredRenderer = Renderer;
 
             if (Initializer != null)
                 Initializer();

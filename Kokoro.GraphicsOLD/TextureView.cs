@@ -31,7 +31,7 @@ namespace Kokoro.Graphics
             if (!locked)
             {
                 this.t = t;
-                GL.CreateTextures((OpenTK.Graphics.OpenGL4.TextureTarget)Target, 1, out id);
+                GL.GenTextures(1, out id);
                 GL.TextureView(id, (OpenTK.Graphics.OpenGL4.TextureTarget)Target, (int)t, (OpenTK.Graphics.OpenGL4.PixelInternalFormat)Format, BaseLevel, LevelCount, BaseLayer, LayerCount);
 
                 locked = true;

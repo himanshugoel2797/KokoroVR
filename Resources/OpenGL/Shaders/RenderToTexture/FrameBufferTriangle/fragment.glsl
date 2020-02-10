@@ -9,6 +9,6 @@ layout(location = 0) out vec4 color;
 layout(bindless_sampler) uniform sampler2D AlbedoMap;
 
 void main(){
-	color = texture(AlbedoMap, UV);
+	color = vec4(1);
 	color.a = 1;
 }

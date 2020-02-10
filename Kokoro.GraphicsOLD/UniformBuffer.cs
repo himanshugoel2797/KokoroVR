@@ -114,13 +114,11 @@ namespace Kokoro.Graphics
 
         public static explicit operator GPUBuffer(UniformBuffer s)
         {
-            Contract.Requires<ArgumentNullException>(s.buf != null);
             return s.buf;
         }
 
         public static explicit operator int(UniformBuffer s)
         {
-            Contract.Requires<ArgumentNullException>(s.buf != null);
             return s.buf;
         }
 

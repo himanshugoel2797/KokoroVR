@@ -90,6 +90,11 @@ namespace Kokoro.Graphics
         {
             return handle.hndl;
         }
+
+        public static explicit operator float[](TextureHandle handle)
+        {
+            return new float[] { BitConverter.Int32BitsToSingle((int)(handle.hndl >> 32)), BitConverter.Int32BitsToSingle((int)(handle.hndl & 0xffffffff)) };
+        }
     }
 
     public class Texture : IDisposable
