@@ -17,7 +17,7 @@ namespace Kokoro.Graphics
             GraphicsDevice.Cleanup.Add(Dispose);
         }
 
-        public void SetElementBufferObject(GPUBuffer buffer)
+        public void SetElementBufferObject(GpuBuffer buffer)
         {
             GL.VertexArrayElementBuffer(id, buffer);
         }

@@ -2,7 +2,7 @@
 
 namespace Kokoro.Graphics
 {
-    public interface IGPUBuffer
+    public interface IGpuBuffer
     {
         bool Disposed { get; }
         ulong Size { get; }
@@ -10,6 +10,5 @@ namespace Kokoro.Graphics
         void Dispose();
         void FlushBuffer(ulong offset, ulong size);
         IntPtr GetPtr();
-        void UnmapBuffer();
     }
 }

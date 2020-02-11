@@ -26,7 +26,7 @@ namespace Kokoro.Graphics
             if (!locked)
             {
                 GL.CreateTextures(OpenTK.Graphics.OpenGL4.TextureTarget.TextureBuffer, 1, out id);
-                GL.TextureBuffer(id, (SizedInternalFormat)Format, (GPUBuffer)buf);
+                GL.TextureBuffer(id, (SizedInternalFormat)Format, (GpuBuffer)buf);
                 locked = true;
             }
         }

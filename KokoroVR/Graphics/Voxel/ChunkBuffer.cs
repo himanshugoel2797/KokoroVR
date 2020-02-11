@@ -9,9 +9,9 @@ namespace KokoroVR.Graphics.Voxel
     {
         //Allocate various buffer sizes: 16KiB, 32KiB, 64KiB, 128KiB, 256KiB, 512KiB, 1024KiB,
         //for now: 4Kx1024, 16Kx1024, 32Kx16384, 64Kx2048, 196Kx2048, 256Kx128, 1Mx64
-        const int Count4K = 1024;
-        const int Count16K = 1024;
-        const int Count32K = 16384;
+        const int Count4K = 2048;
+        const int Count16K = 16384;
+        const int Count32K = 8192;
         const int Count64K = 2048;
         const int Count196K = 2048;
         const int Count256K = 128;

@@ -25,7 +25,6 @@ namespace KokoroVR.Graphics.Voxel
             this.vbo = vbo;
         }
 
-        static int cntr = 0;
         private uint baseVertex;
         private int bufferIdx;
         private Vector4[] bounds;
@@ -35,6 +34,7 @@ namespace KokoroVR.Graphics.Voxel
 
         public void Reallocate(byte[] vertices, uint[] indices, Vector4[] bounds, byte[] norms, Vector3 offset)
         {
+            if (this.bounds != null) vbo.Free(bufferIdx, baseVertex);
             this.bounds = bounds;
             //allocate a new vertex buffer
             vbo.Allocate(vertices, out bufferIdx, out baseVertex);

@@ -449,7 +449,7 @@ namespace KokoroVR.Graphics.Voxel
             this.boundAABBs = boundingAABB.ToArray();
 
             stopwatch.Stop();
-            Console.WriteLine($"[{id}] Vertex Count: {faces.Count}, Meshing time: {stopwatch.Elapsed.TotalMilliseconds}ms");
+            Console.WriteLine($"[{id}] Vertex Count: {faces.Count}, Index Count: {indices.Count}, Meshing time: {stopwatch.Elapsed.TotalMilliseconds}ms");
 
 
             //for (int i = 0; i < 6; i++) face_quads[i].Clear();

@@ -20,7 +20,7 @@ namespace Kokoro.Graphics
         const int rungs = 3;
 
         internal int curRung = 0;
-        private readonly GPUBuffer buf;
+        private readonly GpuBuffer buf;
         internal readonly Fence[] readyFence;
         internal readonly ulong size;
 
@@ -36,7 +36,7 @@ namespace Kokoro.Graphics
             get { return curRung * Size; }
         }
 
-        StorageBuffer(GPUBuffer buf, bool stream)
+        StorageBuffer(GpuBuffer buf, bool stream)
         {
             size = buf.Size / (ulong)(stream ? rungs : 1);
             this.buf = buf;
@@ -57,7 +57,7 @@ namespace Kokoro.Graphics
             return size + (alignmentRequirement - (size % alignmentRequirement));
         }
 
-        public StorageBuffer(long size, bool stream, bool read = false) : this(new GPUBuffer(BufferUsage.StorageBuffer, (ulong)(AlignSize(size) * (stream ? rungs : 1)), read), stream)
+        public StorageBuffer(long size, bool stream, bool read = false) : this(new GpuBuffer(BufferUsage.StorageBuffer, (ulong)(AlignSize(size) * (stream ? rungs : 1)), read), stream)
         {
 
         }
@@ -82,7 +82,7 @@ namespace Kokoro.Graphics
             return (ulong)(curRung - 1);
         }
 
-        public static explicit operator GPUBuffer(StorageBuffer s)
+        public static explicit operator GpuBuffer(StorageBuffer s)
         {
             return s.buf;
         }

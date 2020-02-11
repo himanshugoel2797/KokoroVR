@@ -32,7 +32,7 @@ namespace Kokoro.Graphics
         }
 
         const int rungs = 4;
-        internal GPUBuffer buf;
+        internal GpuBuffer buf;
         internal int bindPoint = 0;
         internal int curRung = 0;
         internal Fence[] readyFence;
@@ -65,7 +65,7 @@ namespace Kokoro.Graphics
         public UniformBuffer(bool dynamic)
         {
             this.dynamic = dynamic;
-            buf = new GPUBuffer(BufferUsage.UniformBuffer, (ulong)UniformBufferSize, false);
+            buf = new GpuBuffer(BufferUsage.UniformBuffer, (ulong)UniformBufferSize, false);
             bindPoint = GetFreeBindPoint();
 
             readyFence = new Fence[dynamic ? rungs : 1];
@@ -112,7 +112,7 @@ namespace Kokoro.Graphics
             readyFence[curRung].PlaceFence();
         }
 
-        public static explicit operator GPUBuffer(UniformBuffer s)
+        public static explicit operator GpuBuffer(UniformBuffer s)
         {
             return s.buf;
         }

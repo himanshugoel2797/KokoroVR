@@ -14,7 +14,7 @@ namespace KokoroVR.Graphics.Voxel
     {
         //Receive chunk faces
         public const int VRAMCacheSize = 16384;  //TODO make this depend on total available vram
-        const int blk_cnt = 64 * 1024;
+        const int blk_cnt = 8 * 1024;
 
         private Chunk[] ChunkList;
         private (ChunkMesh, int, double)[] ChunkCache;
@@ -92,7 +92,7 @@ namespace KokoroVR.Graphics.Voxel
             if (c.empty) return;
 
             //Don't proceed if this chunk isn't supposed to be visible
-            if (!Engine.Frustums[(int)cur_eye].IsVisible(new Vector4(offset - Vector3.One * ChunkConstants.Side * 0.5f, (float)(ChunkConstants.Side * 0.75f * System.Math.Sqrt(3)))))
+            if (!Engine.Frustums[(int)cur_eye].IsVisible(new Vector4(offset, (float)(ChunkConstants.Side * System.Math.Sqrt(3) ))))
                 return;
 
             int mesh_idx = -1;
@@ -125,7 +125,7 @@ namespace KokoroVR.Graphics.Voxel
             {
                 unsafe
                 {
-                    ChunkCache[mesh_idx].Item1.Reallocate(c.faces, c.indices, c.boundSpheres, c.norm_mask, Vector3.One * ChunkConstants.Side * -0.5f + offset);
+                    ChunkCache[mesh_idx].Item1.Reallocate(c.faces, c.indices, c.boundSpheres, c.norm_mask, offset);
 
                     var dP_p = (float*)drawParams.Update();
                     for (int j = 0; j < ChunkCache[mesh_idx].Item1.AllocIndices.Length; j++)
@@ -164,7 +164,7 @@ namespace KokoroVR.Graphics.Voxel
             cmdBuffer.Reset();
             cmdBuffer.SetRenderState(state);
             cmdBuffer.Clear(true, true);
-            cmdBuffer.MultiDrawIndirectIndexed(PrimitiveType.Triangles, queue.MultidrawParams, false, RenderQueue.InfoOffset, RenderQueue.DrawCountOffset, queue.MaxDrawCount, RenderQueue.Stride);
+            cmdBuffer.MultiDrawIndirectIndexed(PrimitiveType.Triangles, (GpuBuffer)queue.MultidrawParams, false, RenderQueue.InfoOffset, RenderQueue.DrawCountOffset, queue.MaxDrawCount, RenderQueue.Stride);
             
             queue.Clear();
         }

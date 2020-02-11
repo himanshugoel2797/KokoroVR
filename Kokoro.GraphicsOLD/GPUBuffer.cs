@@ -9,18 +9,22 @@ using Kokoro.Graphics;
 
 namespace Kokoro.Graphics
 {
-    public class GPUBuffer : IDisposable, IGPUBuffer
+    public class GpuBuffer : IDisposable, IGpuBuffer
     {
         public ulong Size { get; private set; }
         private int id;
         private IntPtr addr;
 
-        public GPUBuffer(BufferUsage target, ulong size, bool read)
+        public GpuBuffer(BufferUsage target, ulong size, bool read)
         {
             GL.CreateBuffers(1, out id);
             this.Size = size;
-            GL.NamedBufferStorage(id, (IntPtr)size, IntPtr.Zero, BufferStorageFlags.MapPersistentBit | BufferStorageFlags.MapWriteBit | (read ? BufferStorageFlags.MapReadBit : 0));
-            addr = GL.MapNamedBufferRange(id, IntPtr.Zero, (IntPtr)size, BufferAccessMask.MapPersistentBit | BufferAccessMask.MapFlushExplicitBit | BufferAccessMask.MapUnsynchronizedBit | BufferAccessMask.MapWriteBit | (read ? BufferAccessMask.MapReadBit : 0));
+
+            GL.NamedBufferStorage(id, (IntPtr)size, IntPtr.Zero, BufferStorageFlags.DynamicStorageBit);
+            addr = Marshal.AllocHGlobal((IntPtr)size);
+            //GL.NamedBufferStorage(id, (IntPtr)size, IntPtr.Zero, BufferStorageFlags.MapPersistentBit | BufferStorageFlags.MapWriteBit | (read ? BufferStorageFlags.MapReadBit : 0));
+            //addr = GL.MapNamedBufferRange(id, IntPtr.Zero, (IntPtr)size, BufferAccessMask.MapPersistentBit | BufferAccessMask.MapFlushExplicitBit | BufferAccessMask.MapUnsynchronizedBit | BufferAccessMask.MapWriteBit | (read ? BufferAccessMask.MapReadBit : 0));
+
         }
 
         public IntPtr GetPtr()
@@ -30,15 +34,11 @@ namespace Kokoro.Graphics
 
         public void FlushBuffer(ulong offset, ulong size)
         {
-            GL.FlushMappedNamedBufferRange(id, (IntPtr)offset, (int)size);
+            GL.NamedBufferSubData(id, (IntPtr)offset, (IntPtr)size, (IntPtr)((ulong)addr + offset));
+            //GL.FlushMappedNamedBufferRange(id, (IntPtr)offset, (int)size);
         }
 
-        public void UnmapBuffer()
-        {
-            GL.UnmapNamedBuffer(id);
-        }
-
-        public static implicit operator int(GPUBuffer s)
+        public static implicit operator int(GpuBuffer s)
         {
             return s.id;
         }
@@ -61,7 +61,7 @@ namespace Kokoro.Graphics
                     addr = IntPtr.Zero;
                     try
                     {
-                        GL.UnmapNamedBuffer(id);
+                        //GL.UnmapNamedBuffer(id);
                     }
                     catch (Exception)
                     {
@@ -77,7 +77,7 @@ namespace Kokoro.Graphics
             }
         }
 
-        ~GPUBuffer()
+        ~GpuBuffer()
         {
             // Do not change this code. Put cleanup code in Dispose(bool disposing) above.
             //Dispose(false);

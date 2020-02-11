@@ -14,6 +14,7 @@ namespace Kokoro.Graphics
         enum CommandType
         {
             TexUpload,
+            BufUpload,
             Clear,
             Invalidate,
             SetState,
@@ -37,13 +38,16 @@ namespace Kokoro.Graphics
             public bool ClearDepthBuffer { get; set; }
 
             //Texture Upload
-            public StorageBuffer Buffer { get; set; }
+            public GpuBuffer Buffer { get; set; }
             public Texture Texture { get; set; }
             public int WriteLevel { get; set; }
             public Vector3 Offset { get; set; }
             public Vector3 Size { get; set; }
             public PixelFormat Format { get; set; }
             public PixelType PixType { get; set; }
+
+            //Buffer Upload
+            public GpuBuffer Destination { get; set; }
 
             //Render State
             public RenderState State { get; set; }
@@ -77,7 +81,7 @@ namespace Kokoro.Graphics
         }
 
         //texture upload
-        public void UploadTexture(StorageBuffer buffer, Texture tex, int write_lv, Vector3 offset, Vector3 size, PixelFormat fmt, PixelType type, Fence f)
+        public void UploadTexture(GpuBuffer buffer, Texture tex, int write_lv, Vector3 offset, Vector3 size, PixelFormat fmt, PixelType type, Fence f)
         {
             Commands.Add(new CommandEntry()
             {
@@ -151,7 +155,7 @@ namespace Kokoro.Graphics
             });
         }
 
-        public void MultiDrawIndirect(PrimitiveType primType, StorageBuffer draws, long indirOffset, long drawCntOffset, int maxDrawCnt, int indirStride)
+        public void MultiDrawIndirect(PrimitiveType primType, GpuBuffer draws, long indirOffset, long drawCntOffset, int maxDrawCnt, int indirStride)
         {
             Commands.Add(new CommandEntry()
             {
@@ -165,7 +169,7 @@ namespace Kokoro.Graphics
             });
         }
 
-        public void MultiDrawIndirectIndexed(PrimitiveType primType, StorageBuffer draws, bool indexShort, long indirOffset, long drawCntOffset, int maxDrawCnt, int indirStride)
+        public void MultiDrawIndirectIndexed(PrimitiveType primType, GpuBuffer draws, bool indexShort, long indirOffset, long drawCntOffset, int maxDrawCnt, int indirStride)
         {
             Commands.Add(new CommandEntry()
             {
@@ -199,7 +203,7 @@ namespace Kokoro.Graphics
             });
         }
 
-        public void DispatchIndirect(StorageBuffer buffer, long offset)
+        public void DispatchIndirect(GpuBuffer buffer, long offset)
         {
             Commands.Add(new CommandEntry()
             {

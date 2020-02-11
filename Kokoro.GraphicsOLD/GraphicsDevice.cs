@@ -513,6 +513,13 @@ namespace Kokoro.Graphics
             //#endif
         }
 
+        #region Data Upload
+        public static void UploadBuffer(GpuBuffer src, GpuBuffer dst, ulong src_off, ulong dst_off, ulong sz)
+        {
+            GL.CopyNamedBufferSubData((int)src, (int)dst, (IntPtr)src_off, (IntPtr)dst_off, (IntPtr)sz);
+        }
+
+        #endregion
         private static void DeleteObject(int o, GLObjectType t)
         {
             switch (t)
