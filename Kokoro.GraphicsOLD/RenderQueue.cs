@@ -14,18 +14,20 @@ namespace Kokoro.Graphics
         UInt,
     }
 
-    public class RenderQueue2
+    public class RenderQueue
     {
+        public const int Stride = 8 * sizeof(uint);
+        public const int DrawCountOffset = 0;
+        public const uint InfoOffset = 4 * sizeof(uint);
 
         private readonly List<MeshData> MeshGroups;
-        private readonly uint maxDrawCount = 0;
         private readonly bool transient;
         private readonly IndexType idxType;
 
-        public bool ClearFramebufferBeforeSubmit { get; set; } = false;
         public StorageBuffer MultidrawParams { get; }
+        public int MaxDrawCount { get; }
 
-        public RenderQueue2(uint MaxDrawCount, IndexType t, bool transient)
+        public RenderQueue(int MaxDrawCount, IndexType t, bool transient)
         {
             this.transient = transient;
             this.idxType = t;
@@ -34,8 +36,8 @@ namespace Kokoro.Graphics
             if (MaxDrawCount < 4096)
                 MaxDrawCount = 4096;
 
-            maxDrawCount = MaxDrawCount;
-            MultidrawParams = new StorageBuffer((MaxDrawCount * 5 + 4) * sizeof(uint), transient);
+            this.MaxDrawCount = MaxDrawCount;
+            MultidrawParams = new StorageBuffer(MaxDrawCount * Stride + InfoOffset, transient);
         }
 
         public void Clear()
@@ -81,18 +83,21 @@ namespace Kokoro.Graphics
                         (int k, uint cnt) = sorted_draws[q];
                         if (idxType == IndexType.None)
                         {
-                            data_ui[(idx * 4) + 1] = (uint)cnt;   //count
-                            data_ui[(idx * 4) + 2] = (uint)mesh.InstanceCount;   //instanceCount
-                            data_ui[(idx * 4) + 3] = (uint)(mesh.Mesh.AllocIndices[k] * mesh.Mesh.BlockSize);   //baseVertex
-                            data_ui[(idx * 4) + 4] = (uint)mesh.BaseInstance;   //baseInstance
+                            data_ui[(idx * 8) + 4] = (uint)cnt;   //count
+                            data_ui[(idx * 8) + 5] = (uint)mesh.InstanceCount;   //instanceCount
+                            data_ui[(idx * 8) + 6] = (uint)(mesh.Mesh.AllocIndices[k] * mesh.Mesh.BlockSize);   //baseVertex
+                            data_ui[(idx * 8) + 7] = (uint)mesh.BaseInstance;   //baseInstance
                         }
                         else
                         {
-                            data_ui[(idx * 5) + 1] = (uint)(cnt / (idxType == IndexType.UShort ? 2 : 4));   //count
-                            data_ui[(idx * 5) + 2] = (uint)mesh.InstanceCount;   //instanceCount
-                            data_ui[(idx * 5) + 3] = (uint)((mesh.Mesh.AllocIndices[k] * mesh.Mesh.BlockSize) / (idxType == IndexType.UShort ? 2 : 4));   //firstIndex
-                            data_ui[(idx * 5) + 4] = (uint)mesh.Mesh.AllocIndices[k];   //baseVertex
-                            data_ui[(idx * 5) + 5] = (uint)mesh.BaseInstance;   //baseInstance
+                            data_ui[(idx * 8) + 4] = (uint)(cnt / (idxType == IndexType.UShort ? 2 : 4));   //count
+                            data_ui[(idx * 8) + 5] = (uint)mesh.InstanceCount;   //instanceCount
+                            data_ui[(idx * 8) + 6] = (uint)((mesh.Mesh.AllocIndices[k] * mesh.Mesh.BlockSize) / (idxType == IndexType.UShort ? 2 : 4));   //firstIndex
+                            data_ui[(idx * 8) + 7] = 0;   //baseVertex
+                            data_ui[(idx * 8) + 8] = (uint)mesh.BaseInstance;   //baseInstance
+                            data_ui[(idx * 8) + 9] = (uint)mesh.Mesh.AllocIndices[k];
+                            data_ui[(idx * 8) + 10] = (uint)mesh.Mesh.BufferIdx;
+                            data_ui[(idx * 8) + 11] = mesh.Mesh.BaseVertex;
                         }
 
                         idx++;

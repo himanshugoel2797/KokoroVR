@@ -94,7 +94,6 @@ namespace KokoroVR
             Physics.Update(time);
         }
 
-        //Deferred Renderer Rework - New GBuffer - 16 bits: material ID, 2 bits: NIndex, 30 bits: chunk ID, 1 bits: NSign, 15 bits: voxel ID
         public virtual void Enter(StateManager man, IState prev)
         {
             WorldManager = man;

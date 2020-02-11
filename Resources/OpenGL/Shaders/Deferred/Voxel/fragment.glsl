@@ -5,20 +5,26 @@ flat in uint vox_v;
 flat in uint vox_idx;
 
 // Ouput data
-layout(location = 0) out vec4 Color;
-layout(location = 1) out vec4 Normal;
-layout(location = 2) out vec4 Specular;
+layout(location = 0) out vec4 Info;
 
-uniform vec3 eyePos;
+layout(std140, binding = 0) uniform GlobalParams_t {
+	mat4 proj[EYECOUNT];
+	mat4 view[EYECOUNT];
+	mat4 vp[EYECOUNT];
+	uvec4 infoBindings[EYECOUNT];
+	uvec4 depthBindings[EYECOUNT];
+	vec4 eyePos;
+	vec4 eyeUp;
+	vec4 eyeDir;
+} GlobalParams;
 
-struct obj_t {
-    vec4 c;
-    vec4 s;
+struct block_info_t {
+	vec4 o;
 };
 
-layout(std430, binding = 0) buffer Objects_t {
-    obj_t v[];
-} Object;
+layout(std430, binding = 1) readonly buffer BlockInfos_t {
+    block_info_t v[];
+} BlockInfo;
 
 //pack into a single 32-bit float, for the gbuffer
 float encode (vec3 n)
@@ -28,16 +34,11 @@ float encode (vec3 n)
 
 void main(){
     //Read object properties
-    vec4 _colorMap = Object.v[vox_v].c;
-    vec4 _specMap = Object.v[vox_v].s;
-
     vec3 dx_pos = dFdx(pos);
     vec3 dy_pos = dFdy(pos);
 
     vec3 normal = normalize(cross(dx_pos, dy_pos));
     float n_enc = encode(normal);
 
-    Color = _colorMap;
-    Normal = vec4(n_enc, pos.x + eyePos.x, pos.y + eyePos.y, pos.z + eyePos.z);
-    Specular = vec4(_specMap.x, _specMap.y, _specMap.z, 1);
+    Info = vec4(round(pos + GlobalParams.eyePos.xyz - BlockInfo.v[vox_idx].o.xyz), 1);
 }

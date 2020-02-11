@@ -10,7 +10,7 @@ namespace KokoroVR.Graphics.Voxel
 {
     public class ChunkMesh : IMesh2
     {
-        private BufferTexture vertex_buf;
+        private ChunkBuffer vbo;
         private BufferAllocator index_buf;
 
         public int Length { get; private set; }
@@ -18,30 +18,37 @@ namespace KokoroVR.Graphics.Voxel
         public uint BlockSize { get => index_buf.BlockSize; }
 
         public int[] AllocIndices { get; private set; }
-        public ImageHandle VertexBuffer { get => vertex_buf.View.GetImageHandle(); }
 
-        public ChunkMesh(BufferAllocator index_buf)
+        public ChunkMesh(BufferAllocator index_buf, ChunkBuffer vbo)
         {
             this.index_buf = index_buf;
+            this.vbo = vbo;
         }
 
         static int cntr = 0;
-        public void Reallocate(byte[] chunk, byte[] vertices, uint[] indices, Vector4[] bounds, byte[] norms, Vector3 offset)
-        {
+        private uint baseVertex;
+        private int bufferIdx;
+        private Vector4[] bounds;
 
+        public uint BaseVertex { get => baseVertex; private set => baseVertex = value; }
+        public int BufferIdx { get => bufferIdx; private set => bufferIdx = value; }
+
+        public void Reallocate(byte[] vertices, uint[] indices, Vector4[] bounds, byte[] norms, Vector3 offset)
+        {
+            this.bounds = bounds;
             //allocate a new vertex buffer
-            vertex_buf = new BufferTexture(vertices.Length, PixelInternalFormat.Rgba8ui, false);
+            vbo.Allocate(vertices, out bufferIdx, out baseVertex);
             Length = indices.Length * sizeof(uint);
 
             if (AllocIndices != null) index_buf.Free(AllocIndices);
             AllocIndices = index_buf.Allocate(indices.Length * sizeof(uint));
             unsafe
-            {   
+            {
                 //Upload the vertex data
-                var v_d_p = vertex_buf.Update();
+                var v_d_p = vbo.Update(BufferIdx, BaseVertex);
                 fixed (byte* v_s_p = vertices)
-                    Buffer.MemoryCopy(v_s_p, v_d_p, vertex_buf.Size, vertices.Length);
-                vertex_buf.UpdateDone(0, vertices.Length);
+                    Buffer.MemoryCopy(v_s_p, v_d_p, vertices.Length, vertices.Length);
+                vbo.UpdateDone(BufferIdx, BaseVertex);
 
                 //While uploading the index data compute each block's bounds too
                 long idx_buf_idx = indices.Length * sizeof(uint);
@@ -74,7 +81,7 @@ namespace KokoroVR.Graphics.Voxel
         public bool IsVisible(Frustum f, int k)
         {
             //Check the norm mask
-            return true;
+            return f.IsVisible(bounds[k]);
         }
     }
 }

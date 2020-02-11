@@ -5,32 +5,61 @@ flat out uint vox_v;
 flat out uint vox_idx;
 
 // Values that stay constant for the whole mesh.
-uniform mat4 ViewProj;
-uniform vec3 eyePos;
-uniform int curLayer;
+uniform int eyeIdx;
 
 struct block_info_t {
 	vec4 o;
-    uvec4 vbuf_hndl;
 };
 
-layout(std430, binding = 1) buffer BlockInfos_t {
+struct draw_cmd_t {
+	uint count;
+	uint instance_cnt;
+	uint base_index;
+	uint zr0;
+	uint base_instance;
+	uint index_block;
+	uint vbo_idx;
+	uint base_vertex;
+};
+
+layout(std430, binding = 1) readonly buffer BlockInfos_t {
     block_info_t v[];
 } BlockInfo;
 
+layout(std430, binding = 2) readonly buffer DrawCMDs_t {
+	uint drawCount;
+	uint pd0;
+	uint pd1;
+	uint pd2;
+    draw_cmd_t v[];
+} DrawCMDs;
+
+layout(std140, binding = 0) uniform GlobalParams_t {
+	mat4 proj[EYECOUNT];
+	mat4 view[EYECOUNT];
+	mat4 vp[EYECOUNT];
+	uvec4 infoBindings[EYECOUNT];
+	uvec4 depthBindings[EYECOUNT];
+	vec4 eyePos;
+	vec4 eyeUp;
+	vec4 eyeDir;
+} GlobalParams;
+
+layout(std140, binding = 1) uniform VertexBuffers_t {
+	uvec4 v[16];
+} VertexBuffers;
+
 
 void main(){
-	uint _idx = gl_BaseVertex;
-	uint idx_val = gl_VertexID - gl_BaseVertex;
-	uint ver_idx = bitfieldExtract(idx_val, 0, 16);
-	vox_v = bitfieldExtract(idx_val, 16, 8);
-	vox_idx = _idx;
-	//uint norm_v = bitfieldExtract(idx_val, 24, 8);
-
-	vec3 vs_pos = imageLoad(uimageBuffer(BlockInfo.v[_idx].vbuf_hndl.xy), int(ver_idx)).xyz;
-	vec3 face_pos = vs_pos.xyz + BlockInfo.v[_idx].o.xyz;
-	pos = face_pos - eyePos;
+	uint ibo_block = DrawCMDs.v[gl_DrawID].index_block;
+	uint vbo_idx = DrawCMDs.v[gl_DrawID].vbo_idx;
+	uint ver_idx = bitfieldExtract(gl_VertexID, 0, 16);
+	vox_v = bitfieldExtract(gl_VertexID, 16, 16);
+	vox_idx = ibo_block;
+	
+	vec3 vs_pos = imageLoad(uimageBuffer(VertexBuffers.v[vbo_idx].xy), int(DrawCMDs.v[gl_DrawID].base_vertex + ver_idx)).xyz;
+	vec3 face_pos = vs_pos.xyz + BlockInfo.v[ibo_block].o.xyz;
+	pos = face_pos - GlobalParams.eyePos.xyz;
 	//normal = vec3( bitfieldExtract(norm_v, 0, 2), bitfieldExtract(norm_v, 2, 2), bitfieldExtract(norm_v, 4, 2) ) - 1.0f;
-	gl_Position =  ViewProj * vec4(face_pos, 1);
-	gl_Layer = curLayer;
+	gl_Position =  GlobalParams.vp[eyeIdx] * vec4(face_pos, 1);
 }

@@ -26,7 +26,7 @@ namespace KokoroVR.Graphics
         private LightManager lMan;
         private CommandBuffer cBuffer;
         private ViewData[] views;
-
+        
         //Lighting is purely photon mapping
         //Multiple passes:
         // - Process bundles of photons on the cpu
@@ -35,15 +35,16 @@ namespace KokoroVR.Graphics
         // - split across all cores with explicit simd
         // - gpu side reads the photon map and applies lighting to the voxel face based on the voxel's ID
         // - voxel ID = 14:6:6:6, may consider 64-bit ID
+        //Deferred Renderer Rework - New GBuffer - 16 bits: material ID, 2 bits: NIndex, 30 bits: chunk ID, 1 bits: NSign, 15 bits: voxel ID
 
         public DeferredRenderer(Framebuffer[] fbufs, LightManager man)
         {
-            Framebuffers = fbufs;
             lMan = man;
             cBuffer = new CommandBuffer();
 
             InfoBindings = new TextureBinding[fbufs.Length];
             DepthBindings = new TextureBinding[fbufs.Length];
+            Framebuffers = new Framebuffer[fbufs.Length];
             views = new ViewData[fbufs.Length];
             for (int i = 0; i < views.Length; i++)
             {
@@ -94,8 +95,9 @@ namespace KokoroVR.Graphics
                     Target = TextureTarget.Texture2D
                 }.Build(views[i].depthBuf);
 
-                views[i].gbuffer[FramebufferAttachment.ColorAttachment0] = views[i].infoView;
                 views[i].gbuffer[FramebufferAttachment.DepthAttachment] = views[i].depthView;
+                views[i].gbuffer[FramebufferAttachment.ColorAttachment0] = views[i].infoView;
+                Framebuffers[i] = views[i].gbuffer;
 
                 views[i].program = new ShaderProgram(
                     ShaderSource.Load(ShaderType.VertexShader, "Shaders\\RenderToTexture\\FrameBufferTriangle\\vertex.glsl"),

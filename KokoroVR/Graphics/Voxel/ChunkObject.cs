@@ -74,7 +74,7 @@ namespace KokoroVR.Graphics.Voxel
             foreach (var c in ChunkSet)
             {
                 var (x, y, z) = c.Key;
-                c.Value.RebuildFullMesh(GetChunk(x, y + ChunkConstants.Side, z), GetChunk(x, y - ChunkConstants.Side, z), GetChunk(x, y, z + ChunkConstants.Side), GetChunk(x, y, z - ChunkConstants.Side), GetChunk(x - ChunkConstants.Side, y, z), GetChunk(x + ChunkConstants.Side, y, z));
+                c.Value.RebuildFullMesh(new Vector3(x, y, z), GetChunk(x, y + ChunkConstants.Side, z), GetChunk(x, y - ChunkConstants.Side, z), GetChunk(x, y, z + ChunkConstants.Side), GetChunk(x, y, z - ChunkConstants.Side), GetChunk(x - ChunkConstants.Side, y, z), GetChunk(x + ChunkConstants.Side, y, z));
             }
         }
 

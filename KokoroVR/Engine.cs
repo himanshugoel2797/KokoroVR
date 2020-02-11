@@ -139,6 +139,7 @@ namespace KokoroVR
                     var f = (float[])(DeferredRenderer?.InfoBindings[i].GetTextureHandle());
                     for (int j = 0; j < f.Length; j++)
                         p[off++] = f[j];
+                    off += 2;
                 }
 
                 for (int i = 0; i < Engine.EyeCount; i++)
@@ -146,6 +147,7 @@ namespace KokoroVR
                     var f = (float[])(DeferredRenderer?.DepthBindings[i].GetTextureHandle());
                     for (int j = 0; j < f.Length; j++)
                         p[off++] = f[j];
+                    off += 2;
                 }
 
                 p[off++] = CurrentPlayer.Position.X;

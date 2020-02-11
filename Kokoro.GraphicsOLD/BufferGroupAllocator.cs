@@ -15,10 +15,10 @@ namespace Kokoro.Graphics
         public uint BlockSize { get => alloc.BlockSize; }
         public BufferGroup Group { get => grp; }
 
-        public BufferGroupAllocator(uint block_sz, uint block_cnt, bool stream, params (string, uint, PixelInternalFormat)[] elements)
+        public BufferGroupAllocator(uint blockSz, uint blockCnt, bool stream, params (string, uint, PixelInternalFormat)[] elements)
         {
-            alloc = new BlockAllocator(block_cnt, block_sz);
-            grp = new BufferGroup(block_sz * block_cnt, stream, elements);
+            alloc = new BlockAllocator(blockCnt, blockSz);
+            grp = new BufferGroup(blockSz * blockCnt, stream, elements);
             element_names = elements;
         }
 

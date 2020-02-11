@@ -93,7 +93,7 @@ namespace Kokoro.Graphics
 
         public static explicit operator float[](TextureHandle handle)
         {
-            return new float[] { BitConverter.Int32BitsToSingle((int)(handle.hndl >> 32)), BitConverter.Int32BitsToSingle((int)(handle.hndl & 0xffffffff)) };
+            return new float[] { BitConverter.Int32BitsToSingle((int)(handle.hndl & 0xffffffff)), BitConverter.Int32BitsToSingle((int)(handle.hndl >> 32)) };
         }
     }
 

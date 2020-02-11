@@ -15,9 +15,9 @@ namespace Kokoro.Graphics
         public int BaseLayer { get => baseLayer; set => baseLayer = locked ? baseLayer : value; }
         public int LevelCount { get => levelCount; set => levelCount = locked ? levelCount : value; }
         public int LayerCount { get => layerCount; set => layerCount = locked ? layerCount : value; }
+        public Texture Parent { get; private set; }
 
         private int id;
-        private Texture t;
         private ImageHandle imgHandle;
         private bool locked;
 
@@ -30,7 +30,7 @@ namespace Kokoro.Graphics
         {
             if (!locked)
             {
-                this.t = t;
+                this.Parent = t;
                 GL.GenTextures(1, out id);
                 GL.TextureView(id, (OpenTK.Graphics.OpenGL4.TextureTarget)Target, (int)t, (OpenTK.Graphics.OpenGL4.PixelInternalFormat)Format, BaseLevel, LevelCount, BaseLayer, LayerCount);
 
