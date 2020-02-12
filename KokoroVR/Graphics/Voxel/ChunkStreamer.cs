@@ -92,8 +92,8 @@ namespace KokoroVR.Graphics.Voxel
             if (c.empty) return;
 
             //Don't proceed if this chunk isn't supposed to be visible
-            if (!Engine.Frustums[(int)cur_eye].IsVisible(new Vector4(offset, (float)(ChunkConstants.Side * System.Math.Sqrt(3) ))))
-                return;
+            //if (!Engine.Frustums[(int)cur_eye].IsVisible(new Vector4(offset, (float)(ChunkConstants.Side * System.Math.Sqrt(3) ))))
+            //    return;
 
             int mesh_idx = -1;
             for (int i = 0; i < ChunkCache.Length; i++) if (ChunkCache[i].Item2 == c.id) { mesh_idx = i; break; }

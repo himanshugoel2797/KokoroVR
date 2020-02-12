@@ -15,6 +15,7 @@ namespace KokoroVR.Graphics.Voxel
             public Vector3 color;
             public Vector3 specular;
             public float roughness;
+            public float watts;
         }
 
         byte offset = 1;
@@ -28,11 +29,12 @@ namespace KokoroVR.Graphics.Voxel
             set = new voxel_tex[ChunkConstants.DictionaryLen];
         }
 
-        public byte Register(Vector3 Color, Vector3 Specular, float Roughness)
+        public byte Register(Vector3 Color, Vector3 Specular, float Roughness, float EmissiveWatts)
         {
             set[offset].color = Color;
             set[offset].specular = Specular;
             set[offset].roughness = Roughness;
+            set[offset].watts = EmissiveWatts;
 
             unsafe
             {
@@ -44,6 +46,7 @@ namespace KokoroVR.Graphics.Voxel
                 f_p[offset * 8 + 4] = Specular.X;
                 f_p[offset * 8 + 5] = Specular.Y;
                 f_p[offset * 8 + 6] = Specular.Z;
+                f_p[offset * 8 + 7] = EmissiveWatts;
                 voxelData.UpdateDone();
             }
 

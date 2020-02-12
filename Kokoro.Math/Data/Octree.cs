@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -10,7 +11,7 @@ namespace Kokoro.Math.Data
     /// 
     /// Represents an octree spatial partioning system.
     /// 
-    public class Octree<T>
+    public class Octree<T> where T : class
     {
         public class OctreeData
         {
@@ -47,9 +48,73 @@ namespace Kokoro.Math.Data
             Data = data;
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static int ChildIndex(long X, long Y, long Z, long X_c, long Y_c, long Z_c)
         {
             return Convert.ToInt32(X >= X_c) | Convert.ToInt32(Y >= Y_c) << 1 | Convert.ToInt32(Z >= Z_c) << 2;
+        }
+        private T Get(long X, long Y, long Z, long x_c, long y_c, long z_c, long side)
+        {
+            if (side == Data.WorldSide >> Level)
+                return NodeValue;
+
+            long x_o = X;
+            long y_o = Y;
+            long z_o = Z;
+
+            int idx = ChildIndex(X, Y, Z, x_c, y_c, z_c);
+
+            if (Children == null)
+                return null;
+
+            if (Children[idx] == null)
+                return null;
+
+            long x_side = ((X >= x_c) ? 1 : -1) * Data.WorldSide >> (Level + 2);
+            long y_side = ((Y >= y_c) ? 1 : -1) * Data.WorldSide >> (Level + 2);
+            long z_side = ((Z >= z_c) ? 1 : -1) * Data.WorldSide >> (Level + 2);
+            return Children[idx].Get(X, Y, Z, x_c + x_side, y_c + y_side, z_c + z_side, side);
+        }
+
+        public T Get(long X, long Y, long Z, long side)
+        {
+            return Get(X, Y, Z, 0, 0, 0, side);
+        }
+
+        public T this[long X, long Y, long Z, long side]
+        {
+            get
+            {
+                return Get(X, Y, Z, side);
+            }
+        }
+
+        private bool Contains(long X, long Y, long Z, long x_c, long y_c, long z_c, long side)
+        {
+            if (side == Data.WorldSide >> Level)
+                return NodeValue != null;
+
+            long x_o = X;
+            long y_o = Y;
+            long z_o = Z;
+
+            int idx = ChildIndex(X, Y, Z, x_c, y_c, z_c);
+
+            if (Children == null)
+                return false;
+
+            if (Children[idx] == null)
+                return false;
+
+            long x_side = ((X >= x_c) ? 1 : -1) * Data.WorldSide >> (Level + 2);
+            long y_side = ((Y >= y_c) ? 1 : -1) * Data.WorldSide >> (Level + 2);
+            long z_side = ((Z >= z_c) ? 1 : -1) * Data.WorldSide >> (Level + 2);
+            return Children[idx].Contains(X, Y, Z, x_c + x_side, y_c + y_side, z_c + z_side, side);
+        }
+
+        public bool Contains(long X, long Y, long Z, long side)
+        {
+            return Contains(X, Y, Z, 0, 0, 0, side);
         }
 
         private void Add(T obj, long X, long Y, long Z, long x_c, long y_c, long z_c, long side)
@@ -75,7 +140,6 @@ namespace Kokoro.Math.Data
             {
                 Children[idx] = new Octree<T>(Level + 1, Data)
                 {
-                    NodeValue = obj,
                     Children = null,
                     Parent = this,
                 };
@@ -104,6 +168,34 @@ namespace Kokoro.Math.Data
                 throw new ArgumentException("Z must be a multiple of side");
 
             Add(obj, X, Y, Z, 0, 0, 0, side);
+        }
+
+        private void GetVisibleChunks(List<(T, long[])> chunks, Frustum f, long x_c, long y_c, long z_c)
+        {
+            long side = Data.WorldSide >> Level;
+            if (f.IsVisible(new Vector4(x_c, y_c, z_c, side * 1f * System.MathF.Sqrt(3))))
+            {
+                if (NodeValue != null) chunks.Add((NodeValue, new long[] { x_c - (side >> 1), y_c - (side >> 1), z_c - (side >> 1) }));
+                if (Children == null) return;
+                for (int i = 0; i < Children.Length; i++)
+                {
+                    int X = ((i & 1) * 2 - 1);
+                    int Y = ((i & 2) >> 1) * 2 - 1;
+                    int Z = ((i & 4) >> 2) * 2 - 1;
+                    long x_side = (X * Data.WorldSide >> (Level + 2));
+                    long y_side = (Y * Data.WorldSide >> (Level + 2));
+                    long z_side = (Z * Data.WorldSide >> (Level + 2));
+
+                    if (Children[i] != null) Children[i].GetVisibleChunks(chunks, f, x_c + x_side, y_c + y_side, z_c + z_side);
+                }
+            }
+        }
+
+        public IEnumerable<(T, long[])> GetVisibleChunks(Frustum f)
+        {
+            var chunks = new List<(T, long[])>();
+            GetVisibleChunks(chunks, f, 0, 0, 0);
+            return chunks;
         }
     }
 }
