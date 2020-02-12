@@ -91,10 +91,6 @@ namespace KokoroVR.Graphics.Voxel
             if (c.streamer != this) throw new Exception("Chunk not owned by current renderer.");
             if (c.empty) return;
 
-            //Don't proceed if this chunk isn't supposed to be visible
-            //if (!Engine.Frustums[(int)cur_eye].IsVisible(new Vector4(offset, (float)(ChunkConstants.Side * System.Math.Sqrt(3) ))))
-            //    return;
-
             int mesh_idx = -1;
             for (int i = 0; i < ChunkCache.Length; i++) if (ChunkCache[i].Item2 == c.id) { mesh_idx = i; break; }
             if (mesh_idx == -1)
@@ -113,7 +109,6 @@ namespace KokoroVR.Graphics.Voxel
                 ChunkCache[lru].Item3 = cur_time;
                 ChunkCache[lru].Item2 = c.id;
 
-                //if (!c.empty && c.faces == null) c.RebuildFullMesh((int)offset.X, (int)offset.Y, (int)offset.Z);
                 if (!c.empty) c.update_pending = true;
             }
 
@@ -164,6 +159,7 @@ namespace KokoroVR.Graphics.Voxel
             cmdBuffer.Reset();
             cmdBuffer.SetRenderState(state);
             cmdBuffer.Clear(true, true);
+            //TODO: dispatch a compute task for occlusion culling
             cmdBuffer.MultiDrawIndirectIndexed(PrimitiveType.Triangles, (GpuBuffer)queue.MultidrawParams, false, RenderQueue.InfoOffset, RenderQueue.DrawCountOffset, queue.MaxDrawCount, RenderQueue.Stride);
             
             queue.Clear();
@@ -200,7 +196,6 @@ namespace KokoroVR.Graphics.Voxel
                 parent.voxelShader.Set("eyeIdx", (int)eye);
                 parent.queue.Build(Engine.Frustums[(int)eye], Engine.CurrentPlayer.Position);
                 parent.cmdBuffer.Submit();
-                //parent.queue.Submit();
             }
 
             public override void Update(double time, World parent)

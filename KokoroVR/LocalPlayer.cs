@@ -173,8 +173,9 @@ namespace KokoroVR
             {
                 moveSpeed -= 0.02f * moveSpeed;
             }
-//#endif
+            //#endif
             //View = UpdateViewMatrix();
+            Engine.PrevView[0] = Engine.View[0];
             Engine.View[0] = Matrix4.LookAt(Position, Position + Direction, cameraRotatedUpVector);
             Engine.Frustums[0] = new Frustum(Engine.View[0], Engine.Projection[0], Position);
         }

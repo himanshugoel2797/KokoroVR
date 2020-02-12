@@ -1,4 +1,4 @@
-//FragmentShader
+//ComputeShader
 #version 460 core
 #extension GL_ARB_gpu_shader_int64 : require
 #extension GL_AMD_gpu_shader_half_float : require
@@ -12,15 +12,8 @@
 #define MAX_DRAWS_SSBO 1024
 #define PI 3.141592653589793
 #define EYECOUNT 1
-// Interpolated values from the vertex shaders
-//in vec3 normal;
-in vec3 pos;
-flat in uint vox_v;
-flat in uint vox_idx;
-
-// Ouput data
-layout(location = 0) out vec4 Info;
-layout(location = 1) out vec4 Info2;
+#define MIP_COUNT 9//copy depth buffer into hi-z top
+layout(local_size_x = 8, local_size_y = 8) in;
 
 layout(std140, binding = 0) uniform GlobalParams_t {
 	mat4 proj[EYECOUNT];
@@ -35,28 +28,19 @@ layout(std140, binding = 0) uniform GlobalParams_t {
 	vec4 eyeDir;
 } GlobalParams;
 
-struct block_info_t {
-	vec4 o;
-};
+layout(std140, binding = 1) uniform HiZLayers_t {
+    uvec4 sdpp;
+    uvec4 mips[EYECOUNT][MIP_COUNT];
+} HiZLayers;
 
-layout(std430, binding = 1) readonly buffer BlockInfos_t {
-    block_info_t v[];
-} BlockInfo;
-
-//pack into a single 32-bit float, for the gbuffer
-float encode (vec3 n)
-{
-    return uintBitsToFloat(packSnorm4x8(vec4(n, 1)));
-}
+uniform int eyeIdx;
 
 void main(){
-    //Read object properties
-    vec3 dx_pos = dFdx(pos);
-    vec3 dy_pos = dFdy(pos);
+    //position = gl_GlobalInvocationID
+    sampler2D depthBuf = sampler2D(GlobalParams.depthBindings[eyeIdx].xy);
+    image2D hiZtop = image2D(HiZLayers.mips[eyeIdx][0].xy);
 
-    vec3 normal = normalize(cross(dx_pos, dy_pos));
-    float n_enc = encode(normal);
-
-    Info = vec4(pos + GlobalParams.eyePos.xyz, 0);
-	Info2 = vec4(normal * 0.5f + 0.5f, 0);
+    ivec2 p = ivec2(gl_GlobalInvocationID.xy);
+    float depth = texelFetch(depthBuf, p, 0).x;
+    imageStore(hiZtop, p, vec4(depth));
 }

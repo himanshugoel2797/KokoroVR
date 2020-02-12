@@ -10,6 +10,8 @@ layout(std140, binding = 0) uniform GlobalParams_t {
 	mat4 proj[EYECOUNT];
 	mat4 view[EYECOUNT];
 	mat4 vp[EYECOUNT];
+	mat4 prev_view[EYECOUNT];
+	mat4 prev_vp[EYECOUNT];
 	uvec4 infoBindings[EYECOUNT];
 	uvec4 depthBindings[EYECOUNT];
 	vec4 eyePos;

@@ -8,8 +8,8 @@ namespace Kokoro.Graphics
 {
     public static class InverseDepth
     {
-        public static int Near => 0;
-        public static int Far => 1;
-        public static int ClearDepth => 0;
+        public const int Near = 0;
+        public const int Far = 1;
+        public const int ClearDepth = 0;
     }
 }

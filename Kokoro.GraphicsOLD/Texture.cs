@@ -48,6 +48,11 @@ namespace Kokoro.Graphics
         {
             return handle.hndl;
         }
+
+        public static explicit operator float[](ImageHandle handle)
+        {
+            return new float[] { BitConverter.Int32BitsToSingle((int)(handle.hndl & 0xffffffff)), BitConverter.Int32BitsToSingle((int)(handle.hndl >> 32)) };
+        }
     }
 
     public class TextureHandle
@@ -120,10 +125,12 @@ namespace Kokoro.Graphics
         public PixelInternalFormat Format { get; set; }
         public bool GenerateMipmaps { get; set; }
         public TextureTarget Target { get; set; }
+        public bool Built { get; private set; }
 
         public Texture()
         {
             id = 0;
+            Built = false;
             GraphicsDevice.Cleanup.Add(Dispose);
         }
 
@@ -149,6 +156,7 @@ namespace Kokoro.Graphics
                         GL.TextureStorage3D(id, LevelCount, (SizedInternalFormat)Format, Width, Height, Depth);
                         break;
                 }
+                Built = true;
             }
             return this;
         }

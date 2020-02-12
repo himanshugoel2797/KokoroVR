@@ -24,6 +24,7 @@ namespace KokoroVR
         public static Framebuffer[] Framebuffers { get; private set; }
         public static Matrix4[] Projection { get; private set; }
         public static Matrix4[] View { get; private set; }
+        public static Matrix4[] PrevView { get; private set; }
         public static Frustum[] Frustums { get; private set; }
         public static LocalPlayer CurrentPlayer { get; private set; }
         public static DeferredRenderer DeferredRenderer { get; set; }
@@ -54,6 +55,11 @@ namespace KokoroVR
                 HMDClient.GetEyeView(VRHand.Left),
                 HMDClient.GetEyeView(VRHand.Right)
             };
+            PrevView = new Matrix4[]
+            {
+                HMDClient.GetEyeView(VRHand.Left),
+                HMDClient.GetEyeView(VRHand.Right)
+            };
             Frustums = new Frustum[]
             {
                 new Frustum(View[0], Projection[0], CurrentPlayer.Position)
@@ -78,6 +84,10 @@ namespace KokoroVR
                 Matrix4.CreatePerspectiveFieldOfView(MathHelper.DegreesToRadians(90), 16f/9f, 0.001f)
             };
             View = new Matrix4[]
+            {
+                Matrix4.LookAt(CurrentPlayer.Position, Vector3.Zero, Vector3.UnitY)
+            };
+            PrevView = new Matrix4[]
             {
                 Matrix4.LookAt(CurrentPlayer.Position, Vector3.Zero, Vector3.UnitY)
             };
@@ -136,10 +146,27 @@ namespace KokoroVR
 
                 for (int i = 0; i < Engine.EyeCount; i++)
                 {
+                    var f = (float[])PrevView[i];
+                    for (int j = 0; j < f.Length; j++)
+                        p[off++] = f[j];
+                }
+
+                for (int i = 0; i < Engine.EyeCount; i++)
+                {
+                    var f = (float[])(PrevView[i] * Projection[i]);
+                    for (int j = 0; j < f.Length; j++)
+                        p[off++] = f[j];
+                }
+
+                for (int i = 0; i < Engine.EyeCount; i++)
+                {
                     var f = (float[])(DeferredRenderer?.InfoBindings[i].GetTextureHandle());
                     for (int j = 0; j < f.Length; j++)
                         p[off++] = f[j];
-                    off += 2;
+                    f = (float[])(DeferredRenderer?.InfoBindings2[i].GetTextureHandle());
+                    for (int j = 0; j < f.Length; j++)
+                        p[off++] = f[j];
+
                 }
 
                 for (int i = 0; i < Engine.EyeCount; i++)

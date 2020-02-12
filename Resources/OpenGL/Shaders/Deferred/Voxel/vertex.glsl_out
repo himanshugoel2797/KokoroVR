@@ -34,6 +34,8 @@ struct draw_cmd_t {
 	uint index_block;
 	uint vbo_idx;
 	uint base_vertex;
+    vec4 aabb_min;
+    vec4 aabb_max;
 };
 
 layout(std430, binding = 1) readonly buffer BlockInfos_t {
@@ -52,6 +54,8 @@ layout(std140, binding = 0) uniform GlobalParams_t {
 	mat4 proj[EYECOUNT];
 	mat4 view[EYECOUNT];
 	mat4 vp[EYECOUNT];
+	mat4 prev_view[EYECOUNT];
+	mat4 prev_vp[EYECOUNT];
 	uvec4 infoBindings[EYECOUNT];
 	uvec4 depthBindings[EYECOUNT];
 	vec4 eyePos;

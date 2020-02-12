@@ -12,17 +12,18 @@ namespace KokoroVR.Graphics.Voxel
 {
     public class ChunkObject : Interactable   //Represents a composite chunk object, eventually we want to be able to break off disconnected chunks
     {
-        private ChunkStreamer streamer;
         private Octree<Chunk> ChunkTree;
         private List<int[]> coords;
 
-        public Vector3 Position { get; set; }
+        public VoxelGI GI { get; }
+        public ChunkStreamer Streamer { get; }
 
         public ChunkObject(ChunkStreamer streamer)
         {
+            GI = new VoxelGI(this);
             ChunkTree = new Octree<Chunk>(0, 16384);
             coords = new List<int[]>();
-            this.streamer = streamer;
+            this.Streamer = streamer;
         }
 
         public void BulkSet((int, int, int, byte)[] updates)
@@ -41,7 +42,7 @@ namespace KokoroVR.Graphics.Voxel
 
                 if (!ChunkTree.Contains(x_b, y_b, z_b, ChunkConstants.Side))
                 {
-                    var tmp = streamer.Allocate();
+                    var tmp = Streamer.Allocate();
                     tmp.Owner = this;
                     ChunkTree.Add(tmp, x_b, y_b, z_b, ChunkConstants.Side);
                     coords.Add(new int[] { x_b, y_b, z_b });
@@ -66,7 +67,7 @@ namespace KokoroVR.Graphics.Voxel
 
             if (!ChunkTree.Contains(x_b, y_b, z_b, ChunkConstants.Side))
             {
-                var tmp = streamer.Allocate();
+                var tmp = Streamer.Allocate();
                 tmp.Owner = this;
                 ChunkTree.Add(tmp, x_b, y_b, z_b, ChunkConstants.Side);
                 coords.Add(new int[] { x_b, y_b, z_b });
@@ -111,7 +112,7 @@ namespace KokoroVR.Graphics.Voxel
             }*/
             var chunks = ChunkTree.GetVisibleChunks(Engine.Frustums[(int)eye]);
             foreach ((Chunk c, long[] comps) in chunks)
-                streamer.RenderChunk(c, Position + new Vector3(comps[0], comps[1], comps[2]));
+                Streamer.RenderChunk(c, new Vector3(comps[0], comps[1], comps[2]));
             //TODO get view position, submit draws from nearest to farthest
         }
 

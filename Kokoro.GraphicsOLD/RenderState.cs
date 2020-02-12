@@ -62,7 +62,7 @@ namespace Kokoro.Graphics
             IndexBuffer = iBuffer;
 
             if (viewports == null)
-                Viewports = new Vector4[] { new Vector4(0, 0, Framebuffer.Width, Framebuffer.Height) };
+                Viewports = new Vector4[] { new Vector4(0, 0, Framebuffer == null ? 0 : Framebuffer.Width, Framebuffer == null ? 0 : Framebuffer.Height) };
             else
                 Viewports = viewports;
         }

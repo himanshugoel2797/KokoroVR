@@ -60,7 +60,7 @@ namespace KokoroVR
 
         public virtual void Render(double time)
         {
-            Renderer.Clear();
+            Renderer.FrameStart();
 
             var v = Engine.View.Select(a => Engine.CurrentPlayer.Pose * a).ToArray();
             var p = Engine.Projection;
@@ -73,7 +73,7 @@ namespace KokoroVR
                 foreach (var r in Interactables)
                     r.Render(time, Renderer.Framebuffers[i], (i == 0) ? VREye.Left : VREye.Right);
             }
-            Renderer.Submit(v, p, Engine.CurrentPlayer.Position);
+            Renderer.Submit();
             Engine.Submit();
 
 #if VR

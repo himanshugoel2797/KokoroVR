@@ -30,6 +30,7 @@ namespace Kokoro.Graphics
         {
             if (!locked)
             {
+                if (!t.Built) throw new Exception("Texture isn't built.");
                 this.Parent = t;
                 GL.GenTextures(1, out id);
                 GL.TextureView(id, (OpenTK.Graphics.OpenGL4.TextureTarget)Target, (int)t, (OpenTK.Graphics.OpenGL4.PixelInternalFormat)Format, BaseLevel, LevelCount, BaseLayer, LayerCount);
@@ -44,7 +45,7 @@ namespace Kokoro.Graphics
         public ImageHandle GetImageHandle()
         {
             if (imgHandle == null)
-                imgHandle = new ImageHandle(GL.Arb.GetImageHandle(id, BaseLevel, false, BaseLayer, (OpenTK.Graphics.OpenGL4.PixelFormat)Format), this);
+                imgHandle = new ImageHandle(GL.Arb.GetImageHandle((int)Parent, BaseLevel, false, BaseLayer, (OpenTK.Graphics.OpenGL4.PixelFormat)Format), this);
             return imgHandle;
         }
 

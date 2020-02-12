@@ -407,7 +407,7 @@ namespace Kokoro.Graphics
             GraphicsDevice.ClearDepth = state.ClearDepth;
             GraphicsDevice.AlphaSrc = state.Src;
             GraphicsDevice.AlphaDst = state.Dst;
-            GraphicsDevice.Framebuffer = state.Framebuffer;
+            if (state.Framebuffer != null) GraphicsDevice.Framebuffer = state.Framebuffer;
             GraphicsDevice.SetDepthRange(state.NearPlane, state.FarPlane);
 
 
