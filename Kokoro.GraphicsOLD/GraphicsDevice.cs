@@ -373,7 +373,7 @@ namespace Kokoro.Graphics
 #else
             flags |= GraphicsContextFlags.Debug;
 #endif
-            Window = new GameWindow(1280, 720, GraphicsMode.Default, "Game Window", OpenTK.GameWindowFlags.Default, OpenTK.DisplayDevice.Default, 0, 0, flags | GraphicsContextFlags.ForwardCompatible);
+            Window = new GameWindow(1024, 1024, GraphicsMode.Default, "Game Window", OpenTK.GameWindowFlags.Default, OpenTK.DisplayDevice.Default, 0, 0, flags | GraphicsContextFlags.ForwardCompatible);
 
             Window.Resize += Window_Resize;
             Window.Load += Game_Load;

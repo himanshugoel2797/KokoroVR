@@ -77,10 +77,51 @@ namespace Kokoro.Graphics
             GL.SamplerParameter(id, SamplerParameterName.TextureWrapR, tileZ ? (int)TextureWrapMode.Repeat : (int)TextureWrapMode.ClampToEdge);
         }
 
-        public void SetEnableLinearFilter(bool linear)
+        public void SetEnableLinearFilter(bool linear, bool useMipmaps, bool mipmapLinear)
         {
-            GL.SamplerParameter(id, SamplerParameterName.TextureMagFilter, linear ? (int)TextureMagFilter.Linear : (int)TextureMagFilter.Nearest);
-            GL.SamplerParameter(id, SamplerParameterName.TextureMinFilter, linear ? (int)TextureMinFilter.Linear : (int)TextureMinFilter.Nearest);
+            var mag = TextureMagFilter.Nearest;
+            var min = TextureMinFilter.Nearest;
+            if (linear)
+            {
+                mag = TextureMagFilter.Linear;
+                if (useMipmaps)
+                {
+                    if (mipmapLinear)
+                    {
+                        min = (TextureMinFilter)All.LinearMipmapLinear;
+                    }
+                    else
+                    {
+                        min = (TextureMinFilter)All.LinearMipmapNearest;
+                    }
+                }
+                else
+                {
+                    min = TextureMinFilter.Linear;
+                }
+            }
+            else
+            {
+                mag = TextureMagFilter.Nearest;
+                if (useMipmaps)
+                {
+                    if (mipmapLinear)
+                    {
+                        min = (TextureMinFilter)All.NearestMipmapLinear;
+                    }
+                    else
+                    {
+                        min = (TextureMinFilter)All.NearestMipmapNearest;
+                    }
+                }
+                else
+                {
+                    min = TextureMinFilter.Nearest;
+                }
+            }
+
+            GL.SamplerParameter(id, SamplerParameterName.TextureMagFilter, (int)mag);
+            GL.SamplerParameter(id, SamplerParameterName.TextureMinFilter, (int)min);
         }
 
         public void SetAnisotropicFilter(float taps)

@@ -1,4 +1,18 @@
-//cull draws by checking nearest corner distance with chain
+//ComputeShader
+#version 460 core
+#extension GL_ARB_gpu_shader_int64 : require
+#extension GL_AMD_gpu_shader_half_float : require
+#extension GL_AMD_gpu_shader_half_float_fetch : require
+#extension GL_AMD_gpu_shader_int16 : require
+#extension GL_ARB_shader_ballot : require
+#extension GL_ARB_bindless_texture : require
+#extension GL_AMD_vertex_shader_viewport_index : require
+#extension GL_ARB_shader_draw_parameters : require
+#define MAX_DRAWS_UBO 256
+#define MAX_DRAWS_SSBO 1024
+#define PI 3.141592653589793
+#define EYECOUNT 1
+#define MIP_COUNT 11//cull draws by checking nearest corner distance with chain
 //take closest corners of each AABB, project them onto previous frame's buffers
 //use this for culling provided list of draws, one draw per execution
 

@@ -22,10 +22,10 @@ namespace Kokoro.Math
             var nbl = Vector4.Transform(new Vector4(-1, -1, 1f, 1), iVP);
             var nbr = Vector4.Transform(new Vector4(1, -1, 1f, 1), iVP);
 
-            var ftl = Vector4.Transform(new Vector4(-1, 1, 0.00001f, 1), iVP);
-            var ftr = Vector4.Transform(new Vector4(1, 1, 0.00001f, 1), iVP);
-            var fbl = Vector4.Transform(new Vector4(-1, -1, 0.00001f, 1), iVP);
-            var fbr = Vector4.Transform(new Vector4(1, -1, 0.00001f, 1), iVP);
+            var ftl = Vector4.Transform(new Vector4(-1, 1, 0.01f, 1), iVP);
+            var ftr = Vector4.Transform(new Vector4(1, 1, 0.01f, 1), iVP);
+            var fbl = Vector4.Transform(new Vector4(-1, -1, 0.01f, 1), iVP);
+            var fbr = Vector4.Transform(new Vector4(1, -1, 0.01f, 1), iVP);
 
             ntl /= ntl.W;
             ntr /= ntr.W;
@@ -81,14 +81,14 @@ namespace Kokoro.Math
             Vector3 h = new Vector3(max.X, max.Y, max.Z);
 
             int o = 0;
-            o += (PlaneHelper.ClassifyPoint(ref a, ref p) < 0.0f) ? 1 : 0;
-            o += (PlaneHelper.ClassifyPoint(ref b, ref p) < 0.0f) ? 1 : 0;
-            o += (PlaneHelper.ClassifyPoint(ref c, ref p) < 0.0f) ? 1 : 0;
-            o += (PlaneHelper.ClassifyPoint(ref d, ref p) < 0.0f) ? 1 : 0;
-            o += (PlaneHelper.ClassifyPoint(ref e, ref p) < 0.0f) ? 1 : 0;
-            o += (PlaneHelper.ClassifyPoint(ref f, ref p) < 0.0f) ? 1 : 0;
-            o += (PlaneHelper.ClassifyPoint(ref g, ref p) < 0.0f) ? 1 : 0;
-            o += (PlaneHelper.ClassifyPoint(ref h, ref p) < 0.0f) ? 1 : 0;
+            o += (PlaneHelper.ClassifyPoint(ref a, ref p) >= 0.0f) ? 1 : 0;
+            o += (PlaneHelper.ClassifyPoint(ref b, ref p) >= 0.0f) ? 1 : 0;
+            o += (PlaneHelper.ClassifyPoint(ref c, ref p) >= 0.0f) ? 1 : 0;
+            o += (PlaneHelper.ClassifyPoint(ref d, ref p) >= 0.0f) ? 1 : 0;
+            o += (PlaneHelper.ClassifyPoint(ref e, ref p) >= 0.0f) ? 1 : 0;
+            o += (PlaneHelper.ClassifyPoint(ref f, ref p) >= 0.0f) ? 1 : 0;
+            o += (PlaneHelper.ClassifyPoint(ref g, ref p) >= 0.0f) ? 1 : 0;
+            o += (PlaneHelper.ClassifyPoint(ref h, ref p) >= 0.0f) ? 1 : 0;
             if (o == 8) return 0;
 
             return 1;
@@ -96,6 +96,7 @@ namespace Kokoro.Math
 
         public bool IsVisible(Vector3 min, Vector3 max)
         {
+            return true;
             if (CalcPlaneBox(min, max, lft) == 0)
                 return false;
             if (CalcPlaneBox(min, max, rgt) == 0)

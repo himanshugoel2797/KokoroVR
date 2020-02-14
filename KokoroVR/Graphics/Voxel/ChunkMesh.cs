@@ -27,12 +27,12 @@ namespace KokoroVR.Graphics.Voxel
 
         private uint baseVertex;
         private int bufferIdx;
-        private Vector4[] bounds;
+        private BoundingBox[] bounds;
 
         public uint BaseVertex { get => baseVertex; private set => baseVertex = value; }
         public int BufferIdx { get => bufferIdx; private set => bufferIdx = value; }
 
-        public void Reallocate(byte[] vertices, uint[] indices, Vector4[] bounds, byte[] norms, Vector3 offset)
+        public void Reallocate(byte[] vertices, uint[] indices, BoundingBox[] bounds, byte[] norms, Vector3 offset)
         {
             if (this.bounds != null) vbo.Free(bufferIdx, baseVertex);
             this.bounds = bounds;
@@ -63,17 +63,17 @@ namespace KokoroVR.Graphics.Voxel
             }
         }
 
-        public (int, uint)[] Sort(Frustum f, Vector3 eyePos)
+        public (int, uint, Vector3, Vector3)[] Sort(Frustum f, Vector3 eyePos)
         {
-            var blocks = new List<(int, uint)>();
+            var blocks = new List<(int, uint, Vector3, Vector3)>();
             uint last_blk_len = (uint)(Length - (AllocIndices.Length - 1) * BlockSize);
 
             for (int i = 0; i < AllocIndices.Length; i++)
                 if (IsVisible(f, i))
                     if (i < AllocIndices.Length - 1)
-                        blocks.Add((i, BlockSize));
+                        blocks.Add((i, BlockSize, bounds[i].Min, bounds[i].Max));
                     else
-                        blocks.Add((i, last_blk_len));
+                        blocks.Add((i, last_blk_len, bounds[i].Min, bounds[i].Max));
 
             return blocks.ToArray();
         }
@@ -81,7 +81,7 @@ namespace KokoroVR.Graphics.Voxel
         public bool IsVisible(Frustum f, int k)
         {
             //Check the norm mask
-            return f.IsVisible(bounds[k]);
+            return f.IsVisible(bounds[k].Min, bounds[k].Max);
         }
     }
 }

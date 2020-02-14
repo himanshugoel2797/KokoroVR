@@ -4,6 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 using System.Text;
+using System.Threading;
 
 namespace KokoroVR.Graphics
 {
@@ -26,6 +27,8 @@ namespace KokoroVR.Graphics
             public ShaderProgram mipchain;
             public CommandBuffer cBuffer;
             public Texture hiZ;
+            public TextureView hiZTex;
+            public TextureBinding hiZBinding;
             public TextureView[] hiZView;
         }
 
@@ -34,10 +37,10 @@ namespace KokoroVR.Graphics
         public TextureBinding[] InfoBindings2 { get; private set; }
         public TextureBinding[] DepthBindings { get; private set; }
         public TextureView[][] HiZMap { get; private set; }
+        public UniformBuffer HiZMapUBO { get; }
 
         private LightManager lMan;
         private ViewData[] views;
-        private UniformBuffer hiz;
         private bool firstRun = true;
 
         //Deferred Renderer Rework - New GBuffer - 
@@ -55,11 +58,11 @@ namespace KokoroVR.Graphics
             Framebuffers = new Framebuffer[fbufs.Length];
             HiZMap = new TextureView[fbufs.Length][];
             views = new ViewData[fbufs.Length];
-            hiz = new UniformBuffer(false);
+            HiZMapUBO = new UniformBuffer(false);
             unsafe
             {
                 int off = 0;
-                float* fp = (float*)hiz.Update();
+                float* fp = (float*)HiZMapUBO.Update();
                 fp += 4;
                 for (int i = 0; i < views.Length; i++)
                 {
@@ -106,7 +109,7 @@ namespace KokoroVR.Graphics
                             Format = PixelInternalFormat.Rg32f,
                             GenerateMipmaps = false,
                             LayerCount = 1,
-                            LevelCount = (int)(MathHelper.Log2((ulong)Math.Max(fbufs[i].Width, fbufs[i].Height)) - 1),
+                            LevelCount = (int)(MathHelper.Log2((ulong)Math.Max(fbufs[i].Width, fbufs[i].Height)) + 1),
                             Target = TextureTarget.Texture2D
                         }.Build(),
                         gbuffer = new Framebuffer(fbufs[i].Width, fbufs[i].Height),
@@ -159,6 +162,29 @@ namespace KokoroVR.Graphics
                             *(fp++) = f_arr[q];
                         fp += 2;
                     }
+                    views[i].hiZTex = new TextureView()
+                    {
+                        BaseLayer = 0,
+                        BaseLevel = 0,
+                        Format = PixelInternalFormat.Rg32f,
+                        LayerCount = 1,
+                        LevelCount = views[i].hiZView.Length,
+                        Target = TextureTarget.Texture2D
+                    }.Build(views[i].hiZ);
+
+                    var sampler = new TextureSampler();
+                    sampler.SetEnableLinearFilter(true, true, true);
+                    sampler.SetTileMode(false, false);
+
+                    views[i].hiZBinding = new TextureBinding()
+                    {
+                        View = views[i].hiZTex,
+                        Sampler = sampler
+                    };
+                    var f_arr_ = (float[])views[i].hiZBinding.GetTextureHandle().SetResidency(Residency.Resident);
+                    for (int q = 0; q < f_arr_.Length; q++)
+                        *(fp++) = f_arr_[q];
+                    fp += 2;
 
                     views[i].gbuffer[FramebufferAttachment.DepthAttachment] = views[i].depthView;
                     views[i].gbuffer[FramebufferAttachment.ColorAttachment0] = views[i].infoView;
@@ -172,11 +198,11 @@ namespace KokoroVR.Graphics
                     views[i].copy = new ShaderProgram(
                         ShaderSource.Load(ShaderType.ComputeShader, "Shaders\\HiZ\\copy.glsl", $"#define MIP_COUNT {views[i].hiZView.Length}")
                         );
-                    views[i].copyState = new RenderState(null, views[i].copy, null, new UniformBuffer[] { Engine.GlobalParameters, hiz }, false, false, DepthFunc.Always, InverseDepth.Far, InverseDepth.Near, BlendFactor.SrcAlpha, BlendFactor.OneMinusSrcAlpha, Vector4.Zero, InverseDepth.ClearDepth, CullFaceMode.Back);
+                    views[i].copyState = new RenderState(null, views[i].copy, null, new UniformBuffer[] { Engine.GlobalParameters, HiZMapUBO }, false, false, DepthFunc.Always, InverseDepth.Far, InverseDepth.Near, BlendFactor.SrcAlpha, BlendFactor.OneMinusSrcAlpha, Vector4.Zero, InverseDepth.ClearDepth, CullFaceMode.Back);
                     views[i].mipchain = new ShaderProgram(
                         ShaderSource.Load(ShaderType.ComputeShader, "Shaders\\HiZ\\mipchain.glsl", $"#define MIP_COUNT {views[i].hiZView.Length}")
                         );
-                    views[i].mipchainState = new RenderState(null, views[i].mipchain, null, new UniformBuffer[] { Engine.GlobalParameters, hiz }, false, false, DepthFunc.Always, InverseDepth.Far, InverseDepth.Near, BlendFactor.SrcAlpha, BlendFactor.OneMinusSrcAlpha, Vector4.Zero, InverseDepth.ClearDepth, CullFaceMode.Back);
+                    views[i].mipchainState = new RenderState(null, views[i].mipchain, null, new UniformBuffer[] { Engine.GlobalParameters, HiZMapUBO }, false, false, DepthFunc.Always, InverseDepth.Far, InverseDepth.Near, BlendFactor.SrcAlpha, BlendFactor.OneMinusSrcAlpha, Vector4.Zero, InverseDepth.ClearDepth, CullFaceMode.Back);
 
                     views[i].state = new RenderState(fbufs[i], views[i].program, null, new UniformBuffer[] { Engine.GlobalParameters }, false, true, DepthFunc.Always, InverseDepth.Far, InverseDepth.Near, BlendFactor.SrcAlpha, BlendFactor.OneMinusSrcAlpha, Vector4.Zero, InverseDepth.ClearDepth, CullFaceMode.None);
 
@@ -207,7 +233,7 @@ namespace KokoroVR.Graphics
                     views[i].cBuffer.SetRenderState(views[i].state);
                     views[i].cBuffer.Draw(PrimitiveType.Triangles, 0, 3, 1, 0);
                 }
-                hiz.UpdateDone();
+                HiZMapUBO.UpdateDone();
             }
         }
 
@@ -227,26 +253,32 @@ namespace KokoroVR.Graphics
 
                 //copy depth buffer into top of Hi-Z chain
                 tmpcmd.SetRenderState(views[i].copyState);
+                tmpcmd.Barrier(BarrierType.All);
                 tmpcmd.Dispatch(views[i].depthBuf.Width / 8, views[i].depthBuf.Height / 8, 1);
-                tmpcmd.Barrier(BarrierType.ShaderImageAccess);
+                tmpcmd.Barrier(BarrierType.All);
                 tmpcmd.Submit();
 
                 //build mip pyramid
                 unsafe
                 {
+                    //return;
                     int w = views[i].depthBuf.Width / 2;
                     int h = views[i].depthBuf.Height / 2;
                     for (int j = 1; j < views[i].hiZView.Length; j++)
                     {
-                        int* p = (int*)hiz.Update();
+                        int* p = (int*)HiZMapUBO.Update();
                         p[0] = j - 1;
-                        hiz.UpdateDone();
+                        HiZMapUBO.UpdateDone();
 
                         tmpcmd.Reset();
                         tmpcmd.SetRenderState(views[i].mipchainState);
+                        tmpcmd.Barrier(BarrierType.ShaderImageAccess | BarrierType.BufferUpdate);
                         tmpcmd.Dispatch(w / 8 + 1, h / 8 + 1, 1);
-                        tmpcmd.Barrier(BarrierType.ShaderImageAccess);
+                        tmpcmd.Barrier(BarrierType.ShaderImageAccess | BarrierType.BufferUpdate);
                         tmpcmd.Submit();
+                        
+                        w = w / 2;
+                        h = h / 2;
                     }
                 }
             }

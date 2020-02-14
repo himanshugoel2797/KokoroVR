@@ -12,7 +12,7 @@
 #define MAX_DRAWS_SSBO 1024
 #define PI 3.141592653589793
 #define EYECOUNT 1
-#define MIP_COUNT 9//copy depth buffer into hi-z top
+#define MIP_COUNT 11//copy depth buffer into hi-z top
 layout(local_size_x = 8, local_size_y = 8) in;
 
 layout(std140, binding = 0) uniform GlobalParams_t {
@@ -23,6 +23,9 @@ layout(std140, binding = 0) uniform GlobalParams_t {
 	mat4 prev_vp[EYECOUNT];
 	uvec4 infoBindings[EYECOUNT];
 	uvec4 depthBindings[EYECOUNT];
+	vec4 prev_eyePos;
+	vec4 prev_eyeUp;
+	vec4 prev_eyeDir;
 	vec4 eyePos;
 	vec4 eyeUp;
 	vec4 eyeDir;

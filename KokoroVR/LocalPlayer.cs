@@ -15,12 +15,15 @@ namespace KokoroVR
         public Matrix4 Pose { get; protected set; }
         public Vector3 Velocity { get; protected set; }
         public Vector3 AngularVelocity { get; protected set; }
-        public override Vector3 Position { get; set; }
         public override Quaternion Orientation { get; set; }
         public override float Height { get; protected set; }
+        public override Vector3 Position { get; set; }
+        public Vector3 Direction { get; set; }
+        public Vector3 Up { get; set; }
+        public override Vector3 PrevPosition { get; protected set; }
+        public Vector3 PrevDirection { get; set; }
+        public Vector3 PrevUp { get; set; }
 
-        public Vector3 Direction;
-        public Vector3 Up;
 
         float leftrightRot = MathHelper.PiOver2;
         float updownRot = -MathHelper.Pi / 10.0f;
@@ -125,6 +128,10 @@ namespace KokoroVR
 
         public override void Update(double time)
         {
+            PrevDirection = Direction;
+            PrevUp = Up;
+            PrevPosition = Position;
+
             if (Mouse.ButtonsDown.Left)
             {
                 if (System.Math.Abs(mousePos.X - Mouse.MousePos.X) > 0) leftrightRot -= (float)MathHelper.DegreesToRadians(rotationSpeed * (mousePos.X - Mouse.MousePos.X) * time / 10000f);

@@ -12,6 +12,7 @@ namespace KokoroVR
         public abstract Vector3 Position { get; set; }
         public abstract Quaternion Orientation { get; set; }
         public abstract float Height { get; protected set; }
+        public abstract Vector3 PrevPosition { get; protected set; }
 
         public abstract void GetControl(string name, out AnalogData val);
         public abstract void GetControl(string name, out DigitalData val);

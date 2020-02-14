@@ -15,7 +15,7 @@ namespace Kokoro.Graphics
         uint BaseVertex { get; }
         int BufferIdx { get; }
 
-        (int, uint)[] Sort(Frustum f, Vector3 eyePos);
+        (int, uint, Vector3, Vector3)[] Sort(Frustum f, Vector3 eyePos);
         bool IsVisible(Frustum f, int k);
     }
 }

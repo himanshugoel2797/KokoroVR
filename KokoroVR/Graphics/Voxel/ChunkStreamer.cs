@@ -20,7 +20,7 @@ namespace KokoroVR.Graphics.Voxel
         private (ChunkMesh, int, double)[] ChunkCache;
         private StorageBuffer drawParams;
         private RenderQueue queue;
-        private ShaderProgram voxelShader;
+        private ShaderProgram voxelShader, cullShader;
         private RenderState state;
         private CommandBuffer cmdBuffer;
         private List<(int, Vector3)> Draws;
@@ -62,6 +62,7 @@ namespace KokoroVR.Graphics.Voxel
             drawParams = new StorageBuffer(blk_cnt * 8 * sizeof(uint), false);
             voxelShader = new ShaderProgram(ShaderSource.Load(ShaderType.VertexShader, "Shaders/Deferred/Voxel/vertex.glsl"),
                                             ShaderSource.Load(ShaderType.FragmentShader, "Shaders/Deferred/Voxel/fragment.glsl"));
+            cullShader = new ShaderProgram(ShaderSource.Load(ShaderType.ComputeShader, "Shaders\\HiZ\\culldraws.glsl", $"#define MIP_COUNT {renderer.HiZMap[0].Length}"));
 
             cmdBuffer = new CommandBuffer();
             MaterialMap = new VoxelDictionary();
@@ -120,7 +121,7 @@ namespace KokoroVR.Graphics.Voxel
             {
                 unsafe
                 {
-                    ChunkCache[mesh_idx].Item1.Reallocate(c.faces, c.indices, c.boundSpheres, c.norm_mask, offset);
+                    ChunkCache[mesh_idx].Item1.Reallocate(c.faces, c.indices, c.boundAABBs, c.norm_mask, offset);
 
                     var dP_p = (float*)drawParams.Update();
                     for (int j = 0; j < ChunkCache[mesh_idx].Item1.AllocIndices.Length; j++)
@@ -156,12 +157,16 @@ namespace KokoroVR.Graphics.Voxel
 
             Draws.Clear();
             state = new RenderState(fbuf, voxelShader, new StorageBuffer[] { MaterialMap.voxelData, drawParams, queue.MultidrawParams }, new UniformBuffer[] { Engine.GlobalParameters, VertexBuffer.VertexBuffers }, true, true, DepthFunc.Greater, InverseDepth.Far, InverseDepth.Near, BlendFactor.One, BlendFactor.Zero, Vector4.Zero, InverseDepth.ClearDepth, CullFaceMode.Back, indexBuffer);
+            var cull_state = new RenderState(fbuf, cullShader, new StorageBuffer[] { MaterialMap.voxelData, drawParams, queue.MultidrawParams }, new UniformBuffer[] { Engine.GlobalParameters, VertexBuffer.VertexBuffers, renderer.HiZMapUBO }, true, true, DepthFunc.Greater, InverseDepth.Far, InverseDepth.Near, BlendFactor.One, BlendFactor.Zero, Vector4.Zero, InverseDepth.ClearDepth, CullFaceMode.Back, indexBuffer);
             cmdBuffer.Reset();
+            cmdBuffer.SetRenderState(cull_state);
+            cmdBuffer.Dispatch(queue.MaxDrawCount / 64, 1, 1);
+            cmdBuffer.Barrier(BarrierType.All);
             cmdBuffer.SetRenderState(state);
             cmdBuffer.Clear(true, true);
             //TODO: dispatch a compute task for occlusion culling
             cmdBuffer.MultiDrawIndirectIndexed(PrimitiveType.Triangles, (GpuBuffer)queue.MultidrawParams, false, RenderQueue.InfoOffset, RenderQueue.DrawCountOffset, queue.MaxDrawCount, RenderQueue.Stride);
-            
+
             queue.Clear();
         }
 
@@ -193,6 +198,7 @@ namespace KokoroVR.Graphics.Voxel
                     });
                 }
 
+                parent.cullShader.Set("eyeIdx", (int)eye);
                 parent.voxelShader.Set("eyeIdx", (int)eye);
                 parent.queue.Build(Engine.Frustums[(int)eye], Engine.CurrentPlayer.Position);
                 parent.cmdBuffer.Submit();

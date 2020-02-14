@@ -15,5 +15,6 @@ namespace Kokoro.Graphics
         BufferUpdate = (1 << 7),
         Framebuffer = (1 << 8),
         StorageBuffer = (1 << 9),
+        All = ElementArray | UniformBuffer | TextureFetch | ShaderImageAccess | Command | PixelBuffer | TextureUpdate | BufferUpdate | Framebuffer | StorageBuffer
     }
 }

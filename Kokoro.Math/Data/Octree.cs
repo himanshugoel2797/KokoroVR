@@ -173,7 +173,7 @@ namespace Kokoro.Math.Data
         private void GetVisibleChunks(List<(T, long[])> chunks, Frustum f, long x_c, long y_c, long z_c)
         {
             long side = Data.WorldSide >> Level;
-            if (f.IsVisible(new Vector4(x_c, y_c, z_c, side * 1f * System.MathF.Sqrt(3))))
+            if (f.IsVisible(new Vector3(x_c - side / 2, y_c - side / 2, z_c - side / 2), new Vector3(x_c + side / 2, y_c + side / 2, z_c + side / 2)))
             {
                 if (NodeValue != null) chunks.Add((NodeValue, new long[] { x_c - (side >> 1), y_c - (side >> 1), z_c - (side >> 1) }));
                 if (Children == null) return;

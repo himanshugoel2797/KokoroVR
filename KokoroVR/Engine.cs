@@ -81,7 +81,7 @@ namespace KokoroVR
             };
             Projection = new Matrix4[]
             {
-                Matrix4.CreatePerspectiveFieldOfView(MathHelper.DegreesToRadians(90), 16f/9f, 0.001f)
+                Matrix4.CreatePerspectiveFieldOfView(MathHelper.DegreesToRadians(90), 9f/9f, 1 - 0.0001f)
             };
             View = new Matrix4[]
             {
@@ -177,15 +177,30 @@ namespace KokoroVR
                     off += 2;
                 }
 
+                p[off++] = CurrentPlayer.PrevPosition.X;
+                p[off++] = CurrentPlayer.PrevPosition.Y;
+                p[off++] = CurrentPlayer.PrevPosition.Z;
+                p[off++] = GraphicsDevice.WindowSize.Width;
+
+                p[off++] = CurrentPlayer.PrevUp.X;
+                p[off++] = CurrentPlayer.PrevUp.Y;
+                p[off++] = CurrentPlayer.PrevUp.Z;
+                p[off++] = GraphicsDevice.WindowSize.Height;
+
+                p[off++] = CurrentPlayer.PrevDirection.X;
+                p[off++] = CurrentPlayer.PrevDirection.Y;
+                p[off++] = CurrentPlayer.PrevDirection.Z;
+                p[off++] = 0;
+
                 p[off++] = CurrentPlayer.Position.X;
                 p[off++] = CurrentPlayer.Position.Y;
                 p[off++] = CurrentPlayer.Position.Z;
-                p[off++] = 0;
+                p[off++] = GraphicsDevice.WindowSize.Width;
 
                 p[off++] = CurrentPlayer.Up.X;
                 p[off++] = CurrentPlayer.Up.Y;
                 p[off++] = CurrentPlayer.Up.Z;
-                p[off++] = 0;
+                p[off++] = GraphicsDevice.WindowSize.Height;
 
                 p[off++] = CurrentPlayer.Direction.X;
                 p[off++] = CurrentPlayer.Direction.Y;

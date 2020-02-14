@@ -27,9 +27,9 @@ namespace KokoroVR.Test
                 Random rng = new Random(0);
                 ulong cnt = 0;
                 Perlin p = new Perlin();
-                for (int x = ChunkConstants.Side * -1; x < ChunkConstants.Side * 1; x++)
+                for (int x = ChunkConstants.Side * -10; x < ChunkConstants.Side * 10; x++)
                     //for (int y = ChunkConstants.Side * -1; y < ChunkConstants.Side * 1; y++)
-                    for (int z = ChunkConstants.Side * -1; z < ChunkConstants.Side * 1; z++)
+                    for (int z = ChunkConstants.Side * -10; z < ChunkConstants.Side * 10; z++)
                     {
                         //if (x * x + y * y + z * z <= 200 * 200)
                         //if(y > -32 && y < 32)

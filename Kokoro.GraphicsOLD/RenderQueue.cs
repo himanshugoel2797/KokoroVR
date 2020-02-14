@@ -80,13 +80,14 @@ namespace Kokoro.Graphics
                     //break into and submit blocks
                     for (int q = 0; q < sorted_draws.Length; q++)
                     {
-                        (int k, uint cnt) = sorted_draws[q];
+                        (int k, uint cnt, Vector3 min, Vector3 max) = sorted_draws[q];
                         if (idxType == IndexType.None)
                         {
                             data_ui[(idx * 16) + 4] = (uint)cnt;   //count
                             data_ui[(idx * 16) + 5] = (uint)mesh.InstanceCount;   //instanceCount
                             data_ui[(idx * 16) + 6] = (uint)(mesh.Mesh.AllocIndices[k] * mesh.Mesh.BlockSize);   //baseVertex
                             data_ui[(idx * 16) + 7] = (uint)mesh.BaseInstance;   //baseInstance
+                            throw new NotImplementedException();
                         }
                         else
                         {
@@ -98,6 +99,14 @@ namespace Kokoro.Graphics
                             data_ui[(idx * 16) + 9] = (uint)mesh.Mesh.AllocIndices[k];
                             data_ui[(idx * 16) + 10] = (uint)mesh.Mesh.BufferIdx;
                             data_ui[(idx * 16) + 11] = mesh.Mesh.BaseVertex;
+                            
+                            ((float*)data_ui)[(idx * 16) + 12] = min.X;
+                            ((float*)data_ui)[(idx * 16) + 13] = min.Y;
+                            ((float*)data_ui)[(idx * 16) + 14] = min.Z;
+                            
+                            ((float*)data_ui)[(idx * 16) + 16] = max.X;
+                            ((float*)data_ui)[(idx * 16) + 17] = max.Y;
+                            ((float*)data_ui)[(idx * 16) + 18] = max.Z;
                         }
 
                         idx++;
