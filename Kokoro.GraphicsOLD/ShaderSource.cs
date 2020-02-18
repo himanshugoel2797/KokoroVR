@@ -12,7 +12,8 @@ namespace Kokoro.Graphics
     {
         #region Static Methods
         //#if DEBUG
-        public const string ShaderPath = @"I:\Code\KokoroVR\Resources\OpenGL";
+        public const string ShaderPath = "I://Code/KokoroVR/Resources/OpenGL";
+        public const string ShaderPath2 = "Resources/OpenGL";
         //#endif
 
         public static ShaderSource Load(ShaderType sType, string file)
@@ -21,6 +22,8 @@ namespace Kokoro.Graphics
             {
                 if (File.Exists(Path.Combine(ShaderPath, file)))
                     file = Path.Combine(ShaderPath, file);
+                else if(File.Exists(Path.Combine(ShaderPath2, file)))
+                    file = Path.Combine(ShaderPath2, file);
             }
             var src = File.ReadAllText(file);
             return new ShaderSource(sType, file, src, "");
@@ -32,6 +35,8 @@ namespace Kokoro.Graphics
             {
                 if (File.Exists(Path.Combine(ShaderPath, file)))
                     file = Path.Combine(ShaderPath, file);
+                else if(File.Exists(Path.Combine(ShaderPath2, file)))
+                    file = Path.Combine(ShaderPath2, file);
             }
             var src = File.ReadAllText(file);
             return new ShaderSource(sType, file, src, defines, libraryName);
@@ -43,7 +48,7 @@ namespace Kokoro.Graphics
 
         public ShaderSource(Kokoro.Graphics.ShaderType sType, string filename, string src, string defines, params string[] libraryName)
         {
-            string preamble = $"#version 460 core\n#extension GL_ARB_gpu_shader_int64 : require\n#extension GL_AMD_gpu_shader_half_float : require\n#extension GL_AMD_gpu_shader_half_float_fetch : require\n#extension GL_AMD_gpu_shader_int16 : require\n#extension GL_ARB_shader_ballot : require\n#extension GL_ARB_bindless_texture : require\n#extension GL_AMD_vertex_shader_viewport_index : require\n#extension GL_ARB_shader_draw_parameters : require\n#define MAX_DRAWS_UBO {GraphicsDevice.MaxIndirectDrawsUBO}\n#define MAX_DRAWS_SSBO {GraphicsDevice.MaxIndirectDrawsSSBO}\n#define PI {System.Math.PI}\n#define EYECOUNT {GraphicsDevice.EyeCount}\n";
+            string preamble = $"#version 460 core\n#extension GL_ARB_gpu_shader_int64 : require\n#extension GL_ARB_shader_ballot : require\n#extension GL_ARB_bindless_texture : require\n#extension GL_AMD_vertex_shader_viewport_index : require\n#extension GL_ARB_shader_draw_parameters : require\n#define MAX_DRAWS_UBO {GraphicsDevice.MaxIndirectDrawsUBO}\n#define MAX_DRAWS_SSBO {GraphicsDevice.MaxIndirectDrawsSSBO}\n#define PI {System.Math.PI}\n#define EYECOUNT {GraphicsDevice.EyeCount}\n";
 
             string shaderSrc = preamble + defines;
 

@@ -89,7 +89,7 @@ void main(){
     //inst_dpth = max(min(inst_dpth, 1), 0);
 
     vec2 vsz = (rect[1] - rect[0]) * vec2(GlobalParams.eyePos.w /*Width*/, GlobalParams.eyeUp.w /*Height*/);
-    float lod = ( log2( max(vsz.x, vsz.y) ) );
+    float lod = ( log2( max(vsz.x, vsz.y) * 0.5f ) );
 
     vec4 samples;
     sampler2D hiz_sampler = sampler2D(HiZLayers.mip_tex.xy);
@@ -100,6 +100,6 @@ void main(){
     float sampledDepth = min(min(samples.x, samples.y), min(samples.z, samples.w));
     
     //if any corner is greater than the Hi-Z value, this draw is visible 
-    //if(inst_dpth <= 0.0001f)return;
-    src_DrawCMDs.cmds[drawIdx].count *= (inst_dpth >= sampledDepth - 0.0001f) ? 1 : 0;
+    //if(inst_dpth < 0.9f)return;
+    src_DrawCMDs.cmds[drawIdx].count *= (inst_dpth > sampledDepth) ? 1 : 0;
 }

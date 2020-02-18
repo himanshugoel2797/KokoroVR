@@ -81,7 +81,7 @@ namespace KokoroVR
             };
             Projection = new Matrix4[]
             {
-                Matrix4.CreatePerspectiveFieldOfView(MathHelper.DegreesToRadians(90), 9f/9f, 1 - 0.0001f)
+                Matrix4.CreatePerspectiveFieldOfView(MathHelper.DegreesToRadians(90), 9f/9f, 1 - 0.001f)
             };
             View = new Matrix4[]
             {

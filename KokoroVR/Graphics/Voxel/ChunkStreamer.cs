@@ -62,7 +62,7 @@ namespace KokoroVR.Graphics.Voxel
             drawParams = new StorageBuffer(blk_cnt * 8 * sizeof(uint), false);
             voxelShader = new ShaderProgram(ShaderSource.Load(ShaderType.VertexShader, "Shaders/Deferred/Voxel/vertex.glsl"),
                                             ShaderSource.Load(ShaderType.FragmentShader, "Shaders/Deferred/Voxel/fragment.glsl"));
-            cullShader = new ShaderProgram(ShaderSource.Load(ShaderType.ComputeShader, "Shaders\\HiZ\\culldraws.glsl", $"#define MIP_COUNT {renderer.HiZMap[0].Length}"));
+            cullShader = new ShaderProgram(ShaderSource.Load(ShaderType.ComputeShader, "Shaders/HiZ/culldraws.glsl", $"#define MIP_COUNT {renderer.HiZMap[0].Length}"));
 
             cmdBuffer = new CommandBuffer();
             MaterialMap = new VoxelDictionary();

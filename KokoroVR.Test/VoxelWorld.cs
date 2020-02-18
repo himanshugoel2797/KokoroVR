@@ -34,7 +34,7 @@ namespace KokoroVR.Test
                         //if (x * x + y * y + z * z <= 200 * 200)
                         //if(y > -32 && y < 32)
                         {
-                            int y = (int)((p.GetValue(x * 0.005f, z * 0.005f, 0) * 0.5f + 0.5f) * 128);
+                            int y = (x == -300) ? 400 : (int)((p.GetValue(x * 0.005f, z * 0.005f, 0) * 0.5f + 0.5f) * 128);
                             if (y >= 0)
                                 for (int y0 = y; y0 >= 0; y0--)
                                     obj.Set(x, y0, z, mat_id);

@@ -192,15 +192,15 @@ namespace KokoroVR.Graphics
                     Framebuffers[i] = views[i].gbuffer;
 
                     views[i].program = new ShaderProgram(
-                        ShaderSource.Load(ShaderType.VertexShader, "Shaders\\RenderToTexture\\FrameBufferTriangle\\vertex.glsl"),
-                        ShaderSource.Load(ShaderType.FragmentShader, "Shaders\\RenderToTexture\\FrameBufferTriangle\\fragment.glsl")
+                        ShaderSource.Load(ShaderType.VertexShader, "Shaders/RenderToTexture/FrameBufferTriangle/vertex.glsl"),
+                        ShaderSource.Load(ShaderType.FragmentShader, "Shaders/RenderToTexture/FrameBufferTriangle/fragment.glsl")
                         );
                     views[i].copy = new ShaderProgram(
-                        ShaderSource.Load(ShaderType.ComputeShader, "Shaders\\HiZ\\copy.glsl", $"#define MIP_COUNT {views[i].hiZView.Length}")
+                        ShaderSource.Load(ShaderType.ComputeShader, "Shaders/HiZ/copy.glsl", $"#define MIP_COUNT {views[i].hiZView.Length}")
                         );
                     views[i].copyState = new RenderState(null, views[i].copy, null, new UniformBuffer[] { Engine.GlobalParameters, HiZMapUBO }, false, false, DepthFunc.Always, InverseDepth.Far, InverseDepth.Near, BlendFactor.SrcAlpha, BlendFactor.OneMinusSrcAlpha, Vector4.Zero, InverseDepth.ClearDepth, CullFaceMode.Back);
                     views[i].mipchain = new ShaderProgram(
-                        ShaderSource.Load(ShaderType.ComputeShader, "Shaders\\HiZ\\mipchain.glsl", $"#define MIP_COUNT {views[i].hiZView.Length}")
+                        ShaderSource.Load(ShaderType.ComputeShader, "Shaders/HiZ/mipchain.glsl", $"#define MIP_COUNT {views[i].hiZView.Length}")
                         );
                     views[i].mipchainState = new RenderState(null, views[i].mipchain, null, new UniformBuffer[] { Engine.GlobalParameters, HiZMapUBO }, false, false, DepthFunc.Always, InverseDepth.Far, InverseDepth.Near, BlendFactor.SrcAlpha, BlendFactor.OneMinusSrcAlpha, Vector4.Zero, InverseDepth.ClearDepth, CullFaceMode.Back);
 

@@ -367,6 +367,9 @@ namespace Kokoro.Graphics
 
         static GraphicsDevice()
         {
+            OpenTK.Toolkit.Init(new OpenTK.ToolkitOptions(){
+                Backend = OpenTK.PlatformBackend.Default
+            });
             GraphicsContextFlags flags = GraphicsContextFlags.Default;
 #if !DEBUG
             flags |= GraphicsContextFlags.NoError; //Disable error checking
