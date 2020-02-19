@@ -17,7 +17,7 @@ namespace KokoroVR.Test
         static void Main()
         {
             Engine.Initialize(ExperienceKind.Standing);
-            Engine.LogMetrics = !false;
+            Engine.LogMetrics = false;
             Engine.LogAMDMetrics = false;
             //For ray tracing, store 32x32x32 cubemaps with direct 
             var w = new VoxelWorld("TestWorld", 10);

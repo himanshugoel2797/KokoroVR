@@ -7,6 +7,15 @@ using OpenTK.Graphics.OpenGL4;
 
 namespace Kokoro.Graphics
 {
+    public enum TileMode
+    {
+        Repeat,
+        MirroredRepeat,
+        ClampToBorder,
+        ClampToEdge,
+        MirrorClampToEdge
+    }
+
     public class TextureSampler : IDisposable
     {
         public static TextureSampler Default { get; private set; } = new TextureSampler(0);
@@ -15,24 +24,24 @@ namespace Kokoro.Graphics
         private int _maxReadLevel, _baseReadLevel;
         private bool locked = false;
 
-        public int MinLOD
+        public int MinReadLevel
         {
             get { return _baseReadLevel; }
             set
             {
                 if (locked && _baseReadLevel != value) throw new Exception("Sampler state has been locked due to use with GetHandle.");
-                if (_baseReadLevel != value) { _baseReadLevel = value; GL.SamplerParameter(id, SamplerParameterName.TextureMinLod, (float)_baseReadLevel); }
+                if (_baseReadLevel != value) { _baseReadLevel = value; GL.SamplerParameter(id, (SamplerParameterName)All.TextureBaseLevel, (float)_baseReadLevel); }
             }
         }
 
-        public int MaxLOD
+        public int MaxReadLevel
         {
             get { return _maxReadLevel; }
             set
             {
 
                 if (locked && _maxReadLevel != value) throw new Exception("Sampler state has been locked due to use with GetHandle.");
-                if (_maxReadLevel != value) { _maxReadLevel = value; GL.SamplerParameter(id, SamplerParameterName.TextureMaxLod, (float)_maxReadLevel); }
+                if (_maxReadLevel != value) { _maxReadLevel = value; GL.SamplerParameter(id, (SamplerParameterName)All.TextureMaxLevel, (float)_maxReadLevel); }
             }
         }
 
@@ -56,25 +65,41 @@ namespace Kokoro.Graphics
 
         public static explicit operator int(TextureSampler s)
         {
+            s.locked = true;
             return s.id;
         }
 
-        public void SetTileMode(bool tileX)
+        private TextureWrapMode conv(TileMode t)
         {
-            GL.SamplerParameter(id, SamplerParameterName.TextureWrapS, tileX ? (int)TextureWrapMode.Repeat : (int)TextureWrapMode.ClampToEdge);
+            return t switch
+            {
+                TileMode.ClampToBorder => TextureWrapMode.ClampToBorder,
+                TileMode.ClampToEdge => TextureWrapMode.ClampToEdge,
+                TileMode.MirrorClampToEdge => (TextureWrapMode)All.MirrorClampToEdge,
+                TileMode.MirroredRepeat => TextureWrapMode.MirroredRepeat,
+                TileMode.Repeat => TextureWrapMode.Repeat,
+                _ => throw new Exception("Unknown TileMode")
+            };
         }
 
-        public void SetTileMode(bool tileX, bool tileY)
+        public void SetTileMode(TileMode tileX)
         {
-            GL.SamplerParameter(id, SamplerParameterName.TextureWrapS, tileX ? (int)TextureWrapMode.Repeat : (int)TextureWrapMode.ClampToEdge);
-            GL.SamplerParameter(id, SamplerParameterName.TextureWrapT, tileY ? (int)TextureWrapMode.Repeat : (int)TextureWrapMode.ClampToEdge);
+            GL.SamplerParameter(id, SamplerParameterName.TextureWrapS, (int)conv(tileX));
+            GL.SamplerParameter(id, SamplerParameterName.TextureWrapT, (int)conv(tileX));
+            GL.SamplerParameter(id, SamplerParameterName.TextureWrapR, (int)conv(tileX));
         }
 
-        public void SetTileMode(bool tileX, bool tileY, bool tileZ)
+        public void SetTileMode(TileMode tileX, TileMode tileY)
         {
-            GL.SamplerParameter(id, SamplerParameterName.TextureWrapS, tileX ? (int)TextureWrapMode.Repeat : (int)TextureWrapMode.ClampToEdge);
-            GL.SamplerParameter(id, SamplerParameterName.TextureWrapT, tileY ? (int)TextureWrapMode.Repeat : (int)TextureWrapMode.ClampToEdge);
-            GL.SamplerParameter(id, SamplerParameterName.TextureWrapR, tileZ ? (int)TextureWrapMode.Repeat : (int)TextureWrapMode.ClampToEdge);
+            GL.SamplerParameter(id, SamplerParameterName.TextureWrapS, (int)conv(tileX));
+            GL.SamplerParameter(id, SamplerParameterName.TextureWrapT, (int)conv(tileY));
+        }
+
+        public void SetTileMode(TileMode tileX, TileMode tileY, TileMode tileZ)
+        {
+            GL.SamplerParameter(id, SamplerParameterName.TextureWrapS, (int)conv(tileX));
+            GL.SamplerParameter(id, SamplerParameterName.TextureWrapT, (int)conv(tileY));
+            GL.SamplerParameter(id, SamplerParameterName.TextureWrapR, (int)conv(tileZ));
         }
 
         public void SetEnableLinearFilter(bool linear, bool useMipmaps, bool mipmapLinear)

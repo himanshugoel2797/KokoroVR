@@ -173,10 +173,10 @@ namespace KokoroVR.Graphics
                     }.Build(views[i].hiZ);
 
                     var sampler = new TextureSampler();
-                    sampler.SetEnableLinearFilter(true, true, true);
-                    sampler.MinLOD = 0;
-                    sampler.MaxLOD = views[i].hiZView.Length;
-                    sampler.SetTileMode(false, false);
+                    sampler.SetEnableLinearFilter(false, true, false);
+                    sampler.MinReadLevel = 0;
+                    sampler.MaxReadLevel = views[i].hiZView.Length;
+                    sampler.SetTileMode(TileMode.ClampToBorder, TileMode.ClampToBorder);
 
                     views[i].hiZBinding = new TextureBinding()
                     {
