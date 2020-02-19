@@ -174,6 +174,8 @@ namespace KokoroVR.Graphics
 
                     var sampler = new TextureSampler();
                     sampler.SetEnableLinearFilter(true, true, true);
+                    sampler.MinLOD = 0;
+                    sampler.MaxLOD = views[i].hiZView.Length;
                     sampler.SetTileMode(false, false);
 
                     views[i].hiZBinding = new TextureBinding()

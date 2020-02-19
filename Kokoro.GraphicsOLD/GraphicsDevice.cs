@@ -471,6 +471,8 @@ namespace Kokoro.Graphics
             if (string.IsNullOrWhiteSpace(gl_name))
                 gl_name = GL.GetString(StringName.Version);
 
+            Console.WriteLine($"Renderer: {renderer_name}\nGL: {gl_name}");
+
             GL.GetInteger(GetPName.MaxCombinedImageUniforms, out var img_val);
             GL.GetInteger((GetPName)All.SparseBufferPageSizeArb, out var psz);
             GL.GetInteger((GetIndexedPName)All.MaxComputeWorkGroupCount, 0, out var x_wg_max); //Simplify buffer interface, get rid of individual uniforms, mandatory texture views, mandatory pbo streaming 
@@ -483,7 +485,7 @@ namespace Kokoro.Graphics
 
             GL.GetInteger((GetPName)All.MaxComputeWorkGroupInvocations, out var wg_inv);
 
-            Window.Title = gameName + $" | {renderer_name} | { gl_name }";
+            Window.Title = gameName + $" | {renderer_name} | ";
             GL.Enable(EnableCap.DebugOutput);
             GL.DebugMessageInsert(DebugSourceExternal.DebugSourceApplication, DebugType.DebugTypePortability, 1, DebugSeverity.DebugSeverityNotification, 5, "test");
 #endif
@@ -509,7 +511,7 @@ namespace Kokoro.Graphics
             renderCnt++;
             if ((DateTime.Now - startTime) > TimeSpan.FromMilliseconds(500))
             {
-                Window.Title = gameName + $" | {renderer_name} | {gl_name} | FPS : {(renderCnt * 2):F2}, UPS : {(updateCnt * 2):F2}";
+                Window.Title = gameName + $" | {renderer_name} | FPS : {(renderCnt * 2):F2}, UPS : {(updateCnt * 2):F2}";
                 renderCnt = 0;
                 updateCnt = 0;
             }
@@ -574,6 +576,18 @@ namespace Kokoro.Graphics
                     DeleteObject(a.Item1, a.Item2);
             }
             Window.Exit();
+        }
+
+        public static void DebugMessage(Severity severity, string msg){
+            var dSev = severity switch {
+                Severity.High => DebugSeverity.DebugSeverityHigh,
+                Severity.Medium => DebugSeverity.DebugSeverityMedium,
+                Severity.Low => DebugSeverity.DebugSeverityLow,
+                Severity.Notification => DebugSeverity.DebugSeverityNotification,
+                _ => DebugSeverity.DontCare
+            };
+
+            GL.DebugMessageInsert(DebugSourceExternal.DebugSourceApplication, DebugType.DebugTypeOther, 0, dSev, msg.Length, msg);
         }
 
         private static void Game_UpdateFrame(object sender, FrameEventArgs e)

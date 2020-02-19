@@ -299,11 +299,11 @@ namespace KokoroVR.Graphics.Voxel
                     var vec = tmp[i * 3] << 16 | tmp[i * 3 + 1] << 8 | tmp[i * 3 + 2];
                     min[0] = Math.Min(min[0], tmp[i * 3]);
                     min[1] = Math.Min(min[1], tmp[i * 3 + 1]);
-                    min[2] = Math.Min(min[1], tmp[i * 3 + 2]);
+                    min[2] = Math.Min(min[2], tmp[i * 3 + 2]);
 
                     max[0] = Math.Max(max[0], tmp[i * 3]);
                     max[1] = Math.Max(max[1], tmp[i * 3 + 1]);
-                    max[2] = Math.Max(max[1], tmp[i * 3 + 2]);
+                    max[2] = Math.Max(max[2], tmp[i * 3 + 2]);
 
                     blk_idx_cnt++;
                     if (!indexDict.ContainsKey(vec))

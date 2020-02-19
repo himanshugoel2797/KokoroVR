@@ -23,8 +23,10 @@ layout(std140, binding = 0) uniform GlobalParams_t {
 	mat4 proj[EYECOUNT];
 	mat4 view[EYECOUNT];
 	mat4 vp[EYECOUNT];
+	mat4 ivp[EYECOUNT];
 	mat4 prev_view[EYECOUNT];
 	mat4 prev_vp[EYECOUNT];
+	mat4 prev_ivp[EYECOUNT];
 	uvec4 infoBindings[EYECOUNT];
 	uvec4 depthBindings[EYECOUNT];
 	vec4 prev_eyePos;
@@ -57,6 +59,8 @@ void main(){
     vec3 normal = normalize(cross(dx_pos, dy_pos));
     float n_enc = encode(normal);
 
-    Info = vec4(pos + GlobalParams.eyePos.xyz, 0);
+    Info = vec4(normal * 0.5f + 0.5f, 1);//vec4(pos / 32.0f /*+ GlobalParams.eyePos.xyz*/, 0);
 	Info2 = vec4(normal * 0.5f + 0.5f, 0);
+
+	//gl_FragDepth = 0.00000001f;
 }

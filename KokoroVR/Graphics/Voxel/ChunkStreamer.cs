@@ -14,7 +14,7 @@ namespace KokoroVR.Graphics.Voxel
     {
         //Receive chunk faces
         public const int VRAMCacheSize = 16384;  //TODO make this depend on total available vram
-        const int blk_cnt = 8 * 1024;
+        const int blk_cnt = 16 * 1024;
 
         private Chunk[] ChunkList;
         private (ChunkMesh, int, double)[] ChunkCache;
@@ -127,9 +127,9 @@ namespace KokoroVR.Graphics.Voxel
                     for (int j = 0; j < ChunkCache[mesh_idx].Item1.AllocIndices.Length; j++)
                     {
                         int idx = ChunkCache[mesh_idx].Item1.AllocIndices[j];
-                        dP_p[idx * 4 + 0] = offset.X - ChunkConstants.Side * 0.5f;
-                        dP_p[idx * 4 + 1] = offset.Y - ChunkConstants.Side * 0.5f;
-                        dP_p[idx * 4 + 2] = offset.Z - ChunkConstants.Side * 0.5f;
+                        dP_p[idx * 4 + 0] = offset.X;
+                        dP_p[idx * 4 + 1] = offset.Y;
+                        dP_p[idx * 4 + 2] = offset.Z;
                     }
                     drawParams.UpdateDone();
                 }
@@ -139,7 +139,7 @@ namespace KokoroVR.Graphics.Voxel
                 c.norm_mask = null;
                 c.update_pending = false;
             }
-            Draws.Add((mesh_idx, offset - Vector3.One * ChunkConstants.Side * 0.5f));
+            Draws.Add((mesh_idx, offset));
         }
 
         public override void Update(double time, World parent)

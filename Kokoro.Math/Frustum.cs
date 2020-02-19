@@ -96,7 +96,6 @@ namespace Kokoro.Math
 
         public bool IsVisible(Vector3 min, Vector3 max)
         {
-            return true;
             if (CalcPlaneBox(min, max, lft) == 0)
                 return false;
             if (CalcPlaneBox(min, max, rgt) == 0)

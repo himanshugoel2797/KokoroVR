@@ -146,6 +146,13 @@ namespace KokoroVR
 
                 for (int i = 0; i < Engine.EyeCount; i++)
                 {
+                    var f = (float[])Matrix4.Invert(View[i] * Projection[i]);
+                    for (int j = 0; j < f.Length; j++)
+                        p[off++] = f[j];
+                }
+
+                for (int i = 0; i < Engine.EyeCount; i++)
+                {
                     var f = (float[])PrevView[i];
                     for (int j = 0; j < f.Length; j++)
                         p[off++] = f[j];
@@ -154,6 +161,13 @@ namespace KokoroVR
                 for (int i = 0; i < Engine.EyeCount; i++)
                 {
                     var f = (float[])(PrevView[i] * Projection[i]);
+                    for (int j = 0; j < f.Length; j++)
+                        p[off++] = f[j];
+                }
+
+                for (int i = 0; i < Engine.EyeCount; i++)
+                {
+                    var f = (float[])Matrix4.Invert(PrevView[i] * Projection[i]);
                     for (int j = 0; j < f.Length; j++)
                         p[off++] = f[j];
                 }

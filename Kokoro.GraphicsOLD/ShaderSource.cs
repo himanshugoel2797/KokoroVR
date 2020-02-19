@@ -63,6 +63,7 @@ namespace Kokoro.Graphics
             shaderSrc += src;
             File.WriteAllText(Path.ChangeExtension(filename, ".glsl_out"), $"//{sType}\n" + shaderSrc);
 
+            GraphicsDevice.DebugMessage(Severity.Notification, $"Compiling: {filename} as {sType}");
             id = GL.CreateShader((OpenTK.Graphics.OpenGL4.ShaderType)sType);
             GL.ShaderSource(id, shaderSrc);
             GL.CompileShader(id);

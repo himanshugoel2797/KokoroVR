@@ -113,7 +113,14 @@ namespace KokoroVR.Graphics.Voxel
             var chunks = ChunkTree.GetVisibleChunks(Engine.Frustums[(int)eye]);
             foreach ((Chunk c, long[] comps) in chunks)
                 Streamer.RenderChunk(c, new Vector3(comps[0], comps[1], comps[2]));
-            //TODO get view position, submit draws from nearest to farthest
+            /*
+            foreach(var c in coords)
+            {
+                int x = c[0];
+                int y = c[1];
+                int z = c[2];
+                Streamer.RenderChunk(ChunkTree[x, y, z, ChunkConstants.Side], new Vector3(x, y, z));
+            }*/
         }
 
         public override void Update(double time, World parent)

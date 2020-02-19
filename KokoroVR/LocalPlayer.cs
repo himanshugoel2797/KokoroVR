@@ -131,6 +131,7 @@ namespace KokoroVR
             PrevDirection = Direction;
             PrevUp = Up;
             PrevPosition = Position;
+            Engine.PrevView[0] = Engine.View[0];
 
             if (Mouse.ButtonsDown.Left)
             {
@@ -162,7 +163,7 @@ namespace KokoroVR
                 Position += Right * (float)(moveSpeed * time / 10000f);
             }
 
-//#if DEBUG
+            //#if DEBUG
             if (Engine.Keyboard.IsKeyDown(DownBinding))
             {
                 Position -= cameraRotatedUpVector * (float)(moveSpeed * time / 10000f);
@@ -182,7 +183,6 @@ namespace KokoroVR
             }
             //#endif
             //View = UpdateViewMatrix();
-            Engine.PrevView[0] = Engine.View[0];
             Engine.View[0] = Matrix4.LookAt(Position, Position + Direction, cameraRotatedUpVector);
             Engine.Frustums[0] = new Frustum(Engine.View[0], Engine.Projection[0], Position);
         }

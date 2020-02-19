@@ -32,8 +32,10 @@ layout(std140, binding = 0) uniform GlobalParams_t {
 	mat4 proj[EYECOUNT];
 	mat4 view[EYECOUNT];
 	mat4 vp[EYECOUNT];
+	mat4 ivp[EYECOUNT];
 	mat4 prev_view[EYECOUNT];
 	mat4 prev_vp[EYECOUNT];
+	mat4 prev_ivp[EYECOUNT];
 	uvec4 infoBindings[EYECOUNT];
 	uvec4 depthBindings[EYECOUNT];
 	vec4 prev_eyePos;
@@ -95,20 +97,32 @@ void main(){
     rect[1] = rect[1] * 0.5f + 0.5f;
     //inst_dpth = inst_dpth;
     
-    //rect[0] = max(min(rect[0], vec2(1)), vec2(0));
-    //rect[1] = max(min(rect[1], vec2(1)), vec2(0));
-    //inst_dpth = max(min(inst_dpth, 1), 0);
+    //rect[0] = clamp(rect[0], 0, 1);
+    //rect[1] = clamp(rect[1], 0, 1);
+    //inst_dpth = clamp(inst_dpth, 0, 1);
 
     vec2 vsz = (rect[1] - rect[0]) * vec2(GlobalParams.eyePos.w /*Width*/, GlobalParams.eyeUp.w /*Height*/);
-    float lod = ( log2( max(vsz.x, vsz.y) * 0.5f ) );
-
+    float lod = clamp( ceil( log2( max(vsz.x, vsz.y) * 0.5f ) ), 0, MIP_COUNT - 1 );
+    
     vec4 samples;
-    sampler2D hiz_sampler = sampler2D(HiZLayers.mip_tex.xy);
-    samples.x = textureLod(hiz_sampler, vec2(rect[0].x, rect[0].y), lod).x;
-    samples.y = textureLod(hiz_sampler, vec2(rect[0].x, rect[1].y), lod).x;
-    samples.z = textureLod(hiz_sampler, vec2(rect[1].x, rect[1].y), lod).x;
-    samples.w = textureLod(hiz_sampler, vec2(rect[1].x, rect[0].y), lod).x;
+    //sampler2D hiz_sampler = sampler2D(HiZLayers.mip_tex.xy);
+    //samples.x = textureLod(hiz_sampler, vec2(rect[0].x, rect[0].y), lod).x;
+    //samples.y = textureLod(hiz_sampler, vec2(rect[0].x, rect[1].y), lod).x;
+    //samples.z = textureLod(hiz_sampler, vec2(rect[1].x, rect[1].y), lod).x;
+    //samples.w = textureLod(hiz_sampler, vec2(rect[1].x, rect[0].y), lod).x;
+    image2D hiz = image2D(HiZLayers.mips[0][int(lod)].xy);
+    ivec2 im_sz = imageSize(hiz);
+    samples.x = imageLoad(hiz, ivec2(rect[0].x * im_sz.x, rect[0].y * im_sz.y)).x;
+    samples.y = imageLoad(hiz, ivec2(rect[0].x * im_sz.x, rect[1].y * im_sz.y)).x;
+    samples.z = imageLoad(hiz, ivec2(rect[1].x * im_sz.x, rect[1].y * im_sz.y)).x;
+    samples.w = imageLoad(hiz, ivec2(rect[1].x * im_sz.x, rect[0].y * im_sz.y)).x;
     float sampledDepth = min(min(samples.x, samples.y), min(samples.z, samples.w));
+    
+    //image2D hiz0 = image2D(HiZLayers.mips[0][0].xy);
+    //im_sz = ivec2(1024);//imageSize(hiz0);
+    
+    //for (int i = 0; i < 8; i++)
+    //    imageStore(hiz0, ivec2((persp_v[i].x * 0.5f + 0.5f) * im_sz.x, (persp_v[i].y * 0.5f + 0.5f) * im_sz.y), vec4(sampledDepth * 50, inst_dpth * 50, 0, 1)).x;
     
     //if any corner is greater than the Hi-Z value, this draw is visible 
     //if(inst_dpth < 0.9f)return;

@@ -42,6 +42,7 @@ namespace KokoroVR.Graphics.Voxel
 
             if (AllocIndices != null) index_buf.Free(AllocIndices);
             AllocIndices = index_buf.Allocate(indices.Length * sizeof(uint));
+            if (bounds.Length != AllocIndices.Length) throw new Exception();
             unsafe
             {
                 //Upload the vertex data
