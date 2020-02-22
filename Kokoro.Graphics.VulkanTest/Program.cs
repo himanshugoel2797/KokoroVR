@@ -10,8 +10,9 @@ namespace Kokoro.Graphics.VulkanTest
     {
         static void Main(string[] args)
         {
-            GraphicsDevice.SetNames("Test", "KokoroVR");
-            GraphicsDevice.CreateInstance(true);
+            GraphicsDevice.AppName = "Vulkan Test";
+            GraphicsDevice.EnableValidation = true;
+            GraphicsDevice.Init();
         }
     }
 }

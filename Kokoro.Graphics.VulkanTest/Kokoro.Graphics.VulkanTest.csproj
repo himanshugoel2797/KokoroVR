@@ -1,6 +1,6 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <TargetFramework>net472</TargetFramework>
+    <TargetFramework>netcoreapp3.1</TargetFramework>
     <OutputType>Exe</OutputType>
     <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
     <Platforms>AnyCPU;x64</Platforms>
@@ -15,10 +15,15 @@
     <CodeAnalysisRuleSet>MinimumRecommendedRules.ruleset</CodeAnalysisRuleSet>
   </PropertyGroup>
   <ItemGroup>
-    <ProjectReference Include="..\Kokoro.Graphics.Vulkan\Kokoro.Graphics.Vulkan.vcxproj" />
+    <None Include="..\glfw3.dll" Link="glfw3.dll">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="Microsoft.CSharp" Version="4.7.0" />
-    <PackageReference Include="System.Data.DataSetExtensions" Version="4.5.0" />
+    <PackageReference Include="System.Data.DataSetExtensions" Version="4.6.0-preview3.19128.7" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Kokoro.Graphics\Kokoro.Graphics.csproj" />
   </ItemGroup>
 </Project>
