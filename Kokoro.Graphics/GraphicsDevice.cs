@@ -2,7 +2,9 @@
 using System.Collections.Generic;
 using System.Text;
 
+using VulkanSharp.Raw;
 using static VulkanSharp.Raw.Vk;
+using static VulkanSharp.Raw.Vma;
 using static VulkanSharp.Raw.Glfw;
 using System.Runtime.InteropServices;
 using System.Linq;
@@ -43,6 +45,8 @@ namespace Kokoro.Graphics
         private static IntPtr[] swapchainImages;
         private static IntPtr[] swapchainViews;
         private static VkExtent2D surface_extent;
+        private static IntPtr vmaAllocator;
+        private static IntPtr debugMessenger;
 
         public static GameWindow Window { get; private set; }
         public static bool EnableValidation { get; set; }
@@ -56,6 +60,31 @@ namespace Kokoro.Graphics
                 VkKhrSwapchainExtensionName,
                 VkExtSubgroupSizeControlExtensionName
             };
+        }
+
+        private static bool debugCallback(VkDebugUtilsMessageSeverityFlagsEXT severity, VkDebugUtilsMessageTypeFlagsEXT type, IntPtr callbackData, IntPtr userData)
+        {
+            var cbkData = Marshal.PtrToStructure<VkDebugUtilsMessengerCallbackDataEXT>(callbackData);
+            Console.WriteLine($"Validation Layer {cbkData.pMessage}\n");
+            return false;
+        }
+
+        private static VkResult CreateDebugUtilsMessengerEXT(IntPtr instance, ManagedPtr<VkDebugUtilsMessengerCreateInfoEXT> pCreateInfo, IntPtr pAllocator, IntPtr* pDebugMessenger)
+        {
+            var func = Marshal.GetDelegateForFunctionPointer<PFN_vkCreateDebugUtilsMessengerEXT>(vkGetInstanceProcAddr(instance, "vkCreateDebugUtilsMessengerEXT"));
+            if (func != null)
+            {
+                return func(instance, pCreateInfo, pAllocator, pDebugMessenger);
+            }
+            else
+            {
+                return VkResult.ErrorExtensionNotPresent;
+            }
+        }
+
+        private static void DestroyDebugUtilsMessengerEXT(IntPtr instance, IntPtr debugMessenger, IntPtr pAllocator)
+        {
+            Marshal.GetDelegateForFunctionPointer<PFN_vkDestroyDebugUtilsMessengerEXT>(vkGetInstanceProcAddr(instance, "vkDestroyDebugUtilsMessengerEXT"))?.Invoke(instance, debugMessenger, pAllocator);
         }
 
         private static bool ExtensionsSupported(IntPtr physDevice)
@@ -234,7 +263,20 @@ namespace Kokoro.Graphics
 
                 if (EnableValidation)
                 {
-                    //TODO register debug message handler
+                    //register debug message handler
+                    var debugCreatInfo = new VkDebugUtilsMessengerCreateInfoEXT()
+                    {
+                        sType = VkStructureType.StructureTypeDebugUtilsMessengerCreateInfoExt,
+                        messageSeverity = VkDebugUtilsMessageSeverityFlagsEXT.DebugUtilsMessageSeverityErrorBitExt | VkDebugUtilsMessageSeverityFlagsEXT.DebugUtilsMessageSeverityWarningBitExt | VkDebugUtilsMessageSeverityFlagsEXT.DebugUtilsMessageSeverityVerboseBitExt | VkDebugUtilsMessageSeverityFlagsEXT.DebugUtilsMessageSeverityInfoBitExt,
+                        messageType = VkDebugUtilsMessageTypeFlagsEXT.DebugUtilsMessageTypeGeneralBitExt | VkDebugUtilsMessageTypeFlagsEXT.DebugUtilsMessageTypePerformanceBitExt | VkDebugUtilsMessageTypeFlagsEXT.DebugUtilsMessageTypeValidationBitExt,
+                        pfnUserCallback = debugCallback
+                    };
+
+                    var debugCreatInfo_ptr = debugCreatInfo.Pointer();
+                    fixed (IntPtr* dbg_ptr = &debugMessenger)
+                        res = CreateDebugUtilsMessengerEXT(instanceHndl, debugCreatInfo_ptr, IntPtr.Zero, dbg_ptr);
+                    if (res != VkResult.Success)
+                        throw new Exception("Failed to register debug callback.");
                 }
 
                 res = Window.CreateSurface(instanceHndl, surfacePtr);
@@ -280,24 +322,24 @@ namespace Kokoro.Graphics
                         bool presentSupport = false;
                         vkGetPhysicalDeviceSurfaceSupportKHR(orderedDevices[0], qFamIdx, surfaceHndl, &presentSupport);
 
-                        if ((qFam.queueFlags & (uint)VkQueueFlagBits.QueueGraphicsBit) != 0 && graphicsFamily == ~0u)
+                        if ((qFam.queueFlags & VkQueueFlags.QueueGraphicsBit) != 0 && graphicsFamily == ~0u)
                         {
                             graphicsFamily = qFamIdx;
                             if (presentSupport) presentFamily = qFamIdx;
-                            if ((qFam.queueFlags & (uint)VkQueueFlagBits.QueueTransferBit) != 0)
+                            if ((qFam.queueFlags & VkQueueFlags.QueueTransferBit) != 0)
                                 transferFamily = qFamIdx;
                             qFamIdx++;
                             continue;
                         }
 
-                        if ((qFam.queueFlags & (uint)VkQueueFlagBits.QueueComputeBit) != 0 && computeFamily == ~0u)
+                        if ((qFam.queueFlags & VkQueueFlags.QueueComputeBit) != 0 && computeFamily == ~0u)
                         {
                             computeFamily = qFamIdx;
                             qFamIdx++;
                             continue;
                         }
 
-                        if ((qFam.queueFlags & (uint)VkQueueFlagBits.QueueTransferBit) != 0)
+                        if ((qFam.queueFlags & VkQueueFlags.QueueTransferBit) != 0)
                             transferFamily = qFamIdx;
 
                         if (graphicsFamily != ~0u && computeFamily != ~0u && transferFamily != ~0u && presentFamily != ~0u)
@@ -382,6 +424,16 @@ namespace Kokoro.Graphics
                         throw new Exception("Failed to create logical device.");
 
                     //TODO Setup memory allocator
+                    var allocCreatInfo = new VmaAllocatorCreateInfo()
+                    {
+                        physicalDevice = orderedDeviceData[0].physDevice,
+                        device = orderedDeviceData[0].device
+                    };
+                    var allocCreatInfo_ptr = allocCreatInfo.Pointer();
+                    fixed (IntPtr* vma_alloc_ptr = &vmaAllocator)
+                        res = vmaCreateAllocator(allocCreatInfo_ptr, vma_alloc_ptr);
+                    if (res != VkResult.Success)
+                        throw new Exception("Failed to initialize allocator.");
 
                     fixed (IntPtr* graph_q_hndl = &orderedDeviceData[0].graphicsQueue)
                         vkGetDeviceQueue(orderedDeviceData[0].device, graphicsFamily, 0, graph_q_hndl);
@@ -419,12 +471,12 @@ namespace Kokoro.Graphics
                         imageColorSpace = surface_fmt.colorSpace,
                         imageExtent = cur_extent,
                         imageArrayLayers = 1,
-                        imageUsage = (uint)VkImageUsageFlagBits.ImageUsageColorAttachmentBit,
+                        imageUsage = VkImageUsageFlags.ImageUsageColorAttachmentBit,
                         imageSharingMode = VkSharingMode.SharingModeExclusive,
                         queueFamilyIndexCount = 0,
                         pQueueFamilyIndices = null,
                         preTransform = caps.currentTransform,
-                        compositeAlpha = VkCompositeAlphaFlagBitsKHR.CompositeAlphaOpaqueBitKhr,
+                        compositeAlpha = VkCompositeAlphaFlagsKHR.CompositeAlphaOpaqueBitKhr,
                         presentMode = present_mode,
                         clipped = true,
                         oldSwapchain = IntPtr.Zero
@@ -455,7 +507,7 @@ namespace Kokoro.Graphics
                             imgViewCreatInfo.components.g = VkComponentSwizzle.ComponentSwizzleIdentity;
                             imgViewCreatInfo.components.b = VkComponentSwizzle.ComponentSwizzleIdentity;
                             imgViewCreatInfo.components.a = VkComponentSwizzle.ComponentSwizzleIdentity;
-                            imgViewCreatInfo.subresourceRange.aspectMask = (uint)VkImageAspectFlagBits.ImageAspectColorBit;
+                            imgViewCreatInfo.subresourceRange.aspectMask = VkImageAspectFlags.ImageAspectColorBit;
                             imgViewCreatInfo.subresourceRange.baseMipLevel = 0;
                             imgViewCreatInfo.subresourceRange.baseArrayLayer = 0;
                             imgViewCreatInfo.subresourceRange.levelCount = 1;

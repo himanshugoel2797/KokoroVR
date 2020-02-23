@@ -22,6 +22,7 @@
   <ItemGroup>
     <PackageReference Include="Microsoft.CSharp" Version="4.7.0" />
     <PackageReference Include="System.Data.DataSetExtensions" Version="4.6.0-preview3.19128.7" />
+    <PackageReference Include="VulkanSharp.NET" Version="0.1.7" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\Kokoro.Graphics\Kokoro.Graphics.csproj" />
