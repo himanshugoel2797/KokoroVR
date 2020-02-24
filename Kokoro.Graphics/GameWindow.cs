@@ -40,6 +40,14 @@ namespace Kokoro.Graphics
             }
         }
 
+        public void PollEvents()
+        {
+            unsafe
+            {
+                glfwPollEvents();
+            }
+        }
+
         internal VkResult CreateSurface(IntPtr instanceHndl, IntPtr* surfacePtr)
         {
             return glfwCreateWindowSurface(instanceHndl, windowHndl, null, surfacePtr);

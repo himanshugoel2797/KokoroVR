@@ -13,21 +13,26 @@ namespace Kokoro.Graphics
 {
     class VulkanDevice
     {
-        public IntPtr device;
-        public IntPtr physDevice;
-        public uint graphicsFamily;
-        public uint computeFamily;
-        public uint transferFamily;
-        public uint presentFamily;
+        public IntPtr Device;
+        public IntPtr PhysicalDevice;
+        public uint GraphicsFamily;
+        public uint ComputeFamily;
+        public uint TransferFamily;
+        public uint PresentFamily;
 
-        public IntPtr graphicsQueue;
-        public IntPtr computeQueue;
-        public IntPtr transferQueue;
-        public IntPtr presentQueue;
+        public IntPtr GraphicsQueue;
+        public IntPtr ComputeQueue;
+        public IntPtr TransferQueue;
+        public IntPtr PresentQueue;
+        public IntPtr vmaAllocator;
+
+        public uint[] QueueFamilyIndices;
+
+        public VkPhysicalDeviceProperties Properties;
 
         public VulkanDevice(IntPtr physDevice)
         {
-            this.physDevice = physDevice;
+            this.PhysicalDevice = physDevice;
         }
     }
 
@@ -42,16 +47,22 @@ namespace Kokoro.Graphics
         private static IntPtr[] orderedDevices;
         private static VulkanDevice[] orderedDeviceData;
         private static uint swapchain_img_cnt;
-        private static IntPtr[] swapchainImages;
-        private static IntPtr[] swapchainViews;
+        private static Image[] swapchainImages;
+        private static ImageView[] swapchainViews;
+        private static Image[] depthImages;
+        private static ImageView[] depthViews;
+        private static GpuSemaphore frameFinishedSemaphore;
+        private static GpuSemaphore imageAvailableSemaphore;
         private static VkExtent2D surface_extent;
-        private static IntPtr vmaAllocator;
         private static IntPtr debugMessenger;
-
+        public const int MaxIndirectDrawsUBO = 256; //TODO: check if needed
+        public const int MaxIndirectDrawsSSBO = 1024;
+        public const int EyeCount = 1;
         public static GameWindow Window { get; private set; }
         public static bool EnableValidation { get; set; }
         public static string AppName { get; set; }
-
+        public static Framebuffer[] DefaultFramebuffer { get; private set; }
+        public static uint CurrentFrameIndex { get; private set; }
 
         static GraphicsDevice()
         {
@@ -62,14 +73,47 @@ namespace Kokoro.Graphics
             };
         }
 
+        #region Debug Management
         private static bool debugCallback(VkDebugUtilsMessageSeverityFlagsEXT severity, VkDebugUtilsMessageTypeFlagsEXT type, IntPtr callbackData, IntPtr userData)
         {
             var cbkData = Marshal.PtrToStructure<VkDebugUtilsMessengerCallbackDataEXT>(callbackData);
-            Console.WriteLine($"Validation Layer {cbkData.pMessage}\n");
+            var consoleCol = Console.BackgroundColor;
+            var fgconsoleCol = Console.ForegroundColor;
+            switch (severity)
+            {
+                case VkDebugUtilsMessageSeverityFlagsEXT.DebugUtilsMessageSeverityErrorBitExt:
+                    Console.BackgroundColor = ConsoleColor.Red;
+                    Console.ForegroundColor = ConsoleColor.White;
+                    break;
+                case VkDebugUtilsMessageSeverityFlagsEXT.DebugUtilsMessageSeverityVerboseBitExt:
+                    Console.BackgroundColor = ConsoleColor.Blue;
+                    Console.ForegroundColor = ConsoleColor.White;
+                    break;
+                case VkDebugUtilsMessageSeverityFlagsEXT.DebugUtilsMessageSeverityWarningBitExt:
+                    Console.BackgroundColor = ConsoleColor.Yellow;
+                    Console.ForegroundColor = ConsoleColor.Black;
+                    break;
+                case VkDebugUtilsMessageSeverityFlagsEXT.DebugUtilsMessageSeverityInfoBitExt:
+                    Console.BackgroundColor = ConsoleColor.Green;
+                    Console.ForegroundColor = ConsoleColor.Black;
+                    break;
+            }
+            var typeStr = type switch
+            {
+                VkDebugUtilsMessageTypeFlagsEXT.DebugUtilsMessageTypeGeneralBitExt => "General",
+                VkDebugUtilsMessageTypeFlagsEXT.DebugUtilsMessageTypePerformanceBitExt => "Perf",
+                VkDebugUtilsMessageTypeFlagsEXT.DebugUtilsMessageTypeValidationBitExt => "Validation",
+                _ => "Unknown"
+            };
+
+            Console.Write($"[{typeStr}]");
+            Console.ForegroundColor = fgconsoleCol;
+            Console.BackgroundColor = consoleCol;
+            Console.WriteLine($" {cbkData.pMessage}");
             return false;
         }
 
-        private static VkResult CreateDebugUtilsMessengerEXT(IntPtr instance, ManagedPtr<VkDebugUtilsMessengerCreateInfoEXT> pCreateInfo, IntPtr pAllocator, IntPtr* pDebugMessenger)
+        private static VkResult CreateDebugUtilsMessengerEXT(IntPtr instance, ManagedPtr<VkDebugUtilsMessengerCreateInfoEXT> pCreateInfo, ManagedPtrArray<VkAllocationCallbacks> pAllocator, IntPtr* pDebugMessenger)
         {
             var func = Marshal.GetDelegateForFunctionPointer<PFN_vkCreateDebugUtilsMessengerEXT>(vkGetInstanceProcAddr(instance, "vkCreateDebugUtilsMessengerEXT"));
             if (func != null)
@@ -82,15 +126,17 @@ namespace Kokoro.Graphics
             }
         }
 
-        private static void DestroyDebugUtilsMessengerEXT(IntPtr instance, IntPtr debugMessenger, IntPtr pAllocator)
+        private static void DestroyDebugUtilsMessengerEXT(IntPtr instance, IntPtr debugMessenger, ManagedPtrArray<VkAllocationCallbacks> pAllocator)
         {
             Marshal.GetDelegateForFunctionPointer<PFN_vkDestroyDebugUtilsMessengerEXT>(vkGetInstanceProcAddr(instance, "vkDestroyDebugUtilsMessengerEXT"))?.Invoke(instance, debugMessenger, pAllocator);
         }
+        #endregion
 
+        #region Initialization
         private static bool ExtensionsSupported(IntPtr physDevice)
         {
             uint extn_cnt = 0;
-            vkEnumerateDeviceExtensionProperties(physDevice, null, &extn_cnt, IntPtr.Zero);
+            vkEnumerateDeviceExtensionProperties(physDevice, null, &extn_cnt, null);
             var availExtns_ptr = new ManagedPtrArray<VkExtensionProperties>(extn_cnt);
             vkEnumerateDeviceExtensionProperties(physDevice, null, &extn_cnt, availExtns_ptr);
             var availExtns = availExtns_ptr.Value;
@@ -139,7 +185,7 @@ namespace Kokoro.Graphics
             var caps = caps_ptr.Value;
 
             uint fmt_cnt = 0;
-            vkGetPhysicalDeviceSurfaceFormatsKHR(physDevice, surfaceHndl, &fmt_cnt, IntPtr.Zero);
+            vkGetPhysicalDeviceSurfaceFormatsKHR(physDevice, surfaceHndl, &fmt_cnt, null);
             var fmts_ptr = new ManagedPtrArray<VkSurfaceFormatKHR>(fmt_cnt);
             vkGetPhysicalDeviceSurfaceFormatsKHR(physDevice, surfaceHndl, &fmt_cnt, fmts_ptr);
             var fmts = fmts_ptr.Value;
@@ -256,7 +302,7 @@ namespace Kokoro.Graphics
 
                     var instCreatInfo_ptr = instCreatInfo.Pointer();
 
-                    res = vkCreateInstance(instCreatInfo_ptr, IntPtr.Zero, instancePtr);
+                    res = vkCreateInstance(instCreatInfo_ptr, null, instancePtr);
                     if (res != VkResult.Success)
                         throw new Exception("Failed to create instance.");
                 }
@@ -274,7 +320,7 @@ namespace Kokoro.Graphics
 
                     var debugCreatInfo_ptr = debugCreatInfo.Pointer();
                     fixed (IntPtr* dbg_ptr = &debugMessenger)
-                        res = CreateDebugUtilsMessengerEXT(instanceHndl, debugCreatInfo_ptr, IntPtr.Zero, dbg_ptr);
+                        res = CreateDebugUtilsMessengerEXT(instanceHndl, debugCreatInfo_ptr, null, dbg_ptr);
                     if (res != VkResult.Success)
                         throw new Exception("Failed to register debug callback.");
                 }
@@ -311,7 +357,7 @@ namespace Kokoro.Graphics
                     uint presentFamily = ~0u;
 
                     uint qfam_cnt = 0;
-                    vkGetPhysicalDeviceQueueFamilyProperties(orderedDevices[0], &qfam_cnt, IntPtr.Zero);
+                    vkGetPhysicalDeviceQueueFamilyProperties(orderedDevices[0], &qfam_cnt, null);
                     var qFams_ptr = new ManagedPtrArray<VkQueueFamilyProperties>(qfam_cnt);
                     vkGetPhysicalDeviceQueueFamilyProperties(orderedDevices[0], &qfam_cnt, qFams_ptr);
                     var qFams = qFams_ptr.Value;
@@ -390,10 +436,10 @@ namespace Kokoro.Graphics
                     qCreatInfos[1] = compute_qCreatInfo;
                     if (transferFamily != graphicsFamily) qCreatInfos[2] = transfer_qCreatInfo;
 
-                    orderedDeviceData[0].graphicsFamily = graphicsFamily;
-                    orderedDeviceData[0].computeFamily = computeFamily;
-                    orderedDeviceData[0].transferFamily = transferFamily;
-                    orderedDeviceData[0].presentFamily = presentFamily;
+                    orderedDeviceData[0].GraphicsFamily = graphicsFamily;
+                    orderedDeviceData[0].ComputeFamily = computeFamily;
+                    orderedDeviceData[0].TransferFamily = transferFamily;
+                    orderedDeviceData[0].PresentFamily = presentFamily;
 
                     VkPhysicalDeviceFeatures devFeats = new VkPhysicalDeviceFeatures()
                     {
@@ -404,8 +450,14 @@ namespace Kokoro.Graphics
                         robustBufferAccess = EnableValidation,
                     };
 
+                    var devFeats12 = new VkPhysicalDeviceVulkan12Features()
+                    {
+                        separateDepthStencilLayouts = true
+                    };
+
                     var qCreatInfos_ptr = qCreatInfos.Pointer();
                     var devFeats_ptr = devFeats.Pointer();
+                    var devFeats12_ptr = devFeats12.Pointer();
                     var devCreatInfo = new VkDeviceCreateInfo()
                     {
                         sType = VkStructureType.StructureTypeDeviceCreateInfo,
@@ -416,37 +468,49 @@ namespace Kokoro.Graphics
                         ppEnabledLayerNames = layers,
                         pEnabledFeatures = devFeats_ptr,
                         pQueueCreateInfos = qCreatInfos_ptr,
+                        pNext = devFeats12_ptr
                     };
                     var devCreatInfo_ptr = devCreatInfo.Pointer();
-                    fixed (IntPtr* device_ptr = &orderedDeviceData[0].device)
-                        res = vkCreateDevice(orderedDevices[0], devCreatInfo_ptr, IntPtr.Zero, device_ptr);
+                    fixed (IntPtr* device_ptr = &orderedDeviceData[0].Device)
+                        res = vkCreateDevice(orderedDevices[0], devCreatInfo_ptr, null, device_ptr);
                     if (res != VkResult.Success)
                         throw new Exception("Failed to create logical device.");
 
                     //TODO Setup memory allocator
                     var allocCreatInfo = new VmaAllocatorCreateInfo()
                     {
-                        physicalDevice = orderedDeviceData[0].physDevice,
-                        device = orderedDeviceData[0].device
+                        physicalDevice = orderedDeviceData[0].PhysicalDevice,
+                        device = orderedDeviceData[0].Device
                     };
                     var allocCreatInfo_ptr = allocCreatInfo.Pointer();
-                    fixed (IntPtr* vma_alloc_ptr = &vmaAllocator)
+                    fixed (IntPtr* vma_alloc_ptr = &orderedDeviceData[0].vmaAllocator)
                         res = vmaCreateAllocator(allocCreatInfo_ptr, vma_alloc_ptr);
                     if (res != VkResult.Success)
                         throw new Exception("Failed to initialize allocator.");
 
-                    fixed (IntPtr* graph_q_hndl = &orderedDeviceData[0].graphicsQueue)
-                        vkGetDeviceQueue(orderedDeviceData[0].device, graphicsFamily, 0, graph_q_hndl);
+                    fixed (IntPtr* graph_q_hndl = &orderedDeviceData[0].GraphicsQueue)
+                        vkGetDeviceQueue(orderedDeviceData[0].Device, graphicsFamily, 0, graph_q_hndl);
 
-                    fixed (IntPtr* comp_q_hndl = &orderedDeviceData[0].computeQueue)
-                        vkGetDeviceQueue(orderedDeviceData[0].device, computeFamily, 0, comp_q_hndl);
-                    fixed (IntPtr* trans_q_hndl = &orderedDeviceData[0].transferQueue)
+                    fixed (IntPtr* comp_q_hndl = &orderedDeviceData[0].ComputeQueue)
+                        vkGetDeviceQueue(orderedDeviceData[0].Device, computeFamily, 0, comp_q_hndl);
+                    fixed (IntPtr* trans_q_hndl = &orderedDeviceData[0].TransferQueue)
                         if (transferFamily != graphicsFamily)
-                            vkGetDeviceQueue(orderedDeviceData[0].device, transferFamily, 0, trans_q_hndl);
-                        else vkGetDeviceQueue(orderedDeviceData[0].device, graphicsFamily, 1, trans_q_hndl);
+                            vkGetDeviceQueue(orderedDeviceData[0].Device, transferFamily, 0, trans_q_hndl);
+                        else vkGetDeviceQueue(orderedDeviceData[0].Device, graphicsFamily, 1, trans_q_hndl);
+
+                    var queue_indices = new List<uint>();
+                    if (!queue_indices.Contains(orderedDeviceData[0].GraphicsFamily)) queue_indices.Add(orderedDeviceData[0].GraphicsFamily);
+                    if (!queue_indices.Contains(orderedDeviceData[0].ComputeFamily)) queue_indices.Add(orderedDeviceData[0].ComputeFamily);
+                    if (!queue_indices.Contains(orderedDeviceData[0].PresentFamily)) queue_indices.Add(orderedDeviceData[0].PresentFamily);
+                    if (!queue_indices.Contains(orderedDeviceData[0].TransferFamily)) queue_indices.Add(orderedDeviceData[0].TransferFamily);
+                    orderedDeviceData[0].QueueFamilyIndices = queue_indices.ToArray();
+
+                    var physDeviceProps = new ManagedPtr<VkPhysicalDeviceProperties>();
+                    vkGetPhysicalDeviceProperties(orderedDeviceData[0].PhysicalDevice, physDeviceProps);
+                    orderedDeviceData[0].Properties = physDeviceProps.Value;
 
                     var caps_ptr = new ManagedPtr<VkSurfaceCapabilitiesKHR>();
-                    vkGetPhysicalDeviceSurfaceCapabilitiesKHR(orderedDeviceData[0].physDevice, surfaceHndl, caps_ptr);
+                    vkGetPhysicalDeviceSurfaceCapabilitiesKHR(orderedDeviceData[0].PhysicalDevice, surfaceHndl, caps_ptr);
                     var caps = caps_ptr.Value;
 
                     VkExtent2D cur_extent = new VkExtent2D();
@@ -464,7 +528,7 @@ namespace Kokoro.Graphics
 
                     VkSwapchainCreateInfoKHR swapCreatInfo = new VkSwapchainCreateInfoKHR()
                     {
-                        sType = VkStructureType.StructureTypeImageSwapchainCreateInfoKhr,
+                        sType = VkStructureType.StructureTypeSwapchainCreateInfoKhr,
                         surface = surfaceHndl,
                         minImageCount = img_cnt,
                         imageFormat = surface_fmt.format,
@@ -483,41 +547,86 @@ namespace Kokoro.Graphics
                     };
                     var swapCreatInfo_ptr = swapCreatInfo.Pointer();
                     fixed (IntPtr* swapchain_ptr = &swapChainHndl)
-                        res = vkCreateSwapchainKHR(orderedDeviceData[0].device, swapCreatInfo_ptr, IntPtr.Zero, swapchain_ptr);
+                        res = vkCreateSwapchainKHR(orderedDeviceData[0].Device, swapCreatInfo_ptr, null, swapchain_ptr);
                     if (res != VkResult.Success)
                         throw new Exception("Failed to create swapchain.");
 
                     fixed (uint* swapchain_img_cnt_ptr = &swapchain_img_cnt)
                     {
-                        vkGetSwapchainImagesKHR(orderedDeviceData[0].device, swapChainHndl, swapchain_img_cnt_ptr, null);
-                        swapchainImages = new IntPtr[swapchain_img_cnt];
-                        fixed (IntPtr* swapchain_imgs = swapchainImages)
-                            vkGetSwapchainImagesKHR(orderedDeviceData[0].device, swapChainHndl, swapchain_img_cnt_ptr, swapchain_imgs);
+                        vkGetSwapchainImagesKHR(orderedDeviceData[0].Device, swapChainHndl, swapchain_img_cnt_ptr, null);
+                        var swapchainImages_l = new IntPtr[swapchain_img_cnt];
+                        fixed (IntPtr* swapchain_imgs = swapchainImages_l)
+                            vkGetSwapchainImagesKHR(orderedDeviceData[0].Device, swapChainHndl, swapchain_img_cnt_ptr, swapchain_imgs);
 
-                        surface_extent = cur_extent;
-                        swapchainViews = new IntPtr[swapchain_img_cnt];
+                        swapchainImages = new Image[swapchain_img_cnt];
+                        depthImages = new Image[swapchain_img_cnt];
                         for (int i = 0; i < swapchainImages.Length; i++)
                         {
-                            VkImageViewCreateInfo imgViewCreatInfo = new VkImageViewCreateInfo();
-                            imgViewCreatInfo.sType = VkStructureType.StructureTypeImageViewCreateInfo;
-                            imgViewCreatInfo.image = swapchainImages[i];
-                            imgViewCreatInfo.viewType = VkImageViewType.ImageViewType2d;
-                            imgViewCreatInfo.format = surface_fmt.format;
-                            imgViewCreatInfo.components.r = VkComponentSwizzle.ComponentSwizzleIdentity;
-                            imgViewCreatInfo.components.g = VkComponentSwizzle.ComponentSwizzleIdentity;
-                            imgViewCreatInfo.components.b = VkComponentSwizzle.ComponentSwizzleIdentity;
-                            imgViewCreatInfo.components.a = VkComponentSwizzle.ComponentSwizzleIdentity;
-                            imgViewCreatInfo.subresourceRange.aspectMask = VkImageAspectFlags.ImageAspectColorBit;
-                            imgViewCreatInfo.subresourceRange.baseMipLevel = 0;
-                            imgViewCreatInfo.subresourceRange.baseArrayLayer = 0;
-                            imgViewCreatInfo.subresourceRange.levelCount = 1;
-                            imgViewCreatInfo.subresourceRange.layerCount = 1;
+                            swapchainImages[i] = new Image()
+                            {
+                                Dimensions = 2,
+                                Width = cur_extent.width,
+                                Height = cur_extent.height,
+                                Depth = 1,
+                                Format = (ImageFormat)surface_fmt.format,
+                                Layers = 1,
+                                Levels = 1,
+                                MemoryUsage = MemoryUsage.GpuOnly,
+                                Usage = ImageUsage.Sampled,
+                                InitialLayout = ImageLayout.Undefined,
+                                Cubemappable = false,
+                            };
+                            swapchainImages[i].Build(0, swapchainImages_l[i]);
 
-                            var imgViewCreatInfo_ptr = imgViewCreatInfo.Pointer();
-                            fixed (IntPtr* swapchainView_ptr = &swapchainViews[i])
-                                res = vkCreateImageView(orderedDeviceData[0].device, imgViewCreatInfo_ptr, IntPtr.Zero, swapchainView_ptr);
-                            if (res != VkResult.Success)
-                                throw new Exception("Failed to create image views.");
+                            depthImages[i] = new Image()
+                            {
+                                Dimensions = 2,
+                                Width = cur_extent.width,
+                                Height = cur_extent.height,
+                                Depth = 1,
+                                Format = ImageFormat.Depth32f,
+                                Layers = 1,
+                                Levels = 1,
+                                MemoryUsage = MemoryUsage.GpuOnly,
+                                Usage = ImageUsage.Depth,
+                                InitialLayout = ImageLayout.Undefined,
+                                Cubemappable = false,
+                            };
+                            depthImages[i].Build(0);
+                        }
+
+
+                        surface_extent = cur_extent;
+                        swapchainViews = new ImageView[swapchain_img_cnt];
+                        depthViews = new ImageView[swapchain_img_cnt];
+                        DefaultFramebuffer = new Framebuffer[swapchain_img_cnt];
+                        for (int i = 0; i < swapchainImages.Length; i++)
+                        {
+                            swapchainViews[i] = new ImageView()
+                            {
+                                BaseLayer = 0,
+                                BaseLevel = 0,
+                                Format = (ImageFormat)surface_fmt.format,
+                                LayerCount = 1,
+                                LevelCount = 1,
+                                ViewType = ImageViewType.View2D
+                            };
+                            swapchainViews[i].Build(swapchainImages[i]);
+
+                            depthViews[i] = new ImageView()
+                            {
+                                BaseLayer = 0,
+                                BaseLevel = 0,
+                                Format = ImageFormat.Depth32f,
+                                LayerCount = 1,
+                                LevelCount = 1,
+                                ViewType = ImageViewType.View2D
+                            };
+                            depthViews[i].Build(depthImages[i]);
+
+                            DefaultFramebuffer[i] = new Framebuffer(surface_extent.width, surface_extent.height);
+                            DefaultFramebuffer[i][AttachmentKind.ColorAttachment0] = swapchainViews[i];
+                            DefaultFramebuffer[i][AttachmentKind.DepthAttachment] = depthViews[i];
                         }
                     }
 
@@ -529,7 +638,117 @@ namespace Kokoro.Graphics
                     Marshal.FreeHGlobal(extns[i]);
                 for (int i = 0; i < devExtns.Count; i++)
                     Marshal.FreeHGlobal(devExtns_ptr[i]);
+
+                frameFinishedSemaphore = new GpuSemaphore();
+                frameFinishedSemaphore.Build(0);
+
+                imageAvailableSemaphore = new GpuSemaphore();
+                imageAvailableSemaphore.Build(0);
+
             }
         }
+        #endregion
+
+        #region Device Management
+        internal static IntPtr[] GetDevices()
+        {
+            return new IntPtr[] { orderedDeviceData[0].Device };
+        }
+
+        internal static VulkanDevice GetDeviceInfo(int devID)
+        {
+            return orderedDeviceData[devID];
+        }
+
+        internal static void WaitIdle(int devID)
+        {
+            vkDeviceWaitIdle(orderedDeviceData[devID].Device);
+        }
+        #endregion
+
+        #region Memory Management
+        internal static VkResult CreateImage(int devID, ManagedPtr<VkImageCreateInfo> imgCreatInfo, ManagedPtr<VmaAllocationCreateInfo> allocCreatInfo, out IntPtr imgPtr, out IntPtr imgAllocPtr, ManagedPtr<VmaAllocationInfo> imgAllocInfo)
+        {
+            IntPtr imgPtr_l = IntPtr.Zero;
+            IntPtr imgAllocPtr_l = IntPtr.Zero;
+            var res = vmaCreateImage(orderedDeviceData[devID].vmaAllocator, imgCreatInfo, allocCreatInfo, &imgPtr_l, &imgAllocPtr_l, imgAllocInfo);
+            imgPtr = imgPtr_l;
+            imgAllocPtr = imgAllocPtr_l;
+            return res;
+        }
+
+        internal static void DestroyImage(int devID, IntPtr imgPtr, IntPtr allocPtr)
+        {
+            vmaDestroyImage(orderedDeviceData[devID].vmaAllocator, imgPtr, allocPtr);
+        }
+
+        internal static VkResult CreateBuffer(int devID, ManagedPtr<VkBufferCreateInfo> imgCreatInfo, ManagedPtr<VmaAllocationCreateInfo> allocCreatInfo, out IntPtr imgPtr, out IntPtr imgAllocPtr, ManagedPtr<VmaAllocationInfo> imgAllocInfo)
+        {
+            IntPtr imgPtr_l = IntPtr.Zero;
+            IntPtr imgAllocPtr_l = IntPtr.Zero;
+            var res = vmaCreateBuffer(orderedDeviceData[devID].vmaAllocator, imgCreatInfo, allocCreatInfo, &imgPtr_l, &imgAllocPtr_l, imgAllocInfo);
+            imgPtr = imgPtr_l;
+            imgAllocPtr = imgAllocPtr_l;
+            return res;
+        }
+
+        internal static void DestroyBuffer(int devID, IntPtr imgPtr, IntPtr allocPtr)
+        {
+            vmaDestroyBuffer(orderedDeviceData[devID].vmaAllocator, imgPtr, allocPtr);
+        }
+        #endregion
+
+
+        #region Frame
+        public static void AcquireFrame()
+        {
+            uint imgIdx = 0;
+            vkAcquireNextImageKHR(orderedDeviceData[0].Device, swapChainHndl, ulong.MaxValue, imageAvailableSemaphore.semaphorePtr, IntPtr.Zero, &imgIdx);
+            CurrentFrameIndex = imgIdx;
+        }
+        public static void PresentFrame()
+        {
+            var waitSemaphores = stackalloc IntPtr[] { frameFinishedSemaphore.semaphorePtr };
+            var waitSwapchains = stackalloc IntPtr[] { swapChainHndl };
+            var waitFrameIdx = stackalloc uint[] { CurrentFrameIndex };
+
+            var presentInfo = new VkPresentInfoKHR()
+            {
+                sType = VkStructureType.StructureTypePresentInfoKhr,
+                waitSemaphoreCount = 1,
+                pWaitSemaphores = waitSemaphores,
+                swapchainCount = 1,
+                pSwapchains = waitSwapchains,
+                pImageIndices = waitFrameIdx,
+            };
+
+            var presentInfo_ptr = presentInfo.Pointer();
+            vkQueuePresentKHR(orderedDeviceData[0].GraphicsQueue, presentInfo_ptr);
+        }
+        #endregion
+
+        #region Submit
+        public static void SubmitCommandBuffer(CommandBuffer buffer)
+        {
+            var waitSemaphores = stackalloc IntPtr[] { imageAvailableSemaphore.semaphorePtr };
+            var signalSemaphores = stackalloc IntPtr[] { frameFinishedSemaphore.semaphorePtr };
+            var waitStages = stackalloc VkPipelineStageFlags[] { VkPipelineStageFlags.PipelineStageTopOfPipeBit };
+            var cmdBuffers = stackalloc IntPtr[] { buffer.cmdBufferPtr };
+
+            var submitInfo = new VkSubmitInfo()
+            {
+                sType = VkStructureType.StructureTypeSubmitInfo,
+                waitSemaphoreCount = 1,
+                pWaitSemaphores = waitSemaphores,
+                pWaitDstStageMask = waitStages,
+                commandBufferCount = 1,
+                pCommandBuffers = cmdBuffers,
+                signalSemaphoreCount = 1,
+                pSignalSemaphores = signalSemaphores
+            };
+            if (vkQueueSubmit(buffer.cmdPool.queueFam, 1, submitInfo.Pointer(), IntPtr.Zero) != VkResult.Success)
+                throw new Exception("Failed to submit command buffer.");
+        }
+        #endregion
     }
 }
