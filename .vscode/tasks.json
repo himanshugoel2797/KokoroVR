@@ -7,7 +7,7 @@
             "type": "process",
             "args": [
                 "build",
-                "${workspaceFolder}/KokoroVR.Test/KokoroVR.Test.csproj",
+                "${workspaceFolder}/Kokoro.Graphics.VulkanTest/Kokoro.Graphics.VulkanTest.csproj",
                 "/property:GenerateFullPaths=true",
                 "/consoleloggerparameters:NoSummary"
             ],
@@ -20,7 +20,7 @@
             "args": [
                 "run",
                 "--project",
-                "${workspaceFolder}/KokoroVR.Test/KokoroVR.Test.csproj",
+                "${workspaceFolder}/Kokoro.Graphics.VulkanTest/Kokoro.Graphics.VulkanTest.csproj",
                 "-c",
                 "Release",
                 "/property:GenerateFullPaths=true",

@@ -62,6 +62,14 @@ namespace Kokoro.Graphics
                 throw new Exception("Buffer is locked.");
         }
 
+        public IntPtr GetAddress()
+        {
+            unsafe
+            {
+                return (IntPtr)allocInfo.pMappedData;
+            }
+        }
+
         #region IDisposable Support
         private bool disposedValue = false; // To detect redundant calls
 

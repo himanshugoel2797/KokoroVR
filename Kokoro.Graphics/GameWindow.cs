@@ -28,6 +28,8 @@ namespace Kokoro.Graphics
             }
         }
 
+        public delegate void FrameHandler(double time_ms, double delta_ms);
+
         public GameWindow(string AppName)
         {
             unsafe
@@ -37,6 +39,17 @@ namespace Kokoro.Graphics
                 glfwWindowHint(GlfwResizable, GlfwFalse);
 
                 windowHndl = glfwCreateWindow(1024, 1024, AppName, null, null);
+            }
+        }
+
+        public bool IsExiting
+        {
+            get
+            {
+                unsafe
+                {
+                    return glfwWindowShouldClose(windowHndl) != 0;
+                }
             }
         }
 
@@ -52,6 +65,5 @@ namespace Kokoro.Graphics
         {
             return glfwCreateWindowSurface(instanceHndl, windowHndl, null, surfacePtr);
         }
-
     }
 }

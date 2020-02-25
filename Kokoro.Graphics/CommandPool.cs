@@ -5,13 +5,6 @@ using static VulkanSharp.Raw.Vk;
 
 namespace Kokoro.Graphics
 {
-    public enum CommandQueue
-    {
-        Graphics,
-        Compute,
-        Transfer,
-        Present
-    }
     public class CommandPool : IDisposable
     {
         public bool Transient { get; set; }
@@ -19,12 +12,12 @@ namespace Kokoro.Graphics
         internal IntPtr commandPoolPtr;
         internal int devID;
         internal uint queueFamily;
-        internal IntPtr queueFam;
+        internal GpuQueue queueFam;
         private bool locked;
 
         public CommandPool() { }
 
-        public void Build(int device_index, CommandQueue queue)
+        public void Build(int device_index, CommandQueueKind queue)
         {
             if (!locked)
             {
@@ -33,18 +26,18 @@ namespace Kokoro.Graphics
                     var devInfo = GraphicsDevice.GetDeviceInfo(device_index);
                     queueFamily = queue switch
                     {
-                        CommandQueue.Graphics => devInfo.GraphicsFamily,
-                        CommandQueue.Compute => devInfo.ComputeFamily,
-                        CommandQueue.Transfer => devInfo.TransferFamily,
-                        CommandQueue.Present => devInfo.PresentFamily,
+                        CommandQueueKind.Graphics => devInfo.GraphicsFamily,
+                        CommandQueueKind.Compute => devInfo.ComputeFamily,
+                        CommandQueueKind.Transfer => devInfo.TransferFamily,
+                        CommandQueueKind.Present => devInfo.PresentFamily,
                         _ => throw new Exception("Unknown command queue type.")
                     };
                     queueFam = queue switch
                     {
-                        CommandQueue.Graphics => devInfo.GraphicsQueue,
-                        CommandQueue.Compute => devInfo.ComputeQueue,
-                        CommandQueue.Transfer => devInfo.TransferQueue,
-                        CommandQueue.Present => devInfo.PresentQueue,
+                        CommandQueueKind.Graphics => devInfo.GraphicsQueue,
+                        CommandQueueKind.Compute => devInfo.ComputeQueue,
+                        CommandQueueKind.Transfer => devInfo.TransferQueue,
+                        CommandQueueKind.Present => devInfo.PresentQueue,
                         _ => throw new Exception("Unknown command queue type.")
                     };
 

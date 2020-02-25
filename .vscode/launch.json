@@ -9,7 +9,7 @@
             "type": "coreclr",
             "request": "launch",
             "preLaunchTask": "build",
-            "program": "${workspaceFolder}/KokoroVR.Test/bin/Debug/netcoreapp3.1/KokoroVR.Test.dll",
+            "program": "${workspaceFolder}/Kokoro.Graphics.VulkanTest/bin/Debug/netcoreapp3.1/Kokoro.Graphics.VulkanTest.dll",
             "args": [],
             "cwd": "${workspaceFolder}",
             "console": "integratedTerminal",

@@ -138,6 +138,24 @@ namespace Kokoro.Graphics
         }
         #endregion
 
+        #region Staging
+        public void Stage<T>(StructuredLocalBuffer<T> src, ulong src_off, GpuBuffer dst, ulong dst_off, ulong len) where T : unmanaged
+        {
+            if (locked)
+            {
+                var bufCopy = new VkBufferCopy()
+                {
+                    dstOffset = dst_off,
+                    srcOffset = src_off,
+                    size = len
+                };
+                vkCmdCopyBuffer(cmdBufferPtr, src.backingBuffer.buf, dst.buf, 1, bufCopy.Pointer());
+            }
+            else
+                throw new Exception("Command buffer not built.");
+        }
+        #endregion
+
         #region Draw
         public void Draw(uint vertexCnt, uint instanceCnt, uint firstVertex, uint baseInstance)
         {

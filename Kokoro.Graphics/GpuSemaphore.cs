@@ -9,24 +9,48 @@ namespace Kokoro.Graphics
     {
         internal IntPtr semaphorePtr;
         internal int devID;
+        internal bool timeline;
         private bool locked;
 
         public GpuSemaphore() { }
 
-        public void Build(int deviceIndex)
+        public void Build(int deviceIndex, bool timeline, ulong value)
         {
             if (!locked)
             {
                 unsafe
                 {
-                    var semaphoreInfo = new VkSemaphoreCreateInfo()
-                    {
-                        sType = VkStructureType.StructureTypeSemaphoreCreateInfo,
-                    };
-
                     IntPtr semaphorePtr_l = IntPtr.Zero;
-                    if (vkCreateSemaphore(GraphicsDevice.GetDeviceInfo(deviceIndex).Device, semaphoreInfo.Pointer(), null, &semaphorePtr_l) != VkResult.Success)
-                        throw new Exception("Failed to create semaphore.");
+                    this.timeline = timeline;
+                    if (timeline)
+                    {
+                        var semaphoreTypeInfo = new VkSemaphoreTypeCreateInfo()
+                        {
+                            sType = VkStructureType.StructureTypeSemaphoreTypeCreateInfo,
+                            semaphoreType = VkSemaphoreType.SemaphoreTypeTimeline,
+                            initialValue = value
+                        };
+                        var semaphoreTypeInfo_ptr = semaphoreTypeInfo.Pointer();
+
+                        var semaphoreInfo = new VkSemaphoreCreateInfo()
+                        {
+                            sType = VkStructureType.StructureTypeSemaphoreCreateInfo,
+                            pNext = semaphoreTypeInfo_ptr
+                        };
+
+                        if (vkCreateSemaphore(GraphicsDevice.GetDeviceInfo(deviceIndex).Device, semaphoreInfo.Pointer(), null, &semaphorePtr_l) != VkResult.Success)
+                            throw new Exception("Failed to create semaphore.");
+                    }
+                    else
+                    {
+                        var semaphoreInfo = new VkSemaphoreCreateInfo()
+                        {
+                            sType = VkStructureType.StructureTypeSemaphoreCreateInfo,
+                        };
+
+                        if (vkCreateSemaphore(GraphicsDevice.GetDeviceInfo(deviceIndex).Device, semaphoreInfo.Pointer(), null, &semaphorePtr_l) != VkResult.Success)
+                            throw new Exception("Failed to create semaphore.");
+                    }
                     semaphorePtr = semaphorePtr_l;
                     devID = deviceIndex;
                 }
@@ -36,6 +60,48 @@ namespace Kokoro.Graphics
                 throw new Exception("GpuSemaphore is locked.");
         }
 
+        public void Signal(ulong val)
+        {
+            if (locked)
+            {
+                if (!timeline) throw new Exception("Only timeline semaphores support signaling.");
+                unsafe
+                {
+                    var signalInfo = new VkSemaphoreSignalInfo()
+                    {
+                        sType = VkStructureType.StructureTypeSemaphoreSignalInfo,
+                        semaphore = semaphorePtr,
+                        value = val
+                    };
+                    vkSignalSemaphore(GraphicsDevice.GetDeviceInfo(devID).Device, signalInfo.Pointer());
+                }
+            }
+            else
+                throw new Exception("GpuSemaphore is not built.");
+        }
+
+        public void Wait(ulong val)
+        {
+            if (locked)
+            {
+                if (!timeline) throw new Exception("Only timeline semaphores support waiting.");
+                unsafe
+                {
+                    var ptrs = stackalloc IntPtr[] { semaphorePtr };
+                    var val_ptrs = stackalloc ulong[] { val };
+                    var waitInfo = new VkSemaphoreWaitInfo()
+                    {
+                        sType = VkStructureType.StructureTypeSemaphoreWaitInfo,
+                        semaphoreCount = 1,
+                        pSemaphores = ptrs,
+                        pValues = val_ptrs
+                    };
+                    vkWaitSemaphores(GraphicsDevice.GetDeviceInfo(devID).Device, waitInfo.Pointer(), ulong.MaxValue);
+                }
+            }
+            else
+                throw new Exception("GpuSemaphore is not built.");
+        }
         #region IDisposable Support
         private bool disposedValue = false; // To detect redundant calls
 

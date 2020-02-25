@@ -11,29 +11,22 @@ using System.Linq;
 
 namespace Kokoro.Graphics
 {
-    class VulkanDevice
+    public struct DeviceInfo
     {
-        public IntPtr Device;
-        public IntPtr PhysicalDevice;
-        public uint GraphicsFamily;
-        public uint ComputeFamily;
-        public uint TransferFamily;
-        public uint PresentFamily;
+        public IntPtr Device { get; internal set; }
+        public IntPtr PhysicalDevice { get; internal set; }
+        public uint GraphicsFamily { get; internal set; }
+        public uint ComputeFamily { get; internal set; }
+        public uint TransferFamily { get; internal set; }
+        public uint PresentFamily { get; internal set; }
+        public uint[] QueueFamilyIndices { get; internal set; }
+        public GpuQueue GraphicsQueue { get; internal set; }
+        public GpuQueue ComputeQueue { get; internal set; }
+        public GpuQueue TransferQueue { get; internal set; }
+        public GpuQueue PresentQueue { get; internal set; }
 
-        public IntPtr GraphicsQueue;
-        public IntPtr ComputeQueue;
-        public IntPtr TransferQueue;
-        public IntPtr PresentQueue;
-        public IntPtr vmaAllocator;
-
-        public uint[] QueueFamilyIndices;
-
-        public VkPhysicalDeviceProperties Properties;
-
-        public VulkanDevice(IntPtr physDevice)
-        {
-            this.PhysicalDevice = physDevice;
-        }
+        internal IntPtr vmaAllocator;
+        internal VkPhysicalDeviceProperties Properties;
     }
 
     public static unsafe class GraphicsDevice
@@ -41,28 +34,33 @@ namespace Kokoro.Graphics
         private static IntPtr instanceHndl;
         private static IntPtr surfaceHndl;
         private static IntPtr swapChainHndl;
-        private static string[] requiredDeviceExtns;
+        private static VkDebugUtilsMessengerCreateInfoEXT debugCreatInfo;
+        private static readonly string[] requiredDeviceExtns;
         private static VkPresentModeKHR present_mode;
         private static VkSurfaceFormatKHR surface_fmt;
-        private static IntPtr[] orderedDevices;
-        private static VulkanDevice[] orderedDeviceData;
         private static uint swapchain_img_cnt;
         private static Image[] swapchainImages;
         private static ImageView[] swapchainViews;
         private static Image[] depthImages;
         private static ImageView[] depthViews;
-        private static GpuSemaphore frameFinishedSemaphore;
-        private static GpuSemaphore imageAvailableSemaphore;
+        private static GpuSemaphore[] frameFinishedSemaphore;
+        private static GpuSemaphore[] imageAvailableSemaphore;
+        private static Fence[] inflightFences;
         private static VkExtent2D surface_extent;
         private static IntPtr debugMessenger;
         public const int MaxIndirectDrawsUBO = 256; //TODO: check if needed
         public const int MaxIndirectDrawsSSBO = 1024;
         public const int EyeCount = 1;
+        public static DeviceInfo[] DeviceInformation { get; private set; }
         public static GameWindow Window { get; private set; }
         public static bool EnableValidation { get; set; }
         public static string AppName { get; set; }
         public static Framebuffer[] DefaultFramebuffer { get; private set; }
         public static uint CurrentFrameIndex { get; private set; }
+        public static uint MaxFrameCount { get; private set; }
+        public static uint MaxFramesInFlight { get; private set; } = 3;
+        public static uint CurrentFrameNumber { get; private set; }
+
 
         static GraphicsDevice()
         {
@@ -74,7 +72,7 @@ namespace Kokoro.Graphics
         }
 
         #region Debug Management
-        private static bool debugCallback(VkDebugUtilsMessageSeverityFlagsEXT severity, VkDebugUtilsMessageTypeFlagsEXT type, IntPtr callbackData, IntPtr userData)
+        private static bool DebugCallback(VkDebugUtilsMessageSeverityFlagsEXT severity, VkDebugUtilsMessageTypeFlagsEXT type, IntPtr callbackData, IntPtr userData)
         {
             var cbkData = Marshal.PtrToStructure<VkDebugUtilsMessengerCallbackDataEXT>(callbackData);
             var consoleCol = Console.BackgroundColor;
@@ -310,12 +308,12 @@ namespace Kokoro.Graphics
                 if (EnableValidation)
                 {
                     //register debug message handler
-                    var debugCreatInfo = new VkDebugUtilsMessengerCreateInfoEXT()
+                    debugCreatInfo = new VkDebugUtilsMessengerCreateInfoEXT()
                     {
                         sType = VkStructureType.StructureTypeDebugUtilsMessengerCreateInfoExt,
                         messageSeverity = VkDebugUtilsMessageSeverityFlagsEXT.DebugUtilsMessageSeverityErrorBitExt | VkDebugUtilsMessageSeverityFlagsEXT.DebugUtilsMessageSeverityWarningBitExt | VkDebugUtilsMessageSeverityFlagsEXT.DebugUtilsMessageSeverityVerboseBitExt | VkDebugUtilsMessageSeverityFlagsEXT.DebugUtilsMessageSeverityInfoBitExt,
                         messageType = VkDebugUtilsMessageTypeFlagsEXT.DebugUtilsMessageTypeGeneralBitExt | VkDebugUtilsMessageTypeFlagsEXT.DebugUtilsMessageTypePerformanceBitExt | VkDebugUtilsMessageTypeFlagsEXT.DebugUtilsMessageTypeValidationBitExt,
-                        pfnUserCallback = debugCallback
+                        pfnUserCallback = DebugCallback
                     };
 
                     var debugCreatInfo_ptr = debugCreatInfo.Pointer();
@@ -342,11 +340,14 @@ namespace Kokoro.Graphics
                 for (int i = 0; i < devices.Length; i++)
                     //rate each device
                     ratedDevices.Add((RateDevice(devices[i]), devices[i]));
-                orderedDevices = ratedDevices.OrderByDescending(a => a.Item1)
+                var orderedDevices = ratedDevices.OrderByDescending(a => a.Item1)
                                              .Select(a => a.Item2)
                                              .ToArray();
-                orderedDeviceData = new VulkanDevice[orderedDevices.Length];
-                orderedDeviceData[0] = new VulkanDevice(orderedDevices[0]);
+                DeviceInformation = new DeviceInfo[orderedDevices.Length];
+                DeviceInformation[0] = new DeviceInfo()
+                {
+                    PhysicalDevice = orderedDevices[0]
+                };
                 //TODO for now just choose the first device
 
                 {
@@ -372,8 +373,6 @@ namespace Kokoro.Graphics
                         {
                             graphicsFamily = qFamIdx;
                             if (presentSupport) presentFamily = qFamIdx;
-                            if ((qFam.queueFlags & VkQueueFlags.QueueTransferBit) != 0)
-                                transferFamily = qFamIdx;
                             qFamIdx++;
                             continue;
                         }
@@ -381,6 +380,7 @@ namespace Kokoro.Graphics
                         if ((qFam.queueFlags & VkQueueFlags.QueueComputeBit) != 0 && computeFamily == ~0u)
                         {
                             computeFamily = qFamIdx;
+                            if ((qFam.queueFlags & VkQueueFlags.QueueTransferBit) != 0) transferFamily = qFamIdx;
                             qFamIdx++;
                             continue;
                         }
@@ -436,23 +436,45 @@ namespace Kokoro.Graphics
                     qCreatInfos[1] = compute_qCreatInfo;
                     if (transferFamily != graphicsFamily) qCreatInfos[2] = transfer_qCreatInfo;
 
-                    orderedDeviceData[0].GraphicsFamily = graphicsFamily;
-                    orderedDeviceData[0].ComputeFamily = computeFamily;
-                    orderedDeviceData[0].TransferFamily = transferFamily;
-                    orderedDeviceData[0].PresentFamily = presentFamily;
+                    DeviceInformation[0].GraphicsFamily = graphicsFamily;
+                    DeviceInformation[0].ComputeFamily = computeFamily;
+                    DeviceInformation[0].TransferFamily = transferFamily;
+                    DeviceInformation[0].PresentFamily = presentFamily;
 
                     VkPhysicalDeviceFeatures devFeats = new VkPhysicalDeviceFeatures()
                     {
                         multiDrawIndirect = true,
+                        drawIndirectFirstInstance = true,
+                        fullDrawIndexUint32 = true,
                         tessellationShader = true,
                         fragmentStoresAndAtomics = true,
                         vertexPipelineStoresAndAtomics = true,
                         robustBufferAccess = EnableValidation,
+                        shaderInt16 = true,
+                        samplerAnisotropy = true,
                     };
+
+                    var devFeats11 = new VkPhysicalDeviceVulkan11Features()
+                    {
+                        sType = VkStructureType.StructureTypePhysicalDeviceVulkan11Features,
+                        shaderDrawParameters = true,
+                        storageBuffer16BitAccess = true,
+                    };
+                    var devFeats11_ptr = devFeats11.Pointer();
 
                     var devFeats12 = new VkPhysicalDeviceVulkan12Features()
                     {
-                        separateDepthStencilLayouts = true
+                        sType = VkStructureType.StructureTypePhysicalDeviceVulkan12Features,
+                        separateDepthStencilLayouts = true,
+                        timelineSemaphore = true,
+                        descriptorIndexing = true,
+                        drawIndirectCount = true,
+                        shaderFloat16 = true,
+                        shaderInt8 = true,
+                        uniformBufferStandardLayout = true,
+                        storageBuffer8BitAccess = true,
+                        shaderUniformBufferArrayNonUniformIndexing = true,
+                        pNext = devFeats11_ptr
                     };
 
                     var qCreatInfos_ptr = qCreatInfos.Pointer();
@@ -471,46 +493,50 @@ namespace Kokoro.Graphics
                         pNext = devFeats12_ptr
                     };
                     var devCreatInfo_ptr = devCreatInfo.Pointer();
-                    fixed (IntPtr* device_ptr = &orderedDeviceData[0].Device)
-                        res = vkCreateDevice(orderedDevices[0], devCreatInfo_ptr, null, device_ptr);
+                    IntPtr deviceHndl = IntPtr.Zero;
+                    res = vkCreateDevice(orderedDevices[0], devCreatInfo_ptr, null, &deviceHndl);
                     if (res != VkResult.Success)
                         throw new Exception("Failed to create logical device.");
+                    DeviceInformation[0].Device = deviceHndl;
 
                     //TODO Setup memory allocator
                     var allocCreatInfo = new VmaAllocatorCreateInfo()
                     {
-                        physicalDevice = orderedDeviceData[0].PhysicalDevice,
-                        device = orderedDeviceData[0].Device
+                        physicalDevice = DeviceInformation[0].PhysicalDevice,
+                        device = DeviceInformation[0].Device
                     };
                     var allocCreatInfo_ptr = allocCreatInfo.Pointer();
-                    fixed (IntPtr* vma_alloc_ptr = &orderedDeviceData[0].vmaAllocator)
+                    fixed (IntPtr* vma_alloc_ptr = &DeviceInformation[0].vmaAllocator)
                         res = vmaCreateAllocator(allocCreatInfo_ptr, vma_alloc_ptr);
                     if (res != VkResult.Success)
                         throw new Exception("Failed to initialize allocator.");
 
-                    fixed (IntPtr* graph_q_hndl = &orderedDeviceData[0].GraphicsQueue)
-                        vkGetDeviceQueue(orderedDeviceData[0].Device, graphicsFamily, 0, graph_q_hndl);
+                    IntPtr graph_q_hndl = IntPtr.Zero;
+                    IntPtr trans_q_hndl = IntPtr.Zero;
+                    IntPtr comp_q_hndl = IntPtr.Zero;
+                    vkGetDeviceQueue(DeviceInformation[0].Device, graphicsFamily, 0, &graph_q_hndl);
+                    vkGetDeviceQueue(DeviceInformation[0].Device, computeFamily, 0, &comp_q_hndl);
+                    if (transferFamily != graphicsFamily)
+                        vkGetDeviceQueue(DeviceInformation[0].Device, transferFamily, 0, &trans_q_hndl);
+                    else vkGetDeviceQueue(DeviceInformation[0].Device, graphicsFamily, 1, &trans_q_hndl);
 
-                    fixed (IntPtr* comp_q_hndl = &orderedDeviceData[0].ComputeQueue)
-                        vkGetDeviceQueue(orderedDeviceData[0].Device, computeFamily, 0, comp_q_hndl);
-                    fixed (IntPtr* trans_q_hndl = &orderedDeviceData[0].TransferQueue)
-                        if (transferFamily != graphicsFamily)
-                            vkGetDeviceQueue(orderedDeviceData[0].Device, transferFamily, 0, trans_q_hndl);
-                        else vkGetDeviceQueue(orderedDeviceData[0].Device, graphicsFamily, 1, trans_q_hndl);
+                    DeviceInformation[0].GraphicsQueue = new GpuQueue(CommandQueueKind.Graphics, graph_q_hndl, graphicsFamily, 0);
+                    DeviceInformation[0].TransferQueue = new GpuQueue(CommandQueueKind.Transfer, trans_q_hndl, transferFamily, 0);
+                    DeviceInformation[0].ComputeQueue = new GpuQueue(CommandQueueKind.Compute, comp_q_hndl, computeFamily, 0);
 
                     var queue_indices = new List<uint>();
-                    if (!queue_indices.Contains(orderedDeviceData[0].GraphicsFamily)) queue_indices.Add(orderedDeviceData[0].GraphicsFamily);
-                    if (!queue_indices.Contains(orderedDeviceData[0].ComputeFamily)) queue_indices.Add(orderedDeviceData[0].ComputeFamily);
-                    if (!queue_indices.Contains(orderedDeviceData[0].PresentFamily)) queue_indices.Add(orderedDeviceData[0].PresentFamily);
-                    if (!queue_indices.Contains(orderedDeviceData[0].TransferFamily)) queue_indices.Add(orderedDeviceData[0].TransferFamily);
-                    orderedDeviceData[0].QueueFamilyIndices = queue_indices.ToArray();
+                    if (!queue_indices.Contains(DeviceInformation[0].GraphicsFamily)) queue_indices.Add(DeviceInformation[0].GraphicsFamily);
+                    if (!queue_indices.Contains(DeviceInformation[0].ComputeFamily)) queue_indices.Add(DeviceInformation[0].ComputeFamily);
+                    if (!queue_indices.Contains(DeviceInformation[0].PresentFamily)) queue_indices.Add(DeviceInformation[0].PresentFamily);
+                    if (!queue_indices.Contains(DeviceInformation[0].TransferFamily)) queue_indices.Add(DeviceInformation[0].TransferFamily);
+                    DeviceInformation[0].QueueFamilyIndices = queue_indices.ToArray();
 
                     var physDeviceProps = new ManagedPtr<VkPhysicalDeviceProperties>();
-                    vkGetPhysicalDeviceProperties(orderedDeviceData[0].PhysicalDevice, physDeviceProps);
-                    orderedDeviceData[0].Properties = physDeviceProps.Value;
+                    vkGetPhysicalDeviceProperties(DeviceInformation[0].PhysicalDevice, physDeviceProps);
+                    DeviceInformation[0].Properties = physDeviceProps.Value;
 
                     var caps_ptr = new ManagedPtr<VkSurfaceCapabilitiesKHR>();
-                    vkGetPhysicalDeviceSurfaceCapabilitiesKHR(orderedDeviceData[0].PhysicalDevice, surfaceHndl, caps_ptr);
+                    vkGetPhysicalDeviceSurfaceCapabilitiesKHR(DeviceInformation[0].PhysicalDevice, surfaceHndl, caps_ptr);
                     var caps = caps_ptr.Value;
 
                     VkExtent2D cur_extent = new VkExtent2D();
@@ -547,17 +573,19 @@ namespace Kokoro.Graphics
                     };
                     var swapCreatInfo_ptr = swapCreatInfo.Pointer();
                     fixed (IntPtr* swapchain_ptr = &swapChainHndl)
-                        res = vkCreateSwapchainKHR(orderedDeviceData[0].Device, swapCreatInfo_ptr, null, swapchain_ptr);
+                        res = vkCreateSwapchainKHR(DeviceInformation[0].Device, swapCreatInfo_ptr, null, swapchain_ptr);
                     if (res != VkResult.Success)
                         throw new Exception("Failed to create swapchain.");
 
                     fixed (uint* swapchain_img_cnt_ptr = &swapchain_img_cnt)
                     {
-                        vkGetSwapchainImagesKHR(orderedDeviceData[0].Device, swapChainHndl, swapchain_img_cnt_ptr, null);
+                        vkGetSwapchainImagesKHR(DeviceInformation[0].Device, swapChainHndl, swapchain_img_cnt_ptr, null);
                         var swapchainImages_l = new IntPtr[swapchain_img_cnt];
                         fixed (IntPtr* swapchain_imgs = swapchainImages_l)
-                            vkGetSwapchainImagesKHR(orderedDeviceData[0].Device, swapChainHndl, swapchain_img_cnt_ptr, swapchain_imgs);
+                            vkGetSwapchainImagesKHR(DeviceInformation[0].Device, swapChainHndl, swapchain_img_cnt_ptr, swapchain_imgs);
 
+                        MaxFramesInFlight = swapchain_img_cnt;
+                        MaxFrameCount = swapchain_img_cnt;
                         swapchainImages = new Image[swapchain_img_cnt];
                         depthImages = new Image[swapchain_img_cnt];
                         for (int i = 0; i < swapchainImages.Length; i++)
@@ -639,12 +667,23 @@ namespace Kokoro.Graphics
                 for (int i = 0; i < devExtns.Count; i++)
                     Marshal.FreeHGlobal(devExtns_ptr[i]);
 
-                frameFinishedSemaphore = new GpuSemaphore();
-                frameFinishedSemaphore.Build(0);
+                frameFinishedSemaphore = new GpuSemaphore[MaxFramesInFlight];
+                imageAvailableSemaphore = new GpuSemaphore[MaxFramesInFlight];
+                inflightFences = new Fence[MaxFramesInFlight];
+                for (int i = 0; i < MaxFramesInFlight; i++)
+                {
+                    frameFinishedSemaphore[i] = new GpuSemaphore();
+                    frameFinishedSemaphore[i].Build(0, false, 0);
 
-                imageAvailableSemaphore = new GpuSemaphore();
-                imageAvailableSemaphore.Build(0);
+                    imageAvailableSemaphore[i] = new GpuSemaphore();
+                    imageAvailableSemaphore[i].Build(0, false, 0);
 
+                    inflightFences[i] = new Fence
+                    {
+                        CreateSignaled = true
+                    };
+                    inflightFences[i].Build(0);
+                }
             }
         }
         #endregion
@@ -652,17 +691,17 @@ namespace Kokoro.Graphics
         #region Device Management
         internal static IntPtr[] GetDevices()
         {
-            return new IntPtr[] { orderedDeviceData[0].Device };
+            return new IntPtr[] { DeviceInformation[0].Device };
         }
 
-        internal static VulkanDevice GetDeviceInfo(int devID)
+        internal static DeviceInfo GetDeviceInfo(int devID)
         {
-            return orderedDeviceData[devID];
+            return DeviceInformation[devID];
         }
 
         internal static void WaitIdle(int devID)
         {
-            vkDeviceWaitIdle(orderedDeviceData[devID].Device);
+            vkDeviceWaitIdle(DeviceInformation[devID].Device);
         }
         #endregion
 
@@ -671,7 +710,7 @@ namespace Kokoro.Graphics
         {
             IntPtr imgPtr_l = IntPtr.Zero;
             IntPtr imgAllocPtr_l = IntPtr.Zero;
-            var res = vmaCreateImage(orderedDeviceData[devID].vmaAllocator, imgCreatInfo, allocCreatInfo, &imgPtr_l, &imgAllocPtr_l, imgAllocInfo);
+            var res = vmaCreateImage(DeviceInformation[devID].vmaAllocator, imgCreatInfo, allocCreatInfo, &imgPtr_l, &imgAllocPtr_l, imgAllocInfo);
             imgPtr = imgPtr_l;
             imgAllocPtr = imgAllocPtr_l;
             return res;
@@ -679,14 +718,14 @@ namespace Kokoro.Graphics
 
         internal static void DestroyImage(int devID, IntPtr imgPtr, IntPtr allocPtr)
         {
-            vmaDestroyImage(orderedDeviceData[devID].vmaAllocator, imgPtr, allocPtr);
+            vmaDestroyImage(DeviceInformation[devID].vmaAllocator, imgPtr, allocPtr);
         }
 
         internal static VkResult CreateBuffer(int devID, ManagedPtr<VkBufferCreateInfo> imgCreatInfo, ManagedPtr<VmaAllocationCreateInfo> allocCreatInfo, out IntPtr imgPtr, out IntPtr imgAllocPtr, ManagedPtr<VmaAllocationInfo> imgAllocInfo)
         {
             IntPtr imgPtr_l = IntPtr.Zero;
             IntPtr imgAllocPtr_l = IntPtr.Zero;
-            var res = vmaCreateBuffer(orderedDeviceData[devID].vmaAllocator, imgCreatInfo, allocCreatInfo, &imgPtr_l, &imgAllocPtr_l, imgAllocInfo);
+            var res = vmaCreateBuffer(DeviceInformation[devID].vmaAllocator, imgCreatInfo, allocCreatInfo, &imgPtr_l, &imgAllocPtr_l, imgAllocInfo);
             imgPtr = imgPtr_l;
             imgAllocPtr = imgAllocPtr_l;
             return res;
@@ -694,21 +733,35 @@ namespace Kokoro.Graphics
 
         internal static void DestroyBuffer(int devID, IntPtr imgPtr, IntPtr allocPtr)
         {
-            vmaDestroyBuffer(orderedDeviceData[devID].vmaAllocator, imgPtr, allocPtr);
+            vmaDestroyBuffer(DeviceInformation[devID].vmaAllocator, imgPtr, allocPtr);
         }
         #endregion
 
+        #region Submit
+        public static void SubmitGraphicsCommandBuffer(CommandBuffer buffer)
+        {
+            DeviceInformation[0].GraphicsQueue.SubmitCommandBuffer(buffer, new GpuSemaphore[] {
+                imageAvailableSemaphore[CurrentFrameNumber]
+            }, new GpuSemaphore[] {
+                frameFinishedSemaphore[CurrentFrameNumber]
+            },
+            inflightFences[CurrentFrameNumber]);
+        }
+        #endregion
 
         #region Frame
         public static void AcquireFrame()
         {
+            inflightFences[CurrentFrameNumber].Wait();
+            inflightFences[CurrentFrameNumber].Reset();
+
             uint imgIdx = 0;
-            vkAcquireNextImageKHR(orderedDeviceData[0].Device, swapChainHndl, ulong.MaxValue, imageAvailableSemaphore.semaphorePtr, IntPtr.Zero, &imgIdx);
+            vkAcquireNextImageKHR(DeviceInformation[0].Device, swapChainHndl, ulong.MaxValue, imageAvailableSemaphore[CurrentFrameNumber].semaphorePtr, IntPtr.Zero, &imgIdx);
             CurrentFrameIndex = imgIdx;
         }
         public static void PresentFrame()
         {
-            var waitSemaphores = stackalloc IntPtr[] { frameFinishedSemaphore.semaphorePtr };
+            var waitSemaphores = stackalloc IntPtr[] { frameFinishedSemaphore[CurrentFrameNumber].semaphorePtr };
             var waitSwapchains = stackalloc IntPtr[] { swapChainHndl };
             var waitFrameIdx = stackalloc uint[] { CurrentFrameIndex };
 
@@ -723,31 +776,8 @@ namespace Kokoro.Graphics
             };
 
             var presentInfo_ptr = presentInfo.Pointer();
-            vkQueuePresentKHR(orderedDeviceData[0].GraphicsQueue, presentInfo_ptr);
-        }
-        #endregion
-
-        #region Submit
-        public static void SubmitCommandBuffer(CommandBuffer buffer)
-        {
-            var waitSemaphores = stackalloc IntPtr[] { imageAvailableSemaphore.semaphorePtr };
-            var signalSemaphores = stackalloc IntPtr[] { frameFinishedSemaphore.semaphorePtr };
-            var waitStages = stackalloc VkPipelineStageFlags[] { VkPipelineStageFlags.PipelineStageTopOfPipeBit };
-            var cmdBuffers = stackalloc IntPtr[] { buffer.cmdBufferPtr };
-
-            var submitInfo = new VkSubmitInfo()
-            {
-                sType = VkStructureType.StructureTypeSubmitInfo,
-                waitSemaphoreCount = 1,
-                pWaitSemaphores = waitSemaphores,
-                pWaitDstStageMask = waitStages,
-                commandBufferCount = 1,
-                pCommandBuffers = cmdBuffers,
-                signalSemaphoreCount = 1,
-                pSignalSemaphores = signalSemaphores
-            };
-            if (vkQueueSubmit(buffer.cmdPool.queueFam, 1, submitInfo.Pointer(), IntPtr.Zero) != VkResult.Success)
-                throw new Exception("Failed to submit command buffer.");
+            vkQueuePresentKHR(DeviceInformation[0].GraphicsQueue.Handle, presentInfo_ptr);
+            CurrentFrameNumber = (CurrentFrameNumber + 1) % MaxFramesInFlight;
         }
         #endregion
     }

@@ -20,13 +20,13 @@ namespace Kokoro.Graphics.VulkanTest
 
             var pool = new CommandPool();
             pool.Transient = false;
-            pool.Build(0, CommandQueue.Graphics);
+            pool.Build(0, CommandQueueKind.Graphics);
 
-            var pass = new RenderPass[2];
-            var pipeline = new PipelineLayout[2];
-            var cmdBuf = new CommandBuffer[2];
+            var pass = new RenderPass[GraphicsDevice.MaxFrameCount];
+            var pipeline = new PipelineLayout[GraphicsDevice.MaxFrameCount];
+            var cmdBuf = new CommandBuffer[GraphicsDevice.MaxFrameCount];
 
-            for (int i = 0; i < 2; i++)
+            for (int i = 0; i < GraphicsDevice.MaxFrameCount; i++)
             {
                 pass[i] = new RenderPass();
                 pass[i].InitialLayout[AttachmentKind.ColorAttachment0] = ImageLayout.Undefined;
@@ -63,11 +63,11 @@ namespace Kokoro.Graphics.VulkanTest
                 cmdBuf[i].EndRecording();
             }
 
-            while (true)
+            while (!GraphicsDevice.Window.IsExiting)
             {
                 GraphicsDevice.Window.PollEvents();
                 GraphicsDevice.AcquireFrame();
-                GraphicsDevice.SubmitCommandBuffer(cmdBuf[GraphicsDevice.CurrentFrameIndex]);
+                GraphicsDevice.SubmitGraphicsCommandBuffer(cmdBuf[GraphicsDevice.CurrentFrameIndex]);
                 GraphicsDevice.PresentFrame();
             }
         }
