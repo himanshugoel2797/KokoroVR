@@ -139,7 +139,7 @@ namespace Kokoro.Graphics
         #endregion
 
         #region Staging
-        public void Stage<T>(StructuredLocalBuffer<T> src, ulong src_off, GpuBuffer dst, ulong dst_off, ulong len) where T : unmanaged
+        public void Stage<T>(GpuBuffer src, ulong src_off, GpuBuffer dst, ulong dst_off, ulong len) where T : unmanaged
         {
             if (locked)
             {
@@ -149,7 +149,7 @@ namespace Kokoro.Graphics
                     srcOffset = src_off,
                     size = len
                 };
-                vkCmdCopyBuffer(cmdBufferPtr, src.backingBuffer.buf, dst.buf, 1, bufCopy.Pointer());
+                vkCmdCopyBuffer(cmdBufferPtr, src.buf, dst.buf, 1, bufCopy.Pointer());
             }
             else
                 throw new Exception("Command buffer not built.");

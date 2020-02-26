@@ -1,4 +1,6 @@
-﻿using System;
+﻿using System.Threading;
+using System.Diagnostics;
+using System;
 using System.Collections.Generic;
 using System.Text;
 using static VulkanSharp.Raw.Glfw;
@@ -28,7 +30,13 @@ namespace Kokoro.Graphics
             }
         }
 
+        private int prevWidth, prevHeight;
+
         public delegate void FrameHandler(double time_ms, double delta_ms);
+        public delegate void ResizeHandler(int nWidth, int nHeight);
+        public event FrameHandler Render;
+        public event FrameHandler Update;
+        public event ResizeHandler Resized;
 
         public GameWindow(string AppName)
         {
@@ -58,6 +66,32 @@ namespace Kokoro.Graphics
             unsafe
             {
                 glfwPollEvents();
+            }
+        }
+
+        public void Run(int fps)
+        {
+            prevWidth = Width;
+            prevHeight = Height;
+
+            Stopwatch s = Stopwatch.StartNew();
+            var sTime = s.Elapsed.TotalMilliseconds;
+            Thread.Sleep(5);
+            while (!IsExiting)
+            {
+                if (Width != prevWidth | Height != prevHeight)
+                {
+                    Resized(Width, Height);
+                    prevWidth = Width;
+                    prevHeight = Height;
+                }
+                PollEvents();
+                Update(s.ElapsedMilliseconds, s.ElapsedMilliseconds - sTime);
+                Render(s.ElapsedMilliseconds, s.ElapsedMilliseconds - sTime);
+                if (fps > 0)
+                    while ((s.ElapsedMilliseconds - sTime) < 1000.0f / fps - 0.5f)
+                        Thread.Sleep(1);
+                sTime = s.ElapsedMilliseconds;
             }
         }
 

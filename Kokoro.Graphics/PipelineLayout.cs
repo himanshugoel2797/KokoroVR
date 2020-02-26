@@ -35,7 +35,7 @@ namespace Kokoro.Graphics
 
     public class PipelineLayout : IDisposable
     {
-        public IList<ShaderSource> Shaders { get; }
+        public List<ShaderSource> Shaders { get; }
         public PrimitiveType Topology { get; set; } = PrimitiveType.Triangle;
         public bool DepthClamp { get; set; }
         public bool RasterizerDiscard { get; set; } = false;
@@ -185,7 +185,7 @@ namespace Kokoro.Graphics
 
                     //VkPipelineColorBlendStateCreateInfo - state
                     var colorBlendStates = new VkPipelineColorBlendAttachmentState[RenderPass.InitialLayout.Keys.Count(a => a != AttachmentKind.DepthAttachment)];
-                    for(int i = 0; i < colorBlendStates.Length; i++)
+                    for (int i = 0; i < colorBlendStates.Length; i++)
                     {
                         colorBlendStates[i] = new VkPipelineColorBlendAttachmentState()
                         {

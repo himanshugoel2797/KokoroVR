@@ -45,10 +45,12 @@ namespace Kokoro.Graphics.VulkanTest
 
                 pass[i].Build(0);
 
-                pipeline[i] = new PipelineLayout();
-                pipeline[i].Framebuffer = GraphicsDevice.DefaultFramebuffer[i];
-                pipeline[i].RenderPass = pass[i];
-                pipeline[i].DepthTest = DepthTest.Always;
+                pipeline[i] = new PipelineLayout
+                {
+                    Framebuffer = GraphicsDevice.DefaultFramebuffer[i],
+                    RenderPass = pass[i],
+                    DepthTest = DepthTest.Always
+                };
                 pipeline[i].Shaders.Add(vert);
                 pipeline[i].Shaders.Add(frag);
                 pipeline[i].Build(0);

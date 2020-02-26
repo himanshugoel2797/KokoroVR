@@ -57,10 +57,12 @@ namespace Kokoro.Graphics
         public static string AppName { get; set; }
         public static Framebuffer[] DefaultFramebuffer { get; private set; }
         public static uint CurrentFrameIndex { get; private set; }
+        public static ulong CurrentFrameCount { get; private set; }
         public static uint MaxFrameCount { get; private set; }
         public static uint MaxFramesInFlight { get; private set; } = 3;
         public static uint CurrentFrameNumber { get; private set; }
-
+        public static uint Width { get; private set; }
+        public static uint Height { get; private set; }
 
         static GraphicsDevice()
         {
@@ -778,6 +780,7 @@ namespace Kokoro.Graphics
             var presentInfo_ptr = presentInfo.Pointer();
             vkQueuePresentKHR(DeviceInformation[0].GraphicsQueue.Handle, presentInfo_ptr);
             CurrentFrameNumber = (CurrentFrameNumber + 1) % MaxFramesInFlight;
+            CurrentFrameCount++;
         }
         #endregion
     }
