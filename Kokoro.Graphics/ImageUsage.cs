@@ -7,7 +7,9 @@ namespace Kokoro.Graphics
         None = 0,
         Sampled = VkImageUsageFlags.ImageUsageSampledBit,
         TransferDst = VkImageUsageFlags.ImageUsageTransferDstBit,
+        TransferSrc = VkImageUsageFlags.ImageUsageTransferSrcBit,
         Storage = VkImageUsageFlags.ImageUsageStorageBit,
-        Depth = VkImageUsageFlags.ImageUsageDepthStencilAttachmentBit
+        DepthAttachment = VkImageUsageFlags.ImageUsageDepthStencilAttachmentBit,
+        ColorAttachment = VkImageUsageFlags.ImageUsageColorAttachmentBit,
     }
 }

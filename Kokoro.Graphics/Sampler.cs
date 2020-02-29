@@ -7,15 +7,15 @@ namespace Kokoro.Graphics
 {
     public class Sampler : IDisposable
     {
-        public bool UnnormalizedCoords { get; set; }
-        public bool MinLinearFilter { get; set; }
-        public bool MagLinearFilter { get; set; }
-        public bool MipLinearFilter { get; set; }
-        public EdgeMode EdgeU { get; set; }
-        public EdgeMode EdgeV { get; set; }
-        public EdgeMode EdgeW { get; set; }
+        public bool UnnormalizedCoords { get; set; } = false;
+        public bool MinLinearFilter { get; set; } = true;
+        public bool MagLinearFilter { get; set; } = true;
+        public bool MipLinearFilter { get; set; } = true;
+        public EdgeMode EdgeU { get; set; } = EdgeMode.ClampToEdge;
+        public EdgeMode EdgeV { get; set; } = EdgeMode.ClampToEdge;
+        public EdgeMode EdgeW { get; set; } = EdgeMode.ClampToEdge;
         public BorderColor Border { get; set; }
-        public float AnisotropicSamples { get; set; }
+        public float AnisotropicSamples { get; set; } = 1;
 
         internal IntPtr samplerPtr { get; private set; }
         private int devID;

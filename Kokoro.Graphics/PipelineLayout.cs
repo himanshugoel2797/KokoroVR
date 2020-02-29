@@ -45,6 +45,7 @@ namespace Kokoro.Graphics
         public DepthTest DepthTest { get; set; } = DepthTest.Greater;
         public RenderPass RenderPass { get; set; }
         public Framebuffer Framebuffer { get; set; }
+        public DescriptorSet[] Descriptors { get; set; }
 
         internal IntPtr pipelineLayout;
         internal IntPtr pipeline;
@@ -222,11 +223,14 @@ namespace Kokoro.Graphics
                     };
                     var dynamicState_ptr = dynamicState.Pointer();
 
+                    var descLayouts = stackalloc IntPtr[Descriptors == null ? 0 : Descriptors.Length];
+                    if (Descriptors != null) 
+                        for (int i = 0; i < Descriptors.Length; i++) descLayouts[i] = Descriptors[i].descSetLayout;
                     var pipelineLayoutInfo = new VkPipelineLayoutCreateInfo()
                     {
                         sType = VkStructureType.StructureTypePipelineLayoutCreateInfo,
-                        setLayoutCount = 0, //TODO: add descriptor support
-                        pSetLayouts = null,
+                        setLayoutCount = Descriptors == null ? 0 : (uint)Descriptors.Length, //TODO: add descriptor support
+                        pSetLayouts = descLayouts,
                         pushConstantRangeCount = 0, //TODO: setup push constants
                         pPushConstantRanges = IntPtr.Zero,
                     };
@@ -234,6 +238,7 @@ namespace Kokoro.Graphics
                     IntPtr pipelineLayout_l = IntPtr.Zero;
                     if (vkCreatePipelineLayout(GraphicsDevice.GetDeviceInfo(deviceIndex).Device, pipelineLayoutInfo.Pointer(), null, &pipelineLayout_l) != VkResult.Success)
                         throw new Exception("Failed to create pipeline layout.");
+                    pipelineLayout = pipelineLayout_l;
 
                     //Setup graphics pipeline
                     var pipelineInfo = new VkGraphicsPipelineCreateInfo()
@@ -264,13 +269,11 @@ namespace Kokoro.Graphics
                     //Setup framebuffer
                     uint attachmentCnt = (uint)Framebuffer.Attachments.Count;
                     var attachmentIndices = Framebuffer.Attachments.Keys.OrderBy(a => a).ToArray();
-                    if (!Framebuffer.Attachments.ContainsKey(AttachmentKind.DepthAttachment))
-                        attachmentCnt++;
                     var attachments = stackalloc IntPtr[(int)attachmentCnt];
                     if (Framebuffer.Attachments.ContainsKey(AttachmentKind.DepthAttachment))
-                        attachments[0] = Framebuffer.Attachments[AttachmentKind.DepthAttachment].viewPtr;
-                    for (int i = 1; i < attachmentCnt; i++)
-                        attachments[i] = Framebuffer.Attachments[attachmentIndices[i - 1]].viewPtr;
+                        attachments[attachmentCnt - 1] = Framebuffer.Attachments[AttachmentKind.DepthAttachment].viewPtr;
+                    for (int i = 0; i < attachmentCnt; i++)
+                        attachments[i] = Framebuffer.Attachments[attachmentIndices[i]].viewPtr;
 
                     var framebufferInfo = new VkFramebufferCreateInfo()
                     {

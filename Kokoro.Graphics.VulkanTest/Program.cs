@@ -14,11 +14,76 @@ namespace Kokoro.Graphics.VulkanTest
             GraphicsDevice.EnableValidation = true;
             GraphicsDevice.Init();
 
-
             ShaderSource vert = ShaderSource.Load(ShaderType.VertexShader, "FullScreenTriangle/vertex.glsl");
-            ShaderSource frag = ShaderSource.Load(ShaderType.FragmentShader, "FullScreenTriangle/fragment.glsl");
+            ShaderSource frag = ShaderSource.Load(ShaderType.FragmentShader, "UVRenderer/fragment.glsl");
 
-            var pool = new CommandPool();
+            var fbuf = new Framegraph(0);
+            fbuf.RegisterAttachment(new AttachmentInfo()
+            {
+                Name = "output",
+                BaseSize = SizeClass.ScreenRelative,
+                SizeX = 1,
+                SizeY = 1,
+                Format = ImageFormat.B8G8R8A8Unorm,
+                Layers = 1,
+                Levels = 1,
+                Usage = ImageUsage.ColorAttachment | ImageUsage.Sampled,
+            });
+            fbuf.RegisterAttachment(new AttachmentInfo()
+            {
+                Name = "output_dpth",
+                BaseSize = SizeClass.ScreenRelative,
+                SizeX = 1,
+                SizeY = 1,
+                Format = ImageFormat.Depth32f,
+                Layers = 1,
+                Levels = 1,
+                Usage = ImageUsage.DepthAttachment | ImageUsage.TransferSrc,
+            });
+            fbuf.RegisterPass(new GraphicsPass()
+            {
+                Name = "main_pass",
+                CullMode = CullMode.None,
+                Buffers = null,
+                DepthAttachment = new AttachmentUsageInfo()
+                {
+                    Name = "output_dpth",
+                    Usage = AttachmentUsage.WriteOnlyClear
+                },
+                AttachmentUsage = new AttachmentUsageInfo[]{
+                    new AttachmentUsageInfo(){
+                        Name = "output",
+                        Usage = AttachmentUsage.WriteOnlyClear
+                    }
+                },
+                DepthClamp = false,
+                DepthTest = DepthTest.Always,
+                EnableBlending = false,
+                LineWidth = 1,
+                PassDependencies = null,
+                RasterizerDiscard = false,
+                SampledAttachments = null,
+                Shaders = new ShaderSource[] { vert, frag },
+                Textures = null,
+                Topology = PrimitiveType.Triangle,
+                DrawCmd = new PlainDrawCmd()
+                {
+                    BaseInstance = 0,
+                    BaseVertex = 0,
+                    InstanceCount = 1,
+                    VertexCount = 3
+                }
+            });
+            fbuf.SetOutputPass("main_pass", "output");
+            fbuf.Compile();
+            while (true)
+            {
+                fbuf.Execute();
+                GraphicsDevice.Window.PollEvents();
+            }
+
+
+            /*var pool = new CommandPool();
             pool.Transient = false;
             pool.Build(0, CommandQueueKind.Graphics);
 
@@ -71,7 +136,7 @@ namespace Kokoro.Graphics.VulkanTest
                 GraphicsDevice.AcquireFrame();
                 GraphicsDevice.SubmitGraphicsCommandBuffer(cmdBuf[GraphicsDevice.CurrentFrameIndex]);
                 GraphicsDevice.PresentFrame();
-            }
+            }*/
         }
     }
 }

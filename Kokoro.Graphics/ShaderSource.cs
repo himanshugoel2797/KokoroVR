@@ -93,7 +93,7 @@ namespace Kokoro.Graphics
                     ShaderType.VertexShader => "vert",
                     _ => throw new Exception("Unknown shader type")
                 };
-                Process p = Process.Start("glslc", $"--target-env=vulkan1.2 -fshader-stage={shaderStageStr} {Path.ChangeExtension(filename, ".glsl_out")} -o {Path.ChangeExtension(filename, ".spv")}");
+                Process p = Process.Start("glslc", $"--target-env=vulkan1.1 -fshader-stage={shaderStageStr} {Path.ChangeExtension(filename, ".glsl_out")} -o {Path.ChangeExtension(filename, ".spv")}");
                 p.WaitForExit();
             }
 

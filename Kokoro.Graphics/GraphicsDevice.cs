@@ -41,16 +41,14 @@ namespace Kokoro.Graphics
         private static uint swapchain_img_cnt;
         private static Image[] swapchainImages;
         private static ImageView[] swapchainViews;
-        private static Image[] depthImages;
-        private static ImageView[] depthViews;
-        private static GpuSemaphore[] frameFinishedSemaphore;
-        private static GpuSemaphore[] imageAvailableSemaphore;
-        private static Fence[] inflightFences;
         private static VkExtent2D surface_extent;
         private static IntPtr debugMessenger;
         public const int MaxIndirectDrawsUBO = 256; //TODO: check if needed
         public const int MaxIndirectDrawsSSBO = 1024;
         public const int EyeCount = 1;
+        public static GpuSemaphore[] FrameFinishedSemaphore { get; private set; }
+        public static GpuSemaphore[] ImageAvailableSemaphore { get; private set; }
+        public static Fence[] InflightFences { get; private set; }
         public static DeviceInfo[] DeviceInformation { get; private set; }
         public static GameWindow Window { get; private set; }
         public static bool EnableValidation { get; set; }
@@ -69,7 +67,14 @@ namespace Kokoro.Graphics
             requiredDeviceExtns = new string[]
             {
                 VkKhrSwapchainExtensionName,
-                VkExtSubgroupSizeControlExtensionName
+                VkExtSubgroupSizeControlExtensionName,
+                VkKhrTimelineSemaphoreExtensionName,
+                VkKhrShaderFloat16Int8ExtensionName,
+                VkKhrUniformBufferStandardLayoutExtensionName,
+                VkKhr8bitStorageExtensionName,
+                VkExtDescriptorIndexingExtensionName,
+                VkKhrCreateRenderpass2ExtensionName,
+                VkKhrSeparateDepthStencilLayoutsExtensionName
             };
         }
 
@@ -245,6 +250,8 @@ namespace Kokoro.Graphics
 
         public static void Init()
         {
+            Console.BackgroundColor = ConsoleColor.Black;
+            Console.ForegroundColor = ConsoleColor.White;
             Window = new GameWindow(AppName);
             fixed (IntPtr* instancePtr = &instanceHndl)
             fixed (IntPtr* surfacePtr = &surfaceHndl)
@@ -272,7 +279,7 @@ namespace Kokoro.Graphics
                 for (int i = 0; i < instExtns.Count; i++)
                     extns[i] = Marshal.StringToHGlobalAnsi(instExtns[i]);
 
-                var devExtns_ptr = stackalloc IntPtr[instExtns.Count];
+                var devExtns_ptr = stackalloc IntPtr[devExtns.Count];
                 for (int i = 0; i < devExtns.Count; i++)
                     devExtns_ptr[i] = Marshal.StringToHGlobalAnsi(devExtns[i]);
                 {
@@ -282,7 +289,7 @@ namespace Kokoro.Graphics
                             sType = VkStructureType.StructureTypeApplicationInfo,
                             pApplicationName = AppName,
                             pEngineName = "KokoroVR",
-                            apiVersion = VkApiVersion12,
+                            apiVersion = VkApiVersion11,
                             applicationVersion = 1,
                             engineVersion = 1,
                             pNext = IntPtr.Zero
@@ -302,14 +309,7 @@ namespace Kokoro.Graphics
 
                     var instCreatInfo_ptr = instCreatInfo.Pointer();
 
-                    res = vkCreateInstance(instCreatInfo_ptr, null, instancePtr);
-                    if (res != VkResult.Success)
-                        throw new Exception("Failed to create instance.");
-                }
-
-                if (EnableValidation)
-                {
-                    //register debug message handler
+                    //register instance create debug message handler
                     debugCreatInfo = new VkDebugUtilsMessengerCreateInfoEXT()
                     {
                         sType = VkStructureType.StructureTypeDebugUtilsMessengerCreateInfoExt,
@@ -317,7 +317,18 @@ namespace Kokoro.Graphics
                         messageType = VkDebugUtilsMessageTypeFlagsEXT.DebugUtilsMessageTypeGeneralBitExt | VkDebugUtilsMessageTypeFlagsEXT.DebugUtilsMessageTypePerformanceBitExt | VkDebugUtilsMessageTypeFlagsEXT.DebugUtilsMessageTypeValidationBitExt,
                         pfnUserCallback = DebugCallback
                     };
+                    var debugCreatInfo_ptr = debugCreatInfo.Pointer();
 
+                    if (EnableValidation)
+                        instCreatInfo.pNext = debugCreatInfo_ptr;
+
+                    res = vkCreateInstance(instCreatInfo_ptr, null, instancePtr);
+                    if (res != VkResult.Success)
+                        throw new Exception("Failed to create instance.");
+                }
+
+                if (EnableValidation)
+                {
                     var debugCreatInfo_ptr = debugCreatInfo.Pointer();
                     fixed (IntPtr* dbg_ptr = &debugMessenger)
                         res = CreateDebugUtilsMessengerEXT(instanceHndl, debugCreatInfo_ptr, null, dbg_ptr);
@@ -464,24 +475,88 @@ namespace Kokoro.Graphics
                     };
                     var devFeats11_ptr = devFeats11.Pointer();
 
-                    var devFeats12 = new VkPhysicalDeviceVulkan12Features()
+                    var depthStenc = new VkPhysicalDeviceSeparateDepthStencilLayoutsFeatures()
+                    {
+                        sType = VkStructureType.StructureTypePhysicalDeviceSeparateDepthStencilLayoutsFeatures,
+                        separateDepthStencilLayouts = true,
+                        pNext = devFeats11_ptr
+                    };
+                    var depthStenc_ptr = depthStenc.Pointer();
+
+                    var timelineSems = new VkPhysicalDeviceTimelineSemaphoreFeatures()
+                    {
+                        sType = VkStructureType.StructureTypePhysicalDeviceTimelineSemaphoreFeatures,
+                        timelineSemaphore = true,
+                        pNext = depthStenc_ptr,
+                    };
+                    var timelineSems_ptr = timelineSems.Pointer();
+
+                    var indirectCnt = new VkPhysicalDeviceShaderFloat16Int8Features()
+                    {
+                        sType = VkStructureType.StructureTypePhysicalDeviceShaderFloat16Int8Features,
+                        shaderFloat16 = true,
+                        shaderInt8 = true,
+                        pNext = timelineSems_ptr,
+                    };
+                    var indirectCnt_ptr = indirectCnt.Pointer();
+
+                    var uboLayout = new VkPhysicalDeviceUniformBufferStandardLayoutFeatures()
+                    {
+                        sType = VkStructureType.StructureTypePhysicalDeviceUniformBufferStandardLayoutFeatures,
+                        uniformBufferStandardLayout = true,
+                        pNext = indirectCnt_ptr
+                    };
+                    var uboLayout_ptr = uboLayout.Pointer();
+
+                    var storageByte = new VkPhysicalDevice8BitStorageFeatures()
+                    {
+                        sType = VkStructureType.StructureTypePhysicalDevice8bitStorageFeatures,
+                        storageBuffer8BitAccess = true,
+                        uniformAndStorageBuffer8BitAccess = true,
+                        pNext = uboLayout_ptr
+                    };
+                    var storageByte_ptr = storageByte.Pointer();
+
+                    var descIndexing = new VkPhysicalDeviceDescriptorIndexingFeatures()
+                    {
+                        sType = VkStructureType.StructureTypePhysicalDeviceDescriptorIndexingFeatures,
+                        descriptorBindingSampledImageUpdateAfterBind = true,
+                        descriptorBindingStorageBufferUpdateAfterBind = true,
+                        descriptorBindingStorageImageUpdateAfterBind = true,
+                        descriptorBindingStorageTexelBufferUpdateAfterBind = true,
+                        descriptorBindingUniformBufferUpdateAfterBind = true,
+                        descriptorBindingUniformTexelBufferUpdateAfterBind = true,
+                        descriptorBindingUpdateUnusedWhilePending = true,
+                        descriptorBindingPartiallyBound = true,
+                        pNext = storageByte_ptr,
+                    };
+                    var descIndexing_ptr = descIndexing.Pointer();
+
+                    /*var devFeats12 = new VkPhysicalDeviceVulkan12Features()
                     {
                         sType = VkStructureType.StructureTypePhysicalDeviceVulkan12Features,
                         separateDepthStencilLayouts = true,
                         timelineSemaphore = true,
-                        descriptorIndexing = true,
                         drawIndirectCount = true,
                         shaderFloat16 = true,
                         shaderInt8 = true,
                         uniformBufferStandardLayout = true,
                         storageBuffer8BitAccess = true,
-                        shaderUniformBufferArrayNonUniformIndexing = true,
+                        descriptorIndexing = true,
+                        descriptorBindingSampledImageUpdateAfterBind = true,
+                        descriptorBindingStorageBufferUpdateAfterBind = true,
+                        descriptorBindingStorageImageUpdateAfterBind = true,
+                        descriptorBindingStorageTexelBufferUpdateAfterBind = true,
+                        descriptorBindingUniformBufferUpdateAfterBind = true,
+                        descriptorBindingUniformTexelBufferUpdateAfterBind = true,
+                        descriptorBindingUpdateUnusedWhilePending = true,
+                        descriptorBindingPartiallyBound = true,
                         pNext = devFeats11_ptr
-                    };
+                    };*/
+                    //var devFeats12_ptr = devFeats12.Pointer();
 
                     var qCreatInfos_ptr = qCreatInfos.Pointer();
                     var devFeats_ptr = devFeats.Pointer();
-                    var devFeats12_ptr = devFeats12.Pointer();
                     var devCreatInfo = new VkDeviceCreateInfo()
                     {
                         sType = VkStructureType.StructureTypeDeviceCreateInfo,
@@ -492,7 +567,7 @@ namespace Kokoro.Graphics
                         ppEnabledLayerNames = layers,
                         pEnabledFeatures = devFeats_ptr,
                         pQueueCreateInfos = qCreatInfos_ptr,
-                        pNext = devFeats12_ptr
+                        pNext = descIndexing_ptr
                     };
                     var devCreatInfo_ptr = devCreatInfo.Pointer();
                     IntPtr deviceHndl = IntPtr.Zero;
@@ -563,7 +638,7 @@ namespace Kokoro.Graphics
                         imageColorSpace = surface_fmt.colorSpace,
                         imageExtent = cur_extent,
                         imageArrayLayers = 1,
-                        imageUsage = VkImageUsageFlags.ImageUsageColorAttachmentBit,
+                        imageUsage = VkImageUsageFlags.ImageUsageColorAttachmentBit | VkImageUsageFlags.ImageUsageTransferDstBit | VkImageUsageFlags.ImageUsageTransferSrcBit,
                         imageSharingMode = VkSharingMode.SharingModeExclusive,
                         queueFamilyIndexCount = 0,
                         pQueueFamilyIndices = null,
@@ -589,7 +664,6 @@ namespace Kokoro.Graphics
                         MaxFramesInFlight = swapchain_img_cnt;
                         MaxFrameCount = swapchain_img_cnt;
                         swapchainImages = new Image[swapchain_img_cnt];
-                        depthImages = new Image[swapchain_img_cnt];
                         for (int i = 0; i < swapchainImages.Length; i++)
                         {
                             swapchainImages[i] = new Image()
@@ -607,28 +681,11 @@ namespace Kokoro.Graphics
                                 Cubemappable = false,
                             };
                             swapchainImages[i].Build(0, swapchainImages_l[i]);
-
-                            depthImages[i] = new Image()
-                            {
-                                Dimensions = 2,
-                                Width = cur_extent.width,
-                                Height = cur_extent.height,
-                                Depth = 1,
-                                Format = ImageFormat.Depth32f,
-                                Layers = 1,
-                                Levels = 1,
-                                MemoryUsage = MemoryUsage.GpuOnly,
-                                Usage = ImageUsage.Depth,
-                                InitialLayout = ImageLayout.Undefined,
-                                Cubemappable = false,
-                            };
-                            depthImages[i].Build(0);
                         }
 
 
                         surface_extent = cur_extent;
                         swapchainViews = new ImageView[swapchain_img_cnt];
-                        depthViews = new ImageView[swapchain_img_cnt];
                         DefaultFramebuffer = new Framebuffer[swapchain_img_cnt];
                         for (int i = 0; i < swapchainImages.Length; i++)
                         {
@@ -643,20 +700,8 @@ namespace Kokoro.Graphics
                             };
                             swapchainViews[i].Build(swapchainImages[i]);
 
-                            depthViews[i] = new ImageView()
-                            {
-                                BaseLayer = 0,
-                                BaseLevel = 0,
-                                Format = ImageFormat.Depth32f,
-                                LayerCount = 1,
-                                LevelCount = 1,
-                                ViewType = ImageViewType.View2D
-                            };
-                            depthViews[i].Build(depthImages[i]);
-
                             DefaultFramebuffer[i] = new Framebuffer(surface_extent.width, surface_extent.height);
                             DefaultFramebuffer[i][AttachmentKind.ColorAttachment0] = swapchainViews[i];
-                            DefaultFramebuffer[i][AttachmentKind.DepthAttachment] = depthViews[i];
                         }
                     }
 
@@ -669,23 +714,26 @@ namespace Kokoro.Graphics
                 for (int i = 0; i < devExtns.Count; i++)
                     Marshal.FreeHGlobal(devExtns_ptr[i]);
 
-                frameFinishedSemaphore = new GpuSemaphore[MaxFramesInFlight];
-                imageAvailableSemaphore = new GpuSemaphore[MaxFramesInFlight];
-                inflightFences = new Fence[MaxFramesInFlight];
+                FrameFinishedSemaphore = new GpuSemaphore[MaxFramesInFlight];
+                ImageAvailableSemaphore = new GpuSemaphore[MaxFramesInFlight];
+                InflightFences = new Fence[MaxFramesInFlight];
                 for (int i = 0; i < MaxFramesInFlight; i++)
                 {
-                    frameFinishedSemaphore[i] = new GpuSemaphore();
-                    frameFinishedSemaphore[i].Build(0, false, 0);
+                    FrameFinishedSemaphore[i] = new GpuSemaphore();
+                    FrameFinishedSemaphore[i].Build(0, false, 0);
 
-                    imageAvailableSemaphore[i] = new GpuSemaphore();
-                    imageAvailableSemaphore[i].Build(0, false, 0);
+                    ImageAvailableSemaphore[i] = new GpuSemaphore();
+                    ImageAvailableSemaphore[i].Build(0, false, 0);
 
-                    inflightFences[i] = new Fence
+                    InflightFences[i] = new Fence
                     {
                         CreateSignaled = true
                     };
-                    inflightFences[i].Build(0);
+                    InflightFences[i].Build(0);
                 }
+
+                Width = (uint)Window.Width;
+                Height = (uint)Window.Height;
             }
         }
         #endregion
@@ -743,27 +791,27 @@ namespace Kokoro.Graphics
         public static void SubmitGraphicsCommandBuffer(CommandBuffer buffer)
         {
             DeviceInformation[0].GraphicsQueue.SubmitCommandBuffer(buffer, new GpuSemaphore[] {
-                imageAvailableSemaphore[CurrentFrameNumber]
+                ImageAvailableSemaphore[CurrentFrameNumber]
             }, new GpuSemaphore[] {
-                frameFinishedSemaphore[CurrentFrameNumber]
+                FrameFinishedSemaphore[CurrentFrameNumber]
             },
-            inflightFences[CurrentFrameNumber]);
+            InflightFences[CurrentFrameNumber]);
         }
         #endregion
 
         #region Frame
         public static void AcquireFrame()
         {
-            inflightFences[CurrentFrameNumber].Wait();
-            inflightFences[CurrentFrameNumber].Reset();
+            InflightFences[CurrentFrameNumber].Wait();
+            InflightFences[CurrentFrameNumber].Reset();
 
             uint imgIdx = 0;
-            vkAcquireNextImageKHR(DeviceInformation[0].Device, swapChainHndl, ulong.MaxValue, imageAvailableSemaphore[CurrentFrameNumber].semaphorePtr, IntPtr.Zero, &imgIdx);
+            vkAcquireNextImageKHR(DeviceInformation[0].Device, swapChainHndl, ulong.MaxValue, ImageAvailableSemaphore[CurrentFrameNumber].semaphorePtr, IntPtr.Zero, &imgIdx);
             CurrentFrameIndex = imgIdx;
         }
         public static void PresentFrame()
         {
-            var waitSemaphores = stackalloc IntPtr[] { frameFinishedSemaphore[CurrentFrameNumber].semaphorePtr };
+            var waitSemaphores = stackalloc IntPtr[] { FrameFinishedSemaphore[CurrentFrameNumber].semaphorePtr };
             var waitSwapchains = stackalloc IntPtr[] { swapChainHndl };
             var waitFrameIdx = stackalloc uint[] { CurrentFrameIndex };
 

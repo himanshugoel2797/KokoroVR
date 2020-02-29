@@ -13,6 +13,7 @@ namespace Kokoro.Graphics
         TessEvaluationShader = VkShaderStageFlags.ShaderStageTessellationEvaluationBit,
         TessControlShader = VkShaderStageFlags.ShaderStageTessellationControlBit,
         ComputeShader = VkShaderStageFlags.ShaderStageComputeBit,
+        All = FragmentShader | VertexShader | GeometryShader | TessEvaluationShader | TessControlShader | ComputeShader,
     }
 
 }

@@ -55,17 +55,17 @@ namespace Kokoro.Graphics
                     var colorAttachments = new VkAttachmentReference[colorAttachmentCnt + 1];
                     for (int i = 0; i < colorAttachmentCnt; i++)
                     {
-                        colorAttachments[i].attachment = (uint)colorAttachment_indices[i] + 1;
+                        colorAttachments[i].attachment = (uint)colorAttachment_indices[i];
                         colorAttachments[i].layout = (VkImageLayout)StartLayout[colorAttachment_indices[i]];
                     }
                     colorAttachments[colorAttachments.Length - 1] = new VkAttachmentReference()
                     {
-                        attachment = 0,
+                        attachment = colorAttachmentCnt,
                         layout = InitialLayout.ContainsKey(AttachmentKind.DepthAttachment) ? (VkImageLayout)StartLayout[AttachmentKind.DepthAttachment] : VkImageLayout.ImageLayoutGeneral
                     };
 
                     var colorAttachments_ptr = colorAttachments.Pointer();
-                    var preserveAttachments = stackalloc uint[] { 0 };
+                    var preserveAttachments = stackalloc uint[] { colorAttachmentCnt };
 
                     var subpassDesc = new VkSubpassDescription()
                     {
@@ -73,54 +73,43 @@ namespace Kokoro.Graphics
                         colorAttachmentCount = colorAttachmentCnt,
                         pColorAttachments = colorAttachments_ptr,
                         pDepthStencilAttachment = depthAttachmentCnt > 0 ? (IntPtr)((ulong)colorAttachments_ptr.Pointer + colorAttachmentCnt * (ulong)Marshal.SizeOf<VkAttachmentReference>()) : IntPtr.Zero,
-                        preserveAttachmentCount = depthAttachmentCnt > 0 ? 0u : 1u,
+                        preserveAttachmentCount = 0u,
                         pPreserveAttachments = preserveAttachments
                     };
                     var subpassDesc_ptr = subpassDesc.Pointer();
 
-                    var colorAttachmentDesc = new VkAttachmentDescription[colorAttachmentCnt + 1];
-                    for (int i = 1; i < colorAttachmentCnt + 1; i++)
+                    var colorAttachmentDesc = new VkAttachmentDescription[colorAttachmentCnt + depthAttachmentCnt];
+                    for (int i = 0; i < colorAttachmentCnt; i++)
                     {
-                        colorAttachmentDesc[i].format = (VkFormat)Formats[colorAttachment_indices[i - 1]];
+                        colorAttachmentDesc[i].format = (VkFormat)Formats[colorAttachment_indices[i]];
                         colorAttachmentDesc[i].samples = VkSampleCountFlags.SampleCount1Bit;
-                        colorAttachmentDesc[i].loadOp = (VkAttachmentLoadOp)LoadOp[colorAttachment_indices[i - 1]];
-                        colorAttachmentDesc[i].storeOp = (VkAttachmentStoreOp)StoreOp[colorAttachment_indices[i - 1]];
+                        colorAttachmentDesc[i].loadOp = (VkAttachmentLoadOp)LoadOp[colorAttachment_indices[i]];
+                        colorAttachmentDesc[i].storeOp = (VkAttachmentStoreOp)StoreOp[colorAttachment_indices[i]];
                         colorAttachmentDesc[i].stencilLoadOp = VkAttachmentLoadOp.AttachmentLoadOpDontCare;
                         colorAttachmentDesc[i].stencilStoreOp = VkAttachmentStoreOp.AttachmentStoreOpDontCare;
-                        colorAttachmentDesc[i].initialLayout = (VkImageLayout)InitialLayout[colorAttachment_indices[i - 1]];
-                        colorAttachmentDesc[i].finalLayout = (VkImageLayout)FinalLayout[colorAttachment_indices[i - 1]];
+                        colorAttachmentDesc[i].initialLayout = (VkImageLayout)InitialLayout[colorAttachment_indices[i]];
+                        colorAttachmentDesc[i].finalLayout = (VkImageLayout)FinalLayout[colorAttachment_indices[i]];
                     }
                     if (depthAttachmentCnt > 0)
                     {
-                        colorAttachmentDesc[0].format = (VkFormat)Formats[AttachmentKind.DepthAttachment];
-                        colorAttachmentDesc[0].samples = VkSampleCountFlags.SampleCount1Bit;
-                        colorAttachmentDesc[0].loadOp = (VkAttachmentLoadOp)LoadOp[AttachmentKind.DepthAttachment];
-                        colorAttachmentDesc[0].storeOp = (VkAttachmentStoreOp)StoreOp[AttachmentKind.DepthAttachment];
-                        colorAttachmentDesc[0].stencilLoadOp = VkAttachmentLoadOp.AttachmentLoadOpDontCare;
-                        colorAttachmentDesc[0].stencilStoreOp = VkAttachmentStoreOp.AttachmentStoreOpDontCare;
-                        colorAttachmentDesc[0].initialLayout = (VkImageLayout)InitialLayout[AttachmentKind.DepthAttachment];
-                        colorAttachmentDesc[0].finalLayout = (VkImageLayout)FinalLayout[AttachmentKind.DepthAttachment];
-                    }
-                    else
-                    {
-                        colorAttachmentDesc[0].format = VkFormat.FormatD32Sfloat;
-                        colorAttachmentDesc[0].samples = VkSampleCountFlags.SampleCount1Bit;
-                        colorAttachmentDesc[0].loadOp = VkAttachmentLoadOp.AttachmentLoadOpDontCare;
-                        colorAttachmentDesc[0].storeOp = VkAttachmentStoreOp.AttachmentStoreOpDontCare;
-                        colorAttachmentDesc[0].stencilLoadOp = VkAttachmentLoadOp.AttachmentLoadOpDontCare;
-                        colorAttachmentDesc[0].stencilStoreOp = VkAttachmentStoreOp.AttachmentStoreOpDontCare;
-                        colorAttachmentDesc[0].initialLayout = VkImageLayout.ImageLayoutGeneral;
-                        colorAttachmentDesc[0].finalLayout = VkImageLayout.ImageLayoutDepthStencilAttachmentOptimal;
+                        colorAttachmentDesc[colorAttachmentCnt].format = (VkFormat)Formats[AttachmentKind.DepthAttachment];
+                        colorAttachmentDesc[colorAttachmentCnt].samples = VkSampleCountFlags.SampleCount1Bit;
+                        colorAttachmentDesc[colorAttachmentCnt].loadOp = (VkAttachmentLoadOp)LoadOp[AttachmentKind.DepthAttachment];
+                        colorAttachmentDesc[colorAttachmentCnt].storeOp = (VkAttachmentStoreOp)StoreOp[AttachmentKind.DepthAttachment];
+                        colorAttachmentDesc[colorAttachmentCnt].stencilLoadOp = VkAttachmentLoadOp.AttachmentLoadOpDontCare;
+                        colorAttachmentDesc[colorAttachmentCnt].stencilStoreOp = VkAttachmentStoreOp.AttachmentStoreOpDontCare;
+                        colorAttachmentDesc[colorAttachmentCnt].initialLayout = (VkImageLayout)InitialLayout[AttachmentKind.DepthAttachment];
+                        colorAttachmentDesc[colorAttachmentCnt].finalLayout = (VkImageLayout)FinalLayout[AttachmentKind.DepthAttachment];
                     }
                     var colorAttachmentDesc_ptr = colorAttachmentDesc.Pointer();
 
                     var renderPassInfo = new VkRenderPassCreateInfo()
                     {
                         sType = VkStructureType.StructureTypeRenderPassCreateInfo,
-                        attachmentCount = colorAttachmentCnt + 1,
+                        attachmentCount = colorAttachmentCnt + depthAttachmentCnt,
                         pAttachments = colorAttachmentDesc_ptr,
                         subpassCount = 1,
-                        pSubpasses = subpassDesc_ptr
+                        pSubpasses = subpassDesc_ptr,
                     };
                     IntPtr renderPass_l = IntPtr.Zero;
                     if (vkCreateRenderPass(GraphicsDevice.GetDeviceInfo(device_index).Device, renderPassInfo.Pointer(), null, &renderPass_l) != VkResult.Success)

@@ -27,43 +27,52 @@ namespace Kokoro.Graphics
             unsafe
             {
                 var waitSemaphores = stackalloc IntPtr[waitSems.Length];
-                var waitTimelines = stackalloc IntPtr[waitSems.Length];
                 var signalSemaphores = stackalloc IntPtr[signalSems.Length];
-                var signalTimelines = stackalloc IntPtr[signalSems.Length];
-
-                uint waitSemCnt = 0, waitTimeCnt = 0, signalSemCnt = 0, signalTimeCnt = 0;
+                var waitSemaphoreVals = stackalloc ulong[waitSems.Length];
+                var signalSemaphoreVals = stackalloc ulong[signalSems.Length];
 
                 for (int i = 0; i < waitSems.Length; i++)
-                    if (waitSems[i].timeline)
-                        waitTimelines[waitTimeCnt++] = waitSems[i].semaphorePtr;
-                    else
-                        waitSemaphores[waitSemCnt++] = waitSems[i].semaphorePtr;
+                {
+                    waitSemaphoreVals[i] = GraphicsDevice.CurrentFrameCount;
+                    waitSemaphores[i] = waitSems[i].semaphorePtr;
+                }
 
                 for (int i = 0; i < signalSems.Length; i++)
-                    if (signalSems[i].timeline)
-                        signalTimelines[signalTimeCnt++] = signalSems[i].semaphorePtr;
-                    else
-                        signalSemaphores[signalSemCnt++] = signalSems[i].semaphorePtr;
+                {
+                    signalSemaphoreVals[i] = GraphicsDevice.CurrentFrameCount + 1;
+                    signalSemaphores[i] = signalSems[i].semaphorePtr;
+                }
 
-                var waitStages = stackalloc VkPipelineStageFlags[] { VkPipelineStageFlags.PipelineStageTopOfPipeBit };
+                var waitStages = stackalloc VkPipelineStageFlags[waitSems.Length];
                 var cmdBuffers = stackalloc IntPtr[] { buffer.cmdBufferPtr };
+                
+                for(int i = 0; i < waitSems.Length; i++)
+                waitStages[i] = VkPipelineStageFlags.PipelineStageTopOfPipeBit;
 
-                if (waitTimeCnt > 0 | signalTimeCnt > 0)
-                    throw new NotImplementedException("Submit does not support timeline semaphores yet.");
+                var timelineSems = new VkTimelineSemaphoreSubmitInfo()
+                {
+                    sType = VkStructureType.StructureTypeTimelineSemaphoreSubmitInfo,
+                    signalSemaphoreValueCount = (uint)signalSems.Length,
+                    waitSemaphoreValueCount = (uint)waitSems.Length,
+                    pSignalSemaphoreValues = signalSemaphoreVals,
+                    pWaitSemaphoreValues = waitSemaphoreVals
+                };
+                var timelineSems_ptr = timelineSems.Pointer();
 
                 var submitInfo = new VkSubmitInfo()
                 {
                     sType = VkStructureType.StructureTypeSubmitInfo,
-                    waitSemaphoreCount = waitSemCnt,
+                    waitSemaphoreCount = (uint)waitSems.Length,
                     pWaitSemaphores = waitSemaphores,
                     pWaitDstStageMask = waitStages,
                     commandBufferCount = 1,
                     pCommandBuffers = cmdBuffers,
-                    signalSemaphoreCount = signalSemCnt,
-                    pSignalSemaphores = signalSemaphores
+                    signalSemaphoreCount = (uint)signalSems.Length,
+                    pSignalSemaphores = signalSemaphores,
+                    pNext = timelineSems_ptr
                 };
                 var ptr = submitInfo.Pointer();
-                if (vkQueueSubmit(Handle, 1, ptr, fence.hndl) != VkResult.Success)
+                if (vkQueueSubmit(Handle, 1, ptr, fence == null ? IntPtr.Zero : fence.hndl) != VkResult.Success)
                     throw new Exception("Failed to submit command buffer.");
             }
         }
