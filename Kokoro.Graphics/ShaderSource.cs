@@ -121,6 +121,17 @@ namespace Kokoro.Graphics
                         if (vkCreateShaderModule(devices[i], smCreatInfo_ptr, null, ids_p + i) != VkResult.Success)
                             throw new Exception("Failed to create shader module!");
 
+                        if (GraphicsDevice.EnableValidation)
+                        {
+                            var objName = new VkDebugUtilsObjectNameInfoEXT()
+                            {
+                                sType = VkStructureType.StructureTypeDebugUtilsObjectNameInfoExt,
+                                pObjectName = Path.GetDirectoryName(filename),
+                                objectType = VkObjectType.ObjectTypeShaderModule,
+                                objectHandle = (ulong)ids[i]
+                            };
+                            GraphicsDevice.SetDebugUtilsObjectNameEXT(GraphicsDevice.GetDeviceInfo(i).Device, objName.Pointer());
+                        }
                     }
                 }
             }

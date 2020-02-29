@@ -7,11 +7,12 @@ namespace Kokoro.Graphics
 {
     public class GpuBufferView : IDisposable
     {
+        public string Name { get; set; }
         public ImageFormat Format { get; set; }
         public ulong Offset { get; set; }
         public ulong Size { get; set; }
 
-        internal IntPtr bufferPtr { get; private set; }
+        internal IntPtr hndl { get; private set; }
         private GpuBuffer parent;
         private int devID;
         private bool locked;
@@ -27,7 +28,7 @@ namespace Kokoro.Graphics
                     var creatInfo = new VkBufferViewCreateInfo()
                     {
                         sType = VkStructureType.StructureTypeBufferViewCreateInfo,
-                        buffer = buf.buf,
+                        buffer = buf.hndl,
                         format = (VkFormat)Format,
                         offset = Offset,
                         range = Size
@@ -37,9 +38,21 @@ namespace Kokoro.Graphics
                     IntPtr bufferPtr_l = IntPtr.Zero;
                     if (vkCreateBufferView(devInfo.Device, creatInfo.Pointer(), null, &bufferPtr_l) != VkResult.Success)
                         throw new Exception("Failed to create buffer view.");
-                    bufferPtr = bufferPtr_l;
+                    hndl = bufferPtr_l;
                     parent = buf;
                     devID = buf.devID;
+
+                    if (GraphicsDevice.EnableValidation)
+                    {
+                        var objName = new VkDebugUtilsObjectNameInfoEXT()
+                        {
+                            sType = VkStructureType.StructureTypeDebugUtilsObjectNameInfoExt,
+                            pObjectName = Name,
+                            objectType = VkObjectType.ObjectTypeBufferView,
+                            objectHandle = (ulong)hndl
+                        };
+                        GraphicsDevice.SetDebugUtilsObjectNameEXT(GraphicsDevice.GetDeviceInfo(devID).Device, objName.Pointer());
+                    }
                 }
                 locked = true;
             }
@@ -62,7 +75,7 @@ namespace Kokoro.Graphics
                 // TODO: free unmanaged resources (unmanaged objects) and override a finalizer below.
                 // TODO: set large fields to null.
                 if (locked)
-                    vkDestroyBufferView(GraphicsDevice.GetDeviceInfo(devID).Device, bufferPtr, null);
+                    vkDestroyBufferView(GraphicsDevice.GetDeviceInfo(devID).Device, hndl, null);
 
                 disposedValue = true;
             }

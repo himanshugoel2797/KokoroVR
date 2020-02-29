@@ -5,6 +5,7 @@ namespace Kokoro.Graphics
 {
     public class Fence : IDisposable
     {
+        public string Name { get; set; }
         public bool CreateSignaled { get; set; } = false;
         internal IntPtr hndl;
         internal int devID;
@@ -31,6 +32,18 @@ namespace Kokoro.Graphics
                         throw new Exception("Failed to create fence.");
                     hndl = hndl_l;
                     this.devID = devID;
+
+                    if (GraphicsDevice.EnableValidation)
+                    {
+                        var objName = new VkDebugUtilsObjectNameInfoEXT()
+                        {
+                            sType = VkStructureType.StructureTypeDebugUtilsObjectNameInfoExt,
+                            pObjectName = Name,
+                            objectType = VkObjectType.ObjectTypeFence,
+                            objectHandle = (ulong)hndl
+                        };
+                        GraphicsDevice.SetDebugUtilsObjectNameEXT(GraphicsDevice.GetDeviceInfo(devID).Device, objName.Pointer());
+                    }
                 }
                 locked = true;
             }

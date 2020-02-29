@@ -7,7 +7,8 @@ namespace Kokoro.Graphics
 {
     public class GpuSemaphore : IDisposable
     {
-        internal IntPtr semaphorePtr;
+        public string Name { get; set; }
+        internal IntPtr hndl;
         internal int devID;
         internal bool timeline;
         private bool locked;
@@ -51,8 +52,20 @@ namespace Kokoro.Graphics
                         if (vkCreateSemaphore(GraphicsDevice.GetDeviceInfo(deviceIndex).Device, semaphoreInfo.Pointer(), null, &semaphorePtr_l) != VkResult.Success)
                             throw new Exception("Failed to create semaphore.");
                     }
-                    semaphorePtr = semaphorePtr_l;
+                    hndl = semaphorePtr_l;
                     devID = deviceIndex;
+
+                    if (GraphicsDevice.EnableValidation)
+                    {
+                        var objName = new VkDebugUtilsObjectNameInfoEXT()
+                        {
+                            sType = VkStructureType.StructureTypeDebugUtilsObjectNameInfoExt,
+                            pObjectName = Name,
+                            objectType = VkObjectType.ObjectTypeSemaphore,
+                            objectHandle = (ulong)hndl
+                        };
+                        GraphicsDevice.SetDebugUtilsObjectNameEXT(GraphicsDevice.GetDeviceInfo(deviceIndex).Device, objName.Pointer());
+                    }
                 }
                 locked = true;
             }
@@ -70,7 +83,7 @@ namespace Kokoro.Graphics
                     var signalInfo = new VkSemaphoreSignalInfo()
                     {
                         sType = VkStructureType.StructureTypeSemaphoreSignalInfo,
-                        semaphore = semaphorePtr,
+                        semaphore = hndl,
                         value = val
                     };
                     vkSignalSemaphore(GraphicsDevice.GetDeviceInfo(devID).Device, signalInfo.Pointer());
@@ -87,7 +100,7 @@ namespace Kokoro.Graphics
                 if (!timeline) throw new Exception("Only timeline semaphores support waiting.");
                 unsafe
                 {
-                    var ptrs = stackalloc IntPtr[] { semaphorePtr };
+                    var ptrs = stackalloc IntPtr[] { hndl };
                     var val_ptrs = stackalloc ulong[] { val };
                     var waitInfo = new VkSemaphoreWaitInfo()
                     {
@@ -118,7 +131,7 @@ namespace Kokoro.Graphics
                 // TODO: set large fields to null.
                 if (locked)
                 {
-                    vkDestroySemaphore(GraphicsDevice.GetDeviceInfo(devID).Device, semaphorePtr, null);
+                    vkDestroySemaphore(GraphicsDevice.GetDeviceInfo(devID).Device, hndl, null);
                 }
 
                 disposedValue = true;

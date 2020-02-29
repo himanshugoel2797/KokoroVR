@@ -21,6 +21,7 @@ namespace Kokoro.Graphics
 
     public class RenderPass
     {
+        public string Name { get; set; }
         public IDictionary<AttachmentKind, AttachmentLoadOp> LoadOp { get; private set; }
         public IDictionary<AttachmentKind, AttachmentStoreOp> StoreOp { get; private set; }
         public IDictionary<AttachmentKind, ImageLayout> InitialLayout { get; private set; }
@@ -28,7 +29,7 @@ namespace Kokoro.Graphics
         public IDictionary<AttachmentKind, ImageLayout> FinalLayout { get; private set; }
         public IDictionary<AttachmentKind, ImageFormat> Formats { get; private set; }
 
-        internal IntPtr renderPass;
+        internal IntPtr hndl;
         private int devID;
         private bool locked;
 
@@ -114,8 +115,20 @@ namespace Kokoro.Graphics
                     IntPtr renderPass_l = IntPtr.Zero;
                     if (vkCreateRenderPass(GraphicsDevice.GetDeviceInfo(device_index).Device, renderPassInfo.Pointer(), null, &renderPass_l) != VkResult.Success)
                         throw new Exception("Failed to create RenderPass.");
-                    renderPass = renderPass_l;
+                    hndl = renderPass_l;
                     devID = device_index;
+
+                    if (GraphicsDevice.EnableValidation)
+                    {
+                        var objName = new VkDebugUtilsObjectNameInfoEXT()
+                        {
+                            sType = VkStructureType.StructureTypeDebugUtilsObjectNameInfoExt,
+                            pObjectName = Name,
+                            objectType = VkObjectType.ObjectTypeRenderPass,
+                            objectHandle = (ulong)hndl
+                        };
+                        GraphicsDevice.SetDebugUtilsObjectNameEXT(GraphicsDevice.GetDeviceInfo(devID).Device, objName.Pointer());
+                    }
                 }
                 locked = true;
             }

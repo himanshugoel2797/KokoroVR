@@ -7,6 +7,7 @@ namespace Kokoro.Graphics
 {
     public class Sampler : IDisposable
     {
+        public string Name { get; set; }
         public bool UnnormalizedCoords { get; set; } = false;
         public bool MinLinearFilter { get; set; } = true;
         public bool MagLinearFilter { get; set; } = true;
@@ -17,7 +18,7 @@ namespace Kokoro.Graphics
         public BorderColor Border { get; set; }
         public float AnisotropicSamples { get; set; } = 1;
 
-        internal IntPtr samplerPtr { get; private set; }
+        internal IntPtr hndl { get; private set; }
         private int devID;
         private bool locked;
 
@@ -52,8 +53,20 @@ namespace Kokoro.Graphics
                     IntPtr samplerPtr_l = IntPtr.Zero;
                     if (vkCreateSampler(GraphicsDevice.GetDeviceInfo(deviceIndex).Device, samplerCreatInfo.Pointer(), null, &samplerPtr_l) != VkResult.Success)
                         throw new Exception("Failed to create sampler.");
-                    samplerPtr = samplerPtr_l;
+                    hndl = samplerPtr_l;
                     devID = deviceIndex;
+
+                    if (GraphicsDevice.EnableValidation)
+                    {
+                        var objName = new VkDebugUtilsObjectNameInfoEXT()
+                        {
+                            sType = VkStructureType.StructureTypeDebugUtilsObjectNameInfoExt,
+                            pObjectName = Name,
+                            objectType = VkObjectType.ObjectTypeSampler,
+                            objectHandle = (ulong)hndl
+                        };
+                        GraphicsDevice.SetDebugUtilsObjectNameEXT(GraphicsDevice.GetDeviceInfo(deviceIndex).Device, objName.Pointer());
+                    }
                 }
                 locked = true;
             }
@@ -75,7 +88,7 @@ namespace Kokoro.Graphics
 
                 // TODO: free unmanaged resources (unmanaged objects) and override a finalizer below.
                 // TODO: set large fields to null.
-                if (locked) vkDestroySampler(GraphicsDevice.GetDeviceInfo(devID).Device, samplerPtr, null);
+                if (locked) vkDestroySampler(GraphicsDevice.GetDeviceInfo(devID).Device, hndl, null);
 
                 disposedValue = true;
             }

@@ -79,6 +79,13 @@ namespace Kokoro.Graphics
         }
 
         #region Debug Management
+        internal static PFN_vkCreateDebugUtilsMessengerEXT CreateDebugUtilsMessengerEXT;
+        internal static PFN_vkSetDebugUtilsObjectNameEXT SetDebugUtilsObjectNameEXT;
+        private static void SetupDebugMessengers(IntPtr instance)
+        {
+            CreateDebugUtilsMessengerEXT = Marshal.GetDelegateForFunctionPointer<PFN_vkCreateDebugUtilsMessengerEXT>(vkGetInstanceProcAddr(instance, nameof(vkCreateDebugUtilsMessengerEXT)));
+            SetDebugUtilsObjectNameEXT = Marshal.GetDelegateForFunctionPointer<PFN_vkSetDebugUtilsObjectNameEXT>(vkGetInstanceProcAddr(instance, nameof(vkSetDebugUtilsObjectNameEXT)));
+        }
         private static bool DebugCallback(VkDebugUtilsMessageSeverityFlagsEXT severity, VkDebugUtilsMessageTypeFlagsEXT type, IntPtr callbackData, IntPtr userData)
         {
             var cbkData = Marshal.PtrToStructure<VkDebugUtilsMessengerCallbackDataEXT>(callbackData);
@@ -116,19 +123,6 @@ namespace Kokoro.Graphics
             Console.BackgroundColor = consoleCol;
             Console.WriteLine($" {cbkData.pMessage}");
             return false;
-        }
-
-        private static VkResult CreateDebugUtilsMessengerEXT(IntPtr instance, ManagedPtr<VkDebugUtilsMessengerCreateInfoEXT> pCreateInfo, ManagedPtrArray<VkAllocationCallbacks> pAllocator, IntPtr* pDebugMessenger)
-        {
-            var func = Marshal.GetDelegateForFunctionPointer<PFN_vkCreateDebugUtilsMessengerEXT>(vkGetInstanceProcAddr(instance, "vkCreateDebugUtilsMessengerEXT"));
-            if (func != null)
-            {
-                return func(instance, pCreateInfo, pAllocator, pDebugMessenger);
-            }
-            else
-            {
-                return VkResult.ErrorExtensionNotPresent;
-            }
         }
 
         private static void DestroyDebugUtilsMessengerEXT(IntPtr instance, IntPtr debugMessenger, ManagedPtrArray<VkAllocationCallbacks> pAllocator)
@@ -329,9 +323,10 @@ namespace Kokoro.Graphics
 
                 if (EnableValidation)
                 {
+                    SetupDebugMessengers(instanceHndl);
                     var debugCreatInfo_ptr = debugCreatInfo.Pointer();
                     fixed (IntPtr* dbg_ptr = &debugMessenger)
-                        res = CreateDebugUtilsMessengerEXT(instanceHndl, debugCreatInfo_ptr, null, dbg_ptr);
+                        res = CreateDebugUtilsMessengerEXT(instanceHndl, debugCreatInfo_ptr, IntPtr.Zero, dbg_ptr);
                     if (res != VkResult.Success)
                         throw new Exception("Failed to register debug callback.");
                 }
@@ -806,12 +801,12 @@ namespace Kokoro.Graphics
             InflightFences[CurrentFrameNumber].Reset();
 
             uint imgIdx = 0;
-            vkAcquireNextImageKHR(DeviceInformation[0].Device, swapChainHndl, ulong.MaxValue, ImageAvailableSemaphore[CurrentFrameNumber].semaphorePtr, IntPtr.Zero, &imgIdx);
+            vkAcquireNextImageKHR(DeviceInformation[0].Device, swapChainHndl, ulong.MaxValue, ImageAvailableSemaphore[CurrentFrameNumber].hndl, IntPtr.Zero, &imgIdx);
             CurrentFrameIndex = imgIdx;
         }
         public static void PresentFrame()
         {
-            var waitSemaphores = stackalloc IntPtr[] { FrameFinishedSemaphore[CurrentFrameNumber].semaphorePtr };
+            var waitSemaphores = stackalloc IntPtr[] { FrameFinishedSemaphore[CurrentFrameNumber].hndl };
             var waitSwapchains = stackalloc IntPtr[] { swapChainHndl };
             var waitFrameIdx = stackalloc uint[] { CurrentFrameIndex };
 

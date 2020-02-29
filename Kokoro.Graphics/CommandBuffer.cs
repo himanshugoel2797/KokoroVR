@@ -7,7 +7,9 @@ namespace Kokoro.Graphics
 {
     public class CommandBuffer : IDisposable
     {
-        internal IntPtr cmdBufferPtr;
+        public string Name { get; set; }
+
+        internal IntPtr hndl;
         internal CommandPool cmdPool;
         private int devID;
         private bool locked;
@@ -24,7 +26,7 @@ namespace Kokoro.Graphics
                     {
                         sType = VkStructureType.StructureTypeCommandBufferAllocateInfo,
                         commandBufferCount = 1,
-                        commandPool = pool.commandPoolPtr,
+                        commandPool = pool.hndl,
                         level = VkCommandBufferLevel.CommandBufferLevelPrimary,
                     };
 
@@ -33,7 +35,19 @@ namespace Kokoro.Graphics
                     if (vkAllocateCommandBuffers(GraphicsDevice.GetDeviceInfo(devID).Device, allocInfo.Pointer(), &cmdBufferPtr_l) != VkResult.Success)
                         throw new Exception("Failed to allocate command buffer.");
                     cmdPool = pool;
-                    cmdBufferPtr = cmdBufferPtr_l;
+                    hndl = cmdBufferPtr_l;
+
+                    if (GraphicsDevice.EnableValidation)
+                    {
+                        var objName = new VkDebugUtilsObjectNameInfoEXT()
+                        {
+                            sType = VkStructureType.StructureTypeDebugUtilsObjectNameInfoExt,
+                            pObjectName = Name,
+                            objectType = VkObjectType.ObjectTypeCommandBuffer,
+                            objectHandle = (ulong)hndl
+                        };
+                        GraphicsDevice.SetDebugUtilsObjectNameEXT(GraphicsDevice.GetDeviceInfo(devID).Device, objName.Pointer());
+                    }
                 }
                 locked = true;
             }
@@ -46,7 +60,7 @@ namespace Kokoro.Graphics
         {
             if (locked)
             {
-                vkResetCommandBuffer(cmdBufferPtr, 0);
+                vkResetCommandBuffer(hndl, 0);
             }
             else
                 throw new Exception("Command buffer not built.");
@@ -63,7 +77,7 @@ namespace Kokoro.Graphics
                     pInheritanceInfo = IntPtr.Zero
                 };
 
-                if (vkBeginCommandBuffer(cmdBufferPtr, beginInfo.Pointer()) != VkResult.Success)
+                if (vkBeginCommandBuffer(hndl, beginInfo.Pointer()) != VkResult.Success)
                     throw new Exception("Failed to begin recording command buffer.");
             }
             else
@@ -74,7 +88,7 @@ namespace Kokoro.Graphics
         {
             if (locked)
             {
-                if (vkEndCommandBuffer(cmdBufferPtr) != VkResult.Success)
+                if (vkEndCommandBuffer(hndl) != VkResult.Success)
                     throw new Exception("Failed to end recording command buffer.");
             }
             else
@@ -97,7 +111,7 @@ namespace Kokoro.Graphics
                     maxDepth = 1,
                 };
                 var vpt_ptr = vpt.Pointer();
-                vkCmdSetViewport(cmdBufferPtr, 0, 1, vpt_ptr);
+                vkCmdSetViewport(hndl, 0, 1, vpt_ptr);
             }
             else
                 throw new Exception("Command buffer not built.");
@@ -105,7 +119,7 @@ namespace Kokoro.Graphics
         #endregion
 
         #region Render Pass
-        public void SetPipeline(PipelineLayout pipeline, float depthClearVal)
+        public void SetPipeline(Pipeline pipeline, float depthClearVal)
         {
             if (locked)
             {
@@ -121,8 +135,8 @@ namespace Kokoro.Graphics
                     var beginInfo = new VkRenderPassBeginInfo()
                     {
                         sType = VkStructureType.StructureTypeRenderPassBeginInfo,
-                        renderPass = pipeline.RenderPass.renderPass,
-                        framebuffer = pipeline.framebuffer,
+                        renderPass = pipeline.RenderPass.hndl,
+                        framebuffer = pipeline.Framebuffer.hndl,
                         renderArea = new VkRect2D()
                         {
                             offset = new VkOffset2D()
@@ -139,8 +153,8 @@ namespace Kokoro.Graphics
                         clearValueCount = (uint)pipeline.Framebuffer.Attachments.Count,
                         pClearValues = (IntPtr)clearVal_ptrs,
                     };
-                    vkCmdBeginRenderPass(cmdBufferPtr, beginInfo.Pointer(), VkSubpassContents.SubpassContentsInline);
-                    vkCmdBindPipeline(cmdBufferPtr, VkPipelineBindPoint.PipelineBindPointGraphics, pipeline.pipeline);
+                    vkCmdBeginRenderPass(hndl, beginInfo.Pointer(), VkSubpassContents.SubpassContentsInline);
+                    vkCmdBindPipeline(hndl, VkPipelineBindPoint.PipelineBindPointGraphics, pipeline.hndl);
                 }
             }
             else
@@ -151,7 +165,7 @@ namespace Kokoro.Graphics
         {
             if (locked)
             {
-                vkCmdEndRenderPass(cmdBufferPtr);
+                vkCmdEndRenderPass(hndl);
             }
             else
                 throw new Exception("Command buffer not built.");
@@ -159,16 +173,16 @@ namespace Kokoro.Graphics
         #endregion
 
         #region Descriptors
-        public void SetDescriptors(PipelineLayout layout, DescriptorSet set, DescriptorBindPoint bindPoint, uint set_binding, uint set_idx)
+        public void SetDescriptors(PipelineLayout layout, DescriptorSet set, DescriptorBindPoint bindPoint, uint set_binding)
         {
             if (locked)
             {
                 unsafe
                 {
-                    if (set != null && set.sets != null && set.descSetLayout != IntPtr.Zero)
+                    if (set != null && set.hndl != IntPtr.Zero)
                     {
-                        var ptrs = stackalloc IntPtr[] { set.sets[set_idx] };
-                        vkCmdBindDescriptorSets(cmdBufferPtr, (VkPipelineBindPoint)bindPoint, layout.pipelineLayout, set_binding, 1, ptrs, 0, null);
+                        var ptrs = stackalloc IntPtr[] { set.hndl };
+                        vkCmdBindDescriptorSets(hndl, (VkPipelineBindPoint)bindPoint, layout.hndl, set_binding, 1, ptrs, 0, null);
                     }
                 }
             }
@@ -188,7 +202,7 @@ namespace Kokoro.Graphics
                     srcOffset = src_off,
                     size = len
                 };
-                vkCmdCopyBuffer(cmdBufferPtr, src.buf, dst.buf, 1, bufCopy.Pointer());
+                vkCmdCopyBuffer(hndl, src.hndl, dst.hndl, 1, bufCopy.Pointer());
             }
             else
                 throw new Exception("Command buffer not built.");
@@ -200,7 +214,7 @@ namespace Kokoro.Graphics
         {
             if (locked)
             {
-                vkCmdDraw(cmdBufferPtr, vertexCnt, instanceCnt, firstVertex, baseInstance);
+                vkCmdDraw(hndl, vertexCnt, instanceCnt, firstVertex, baseInstance);
             }
             else
                 throw new Exception("Command buffer not built.");

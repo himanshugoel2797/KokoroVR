@@ -9,12 +9,13 @@ namespace Kokoro.Graphics
 {
     public class GpuBuffer : IDisposable
     {
+        public string Name { get; set; }
         public ulong Size { get; set; }
         public BufferUsage Usage { get; set; }
         public MemoryUsage MemoryUsage { get; set; }
         public bool Mapped { get; set; }
 
-        internal IntPtr buf { get; private set; }
+        internal IntPtr hndl { get; private set; }
         internal IntPtr bufAlloc { get; private set; }
         internal VmaAllocationInfo allocInfo { get; private set; }
         internal int devID { get; private set; }
@@ -50,10 +51,22 @@ namespace Kokoro.Graphics
 
                         var allocInfo_p = new ManagedPtr<VmaAllocationInfo>();
                         var res = GraphicsDevice.CreateBuffer(device_index, creatInfo.Pointer(), vmaCreatInfo.Pointer(), out var buf_l, out var bufAlloc_l, allocInfo_p);
-                        buf = buf_l;
+                        hndl = buf_l;
                         bufAlloc = bufAlloc_l;
                         allocInfo = allocInfo_p.Value;
                         devID = device_index;
+
+                        if (GraphicsDevice.EnableValidation)
+                        {
+                            var objName = new VkDebugUtilsObjectNameInfoEXT()
+                            {
+                                sType = VkStructureType.StructureTypeDebugUtilsObjectNameInfoExt,
+                                pObjectName = Name,
+                                objectType = VkObjectType.ObjectTypeBuffer,
+                                objectHandle = (ulong)hndl
+                            };
+                            GraphicsDevice.SetDebugUtilsObjectNameEXT(GraphicsDevice.GetDeviceInfo(devID).Device, objName.Pointer());
+                        }
                     }
                 }
                 locked = true;
@@ -84,7 +97,7 @@ namespace Kokoro.Graphics
 
                 // TODO: free unmanaged resources (unmanaged objects) and override a finalizer below.
                 // TODO: set large fields to null.
-                if (locked) GraphicsDevice.DestroyBuffer(devID, buf, bufAlloc);
+                if (locked) GraphicsDevice.DestroyBuffer(devID, hndl, bufAlloc);
 
                 disposedValue = true;
             }

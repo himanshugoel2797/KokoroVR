@@ -18,6 +18,20 @@ namespace Kokoro.Graphics
             Handle = hndl;
             Family = family;
             DeviceIndex = device_index;
+
+            if (GraphicsDevice.EnableValidation)
+            {
+                var objName = new VkDebugUtilsObjectNameInfoEXT()
+                {
+                    sType = VkStructureType.StructureTypeDebugUtilsObjectNameInfoExt,
+                    pObjectName = $"{QueueKind.ToString()}_{family}",
+                    objectType = VkObjectType.ObjectTypeQueue,
+                    objectHandle = (ulong)hndl
+                };
+
+                var p = objName.Pointer();
+                GraphicsDevice.SetDebugUtilsObjectNameEXT(GraphicsDevice.GetDeviceInfo(device_index).Device, p);
+            }
         }
 
 
@@ -34,17 +48,17 @@ namespace Kokoro.Graphics
                 for (int i = 0; i < waitSems.Length; i++)
                 {
                     waitSemaphoreVals[i] = GraphicsDevice.CurrentFrameCount;
-                    waitSemaphores[i] = waitSems[i].semaphorePtr;
+                    waitSemaphores[i] = waitSems[i].hndl;
                 }
 
                 for (int i = 0; i < signalSems.Length; i++)
                 {
                     signalSemaphoreVals[i] = GraphicsDevice.CurrentFrameCount + 1;
-                    signalSemaphores[i] = signalSems[i].semaphorePtr;
+                    signalSemaphores[i] = signalSems[i].hndl;
                 }
 
                 var waitStages = stackalloc VkPipelineStageFlags[waitSems.Length];
-                var cmdBuffers = stackalloc IntPtr[] { buffer.cmdBufferPtr };
+                var cmdBuffers = stackalloc IntPtr[] { buffer.hndl };
                 
                 for(int i = 0; i < waitSems.Length; i++)
                 waitStages[i] = VkPipelineStageFlags.PipelineStageTopOfPipeBit;

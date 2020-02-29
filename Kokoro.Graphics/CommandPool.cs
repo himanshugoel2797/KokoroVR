@@ -7,9 +7,10 @@ namespace Kokoro.Graphics
 {
     public class CommandPool : IDisposable
     {
+        public string Name { get; set; }
         public bool Transient { get; set; }
 
-        internal IntPtr commandPoolPtr;
+        internal IntPtr hndl;
         internal int devID;
         internal uint queueFamily;
         internal GpuQueue queueFam;
@@ -51,8 +52,20 @@ namespace Kokoro.Graphics
                     IntPtr commandPoolPtr_l = IntPtr.Zero;
                     if (vkCreateCommandPool(devInfo.Device, poolInfo.Pointer(), null, &commandPoolPtr_l) != VkResult.Success)
                         throw new Exception("Failed to create command pool.");
-                    commandPoolPtr = commandPoolPtr_l;
+                    hndl = commandPoolPtr_l;
                     devID = device_index;
+
+                    if (GraphicsDevice.EnableValidation)
+                    {
+                        var objName = new VkDebugUtilsObjectNameInfoEXT()
+                        {
+                            sType = VkStructureType.StructureTypeDebugUtilsObjectNameInfoExt,
+                            pObjectName = Name,
+                            objectType = VkObjectType.ObjectTypeCommandPool,
+                            objectHandle = (ulong)hndl
+                        };
+                        GraphicsDevice.SetDebugUtilsObjectNameEXT(GraphicsDevice.GetDeviceInfo(devID).Device, objName.Pointer());
+                    }
                 }
                 locked = true;
             }
@@ -76,7 +89,7 @@ namespace Kokoro.Graphics
                 // TODO: set large fields to null.
                 if (locked)
                 {
-                    vkDestroyCommandPool(GraphicsDevice.GetDeviceInfo(devID).Device, commandPoolPtr, null);
+                    vkDestroyCommandPool(GraphicsDevice.GetDeviceInfo(devID).Device, hndl, null);
                 }
 
                 disposedValue = true;

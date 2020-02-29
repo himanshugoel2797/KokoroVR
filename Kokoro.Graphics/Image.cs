@@ -9,6 +9,7 @@ namespace Kokoro.Graphics
 {
     public class Image : IDisposable
     {
+        public string Name { get; set; }
         public uint Width { get; set; }
         public uint Height { get; set; }
         public uint Depth { get; set; }
@@ -21,7 +22,7 @@ namespace Kokoro.Graphics
         public MemoryUsage MemoryUsage { get; set; }
         public ImageLayout InitialLayout { get; set; }
 
-        internal IntPtr img { get; private set; }
+        internal IntPtr hndl { get; private set; }
         internal IntPtr imgAlloc { get; private set; }
         internal VmaAllocationInfo allocInfo { get; private set; }
         internal int devID { get; private set; }
@@ -36,7 +37,7 @@ namespace Kokoro.Graphics
             {
                 swapchainImg = true;
                 devID = deviceIndex;
-                this.img = img;
+                this.hndl = img;
                 locked = true;
             }
             else throw new Exception("Image is locked.");
@@ -87,10 +88,22 @@ namespace Kokoro.Graphics
 
                         var allocInfo_p = new ManagedPtr<VmaAllocationInfo>();
                         var res = GraphicsDevice.CreateImage(deviceIndex, creatInfo.Pointer(), vmaCreatInfo.Pointer(), out var img_l, out var imgAlloc_l, allocInfo_p);
-                        img = img_l;
+                        hndl = img_l;
                         imgAlloc = imgAlloc_l;
                         allocInfo = allocInfo_p.Value;
                         devID = deviceIndex;
+
+                        if (GraphicsDevice.EnableValidation)
+                        {
+                            var objName = new VkDebugUtilsObjectNameInfoEXT()
+                            {
+                                sType = VkStructureType.StructureTypeDebugUtilsObjectNameInfoExt,
+                                pObjectName = Name,
+                                objectType = VkObjectType.ObjectTypeImage,
+                                objectHandle = (ulong)hndl
+                            };
+                            GraphicsDevice.SetDebugUtilsObjectNameEXT(GraphicsDevice.GetDeviceInfo(deviceIndex).Device, objName.Pointer());
+                        }
                     }
                 }
                 locked = true;
@@ -113,7 +126,7 @@ namespace Kokoro.Graphics
 
                 // TODO: free unmanaged resources (unmanaged objects) and override a finalizer below.
                 // TODO: set large fields to null.
-                if (locked && !swapchainImg) GraphicsDevice.DestroyImage(devID, img, imgAlloc);
+                if (locked && !swapchainImg) GraphicsDevice.DestroyImage(devID, hndl, imgAlloc);
 
                 disposedValue = true;
             }

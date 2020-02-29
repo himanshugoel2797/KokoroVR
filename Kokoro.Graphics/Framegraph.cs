@@ -215,15 +215,18 @@ namespace Kokoro.Graphics
         private CommandPool[] GraphicsCmdPool;
         private CommandPool[] TransferCmdPool;
         private CommandPool[] AsyncComputeCmdPool;
+        private DescriptorPool Pool;
         private DescriptorSet Descriptors;
         private readonly int DeviceIndex;
         private string OutputAttachmentName;
 
         private RenderPass[] outputPass;
-        private PipelineLayout[] pipelines;
+        private PipelineLayout[] pipelineLayouts;
+        private Pipeline[] pipelines;
         private GpuSemaphore finalSemaphore;
-        private ShaderSource vert, frag;
+        private ShaderSource outputV, outputF;
         private CommandBuffer[] outputCmds;
+        private DescriptorPool outputPool;
         private DescriptorSet outputDesc;
         private Sampler outputSampler;
 
@@ -238,10 +241,12 @@ namespace Kokoro.Graphics
             GraphicsPasses = new List<BuiltPass>();
             TransferPasses = new List<BuiltPass>();
             AsyncComputePasses = new List<BuiltPass>();
+
+            Pool = new DescriptorPool();
             Descriptors = new DescriptorSet();
 
-            vert = ShaderSource.Load(ShaderType.VertexShader, "FullScreenTriangle/vertex.glsl");
-            frag = ShaderSource.Load(ShaderType.FragmentShader, "FullScreenTriangle/fragment.glsl");
+            outputV = ShaderSource.Load(ShaderType.VertexShader, "FullScreenTriangle/vertex.glsl");
+            outputF = ShaderSource.Load(ShaderType.FragmentShader, "FullScreenTriangle/fragment.glsl");
 
 
             if (GraphicsCmdPool == null)
@@ -254,18 +259,21 @@ namespace Kokoro.Graphics
                 {
                     GraphicsCmdPool[i] = new CommandPool()
                     {
+                        Name = "Graphics_fg",
                         Transient = false
                     };
                     GraphicsCmdPool[i].Build(DeviceIndex, CommandQueueKind.Graphics);
-                    
+
                     TransferCmdPool[i] = new CommandPool()
                     {
+                        Name = "Transfer_fg",
                         Transient = false
                     };
                     TransferCmdPool[i].Build(DeviceIndex, CommandQueueKind.Transfer);
-                    
+
                     AsyncComputeCmdPool[i] = new CommandPool()
                     {
+                        Name = "Compute_fg",
                         Transient = false
                     };
                     AsyncComputeCmdPool[i].Build(DeviceIndex, CommandQueueKind.Compute);
@@ -287,6 +295,7 @@ namespace Kokoro.Graphics
                 CurrentLayout = ImageLayout.Undefined,
                 Image = new Image()
                 {
+                    Name = attachment.Name,
                     Width = (uint)(attachment.BaseSize == SizeClass.Constant ? attachment.SizeX : attachment.SizeX * GraphicsDevice.Width),
                     Height = (uint)(attachment.BaseSize == SizeClass.Constant ? attachment.SizeY : attachment.SizeY * GraphicsDevice.Height),
                     Depth = 1,
@@ -301,6 +310,7 @@ namespace Kokoro.Graphics
                 },
                 View = new ImageView()
                 {
+                    Name = attachment.Name,
                     BaseLayer = 0,
                     BaseLevel = 0,
                     LayerCount = attachment.Layers,
@@ -327,10 +337,12 @@ namespace Kokoro.Graphics
             OutputAttachmentName = name;
 
             outputPass = new RenderPass[GraphicsDevice.MaxFramesInFlight];
-            pipelines = new PipelineLayout[GraphicsDevice.MaxFramesInFlight];
+            pipelineLayouts = new PipelineLayout[GraphicsDevice.MaxFramesInFlight];
+            pipelines = new Pipeline[GraphicsDevice.MaxFramesInFlight];
             outputCmds = new CommandBuffer[GraphicsDevice.MaxFramesInFlight];
             outputSampler = new Sampler()
             {
+                Name = output_attachment,
                 Border = BorderColor.TransparentFloatBlack,
                 EdgeU = EdgeMode.ClampToEdge,
                 EdgeV = EdgeMode.ClampToEdge,
@@ -343,10 +355,17 @@ namespace Kokoro.Graphics
             };
             outputSampler.Build(DeviceIndex);
 
-            outputDesc = new DescriptorSet();
-            outputDesc.Add(0, DescriptorType.CombinedImageSampler, 1, ShaderType.FragmentShader, new Sampler[] { outputSampler });
-            outputDesc.Build(DeviceIndex, 1);
-            outputDesc.Set(0, 0, 0, Attachments[output_attachment].View, outputSampler);
+            //TODO split pipeline and pipeline layout
+            //TODO split descriptors and descriptor layout
+            outputPool = new DescriptorPool();
+            outputDesc = new DescriptorSet()
+            {
+                Pool = outputPool
+            };
+            outputPool.Add(0, DescriptorType.CombinedImageSampler, 1, ShaderType.FragmentShader, new Sampler[] { outputSampler });
+            outputPool.Build(DeviceIndex, 1);
+            outputDesc.Build(DeviceIndex);
+            outputDesc.Set(0, 0, Attachments[output_attachment].View, outputSampler);
 
             for (int i = 0; i < GraphicsDevice.MaxFramesInFlight; i++)
             {
@@ -360,22 +379,30 @@ namespace Kokoro.Graphics
 
                 outputPass[i].Build(0);
 
-                pipelines[i] = new PipelineLayout
+                GraphicsDevice.DefaultFramebuffer[i].RenderPass = outputPass[i];
+                GraphicsDevice.DefaultFramebuffer[i].Build(0);
+
+                pipelineLayouts[i] = new PipelineLayout
                 {
+                    Descriptors = new DescriptorSet[] { outputDesc }
+                };
+                pipelineLayouts[i].Build(DeviceIndex);
+                pipelines[i] = new Pipeline()
+                {
+                    PipelineLayout = pipelineLayouts[i],
                     Framebuffer = GraphicsDevice.DefaultFramebuffer[i],
                     RenderPass = outputPass[i],
                     DepthTest = DepthTest.Always,
-                    Descriptors = new DescriptorSet[] { outputDesc }
                 };
-                pipelines[i].Shaders.Add(vert);
-                pipelines[i].Shaders.Add(frag);
-                pipelines[i].Build(0);
+                pipelines[i].Shaders.Add(outputV);
+                pipelines[i].Shaders.Add(outputF);
+                pipelines[i].Build(DeviceIndex);
 
                 outputCmds[i] = new CommandBuffer();
                 outputCmds[i].Build(GraphicsCmdPool[i]);
                 outputCmds[i].BeginRecording();
                 outputCmds[i].SetPipeline(pipelines[i], 0);
-                outputCmds[i].SetDescriptors(pipelines[i], outputDesc, DescriptorBindPoint.Graphics, 0, 0);
+                outputCmds[i].SetDescriptors(pipelineLayouts[i], outputDesc, DescriptorBindPoint.Graphics, 0);
                 outputCmds[i].SetViewport(0, 0, GraphicsDevice.DefaultFramebuffer[0].Width, GraphicsDevice.DefaultFramebuffer[0].Height);
                 outputCmds[i].Draw(3, 1, 0, 0);
                 outputCmds[i].EndRenderPass();
@@ -442,7 +469,7 @@ namespace Kokoro.Graphics
                     if (gpuPass.Buffers != null)
                         for (int j = 0; j < gpuPass.Buffers.Length; j++)
                         {
-                            Descriptors.Add(bindingBase + gpuPass.Buffers[j].BindingIndex, gpuPass.Buffers[j].DescriptorType, 1, ShaderType.All);
+                            Pool.Add(bindingBase + gpuPass.Buffers[j].BindingIndex, gpuPass.Buffers[j].DescriptorType, 1, ShaderType.All);
                             curMaxBinding = Math.Max(bindingBase + gpuPass.Buffers[j].BindingIndex, curMaxBinding);
                         }
 
@@ -451,9 +478,9 @@ namespace Kokoro.Graphics
                         {
                             //Use compiled samplers if requested
                             if (gpuPass.SampledAttachments[j].ImmutableSampler)
-                                Descriptors.Add(bindingBase + gpuPass.SampledAttachments[j].BindingIndex, gpuPass.SampledAttachments[j].DescriptorType, 1, ShaderType.All, new Sampler[] { gpuPass.SampledAttachments[j].ImageSampler });
+                                Pool.Add(bindingBase + gpuPass.SampledAttachments[j].BindingIndex, gpuPass.SampledAttachments[j].DescriptorType, 1, ShaderType.All, new Sampler[] { gpuPass.SampledAttachments[j].ImageSampler });
                             else
-                                Descriptors.Add(bindingBase + gpuPass.SampledAttachments[j].BindingIndex, gpuPass.SampledAttachments[j].DescriptorType, 1, ShaderType.All);
+                                Pool.Add(bindingBase + gpuPass.SampledAttachments[j].BindingIndex, gpuPass.SampledAttachments[j].DescriptorType, 1, ShaderType.All);
                             curMaxBinding = Math.Max(bindingBase + gpuPass.SampledAttachments[j].BindingIndex, curMaxBinding);
                         }
 
@@ -462,9 +489,9 @@ namespace Kokoro.Graphics
                         {
                             //Use compiled samplers if requested
                             if (gpuPass.SampledAttachments[j].ImmutableSampler)
-                                Descriptors.Add(bindingBase + gpuPass.Textures[j].BindingIndex, gpuPass.Textures[j].DescriptorType, 1, ShaderType.All, new Sampler[] { gpuPass.Textures[j].ImageSampler });
+                                Pool.Add(bindingBase + gpuPass.Textures[j].BindingIndex, gpuPass.Textures[j].DescriptorType, 1, ShaderType.All, new Sampler[] { gpuPass.Textures[j].ImageSampler });
                             else
-                                Descriptors.Add(bindingBase + gpuPass.Textures[j].BindingIndex, gpuPass.Textures[j].DescriptorType, 1, ShaderType.All);
+                                Pool.Add(bindingBase + gpuPass.Textures[j].BindingIndex, gpuPass.Textures[j].DescriptorType, 1, ShaderType.All);
                             curMaxBinding = Math.Max(bindingBase + gpuPass.Textures[j].BindingIndex, curMaxBinding);
                         }
 
@@ -475,7 +502,9 @@ namespace Kokoro.Graphics
                 ProcessedBPsList.Add(bp);
             }
 
-            Descriptors.Build(DeviceIndex, GraphicsDevice.MaxFramesInFlight);
+            Pool.Build(DeviceIndex, GraphicsDevice.MaxFramesInFlight);
+            Descriptors.Pool = Pool;
+            Descriptors.Build(DeviceIndex);
 
             //Write descriptors
             bindingBase = InitialBaseBinding;
@@ -493,16 +522,16 @@ namespace Kokoro.Graphics
                             switch (gpuPass.Buffers[j].DescriptorType)
                             {
                                 case DescriptorType.StorageBuffer:
-                                    Descriptors.Set(0, bindingBase + gpuPass.Buffers[j].BindingIndex, 0, gpuPass.Buffers[j].DeviceBuffer, 0, gpuPass.Buffers[j].DeviceBuffer.Size);
+                                    Descriptors.Set(bindingBase + gpuPass.Buffers[j].BindingIndex, 0, gpuPass.Buffers[j].DeviceBuffer, 0, gpuPass.Buffers[j].DeviceBuffer.Size);
                                     break;
                                 case DescriptorType.StorageTexelBuffer:
-                                    Descriptors.Set(0, bindingBase + gpuPass.Buffers[j].BindingIndex, 0, gpuPass.Buffers[j].View);
+                                    Descriptors.Set(bindingBase + gpuPass.Buffers[j].BindingIndex, 0, gpuPass.Buffers[j].View);
                                     break;
                                 case DescriptorType.UniformBuffer:
-                                    Descriptors.Set(0, bindingBase + gpuPass.Buffers[j].BindingIndex, 0, gpuPass.Buffers[j].DeviceBuffer, 0, gpuPass.Buffers[j].DeviceBuffer.Size);
+                                    Descriptors.Set(bindingBase + gpuPass.Buffers[j].BindingIndex, 0, gpuPass.Buffers[j].DeviceBuffer, 0, gpuPass.Buffers[j].DeviceBuffer.Size);
                                     break;
                                 case DescriptorType.UniformTexelBuffer:
-                                    Descriptors.Set(0, bindingBase + gpuPass.Buffers[j].BindingIndex, 0, gpuPass.Buffers[j].View);
+                                    Descriptors.Set(bindingBase + gpuPass.Buffers[j].BindingIndex, 0, gpuPass.Buffers[j].View);
                                     break;
                             }
                             curMaxBinding = Math.Max(bindingBase + gpuPass.Buffers[j].BindingIndex, curMaxBinding);
@@ -515,13 +544,13 @@ namespace Kokoro.Graphics
                             switch (gpuPass.SampledAttachments[j].DescriptorType)
                             {
                                 case DescriptorType.CombinedImageSampler:
-                                    Descriptors.Set(0, bindingBase + gpuPass.SampledAttachments[j].BindingIndex, 0, Attachments[gpuPass.SampledAttachments[j].Name].View, gpuPass.SampledAttachments[j].ImageSampler);
+                                    Descriptors.Set(bindingBase + gpuPass.SampledAttachments[j].BindingIndex, 0, Attachments[gpuPass.SampledAttachments[j].Name].View, gpuPass.SampledAttachments[j].ImageSampler);
                                     break;
                                 case DescriptorType.SampledImage:
-                                    Descriptors.Set(0, bindingBase + gpuPass.SampledAttachments[j].BindingIndex, 0, Attachments[gpuPass.SampledAttachments[j].Name].View, false);
+                                    Descriptors.Set(bindingBase + gpuPass.SampledAttachments[j].BindingIndex, 0, Attachments[gpuPass.SampledAttachments[j].Name].View, false);
                                     break;
                                 case DescriptorType.StorageImage:
-                                    Descriptors.Set(0, bindingBase + gpuPass.SampledAttachments[j].BindingIndex, 0, Attachments[gpuPass.SampledAttachments[j].Name].View, true);
+                                    Descriptors.Set(bindingBase + gpuPass.SampledAttachments[j].BindingIndex, 0, Attachments[gpuPass.SampledAttachments[j].Name].View, true);
                                     break;
                             }
                             curMaxBinding = Math.Max(bindingBase + gpuPass.SampledAttachments[j].BindingIndex, curMaxBinding);
@@ -534,13 +563,13 @@ namespace Kokoro.Graphics
                             switch (gpuPass.Textures[j].DescriptorType)
                             {
                                 case DescriptorType.CombinedImageSampler:
-                                    Descriptors.Set(0, bindingBase + gpuPass.Textures[j].BindingIndex, 0, gpuPass.Textures[j].View, gpuPass.Textures[j].ImageSampler);
+                                    Descriptors.Set(bindingBase + gpuPass.Textures[j].BindingIndex, 0, gpuPass.Textures[j].View, gpuPass.Textures[j].ImageSampler);
                                     break;
                                 case DescriptorType.SampledImage:
-                                    Descriptors.Set(0, bindingBase + gpuPass.Textures[j].BindingIndex, 0, gpuPass.Textures[j].View, false);
+                                    Descriptors.Set(bindingBase + gpuPass.Textures[j].BindingIndex, 0, gpuPass.Textures[j].View, false);
                                     break;
                                 case DescriptorType.StorageImage:
-                                    Descriptors.Set(0, bindingBase + gpuPass.Textures[j].BindingIndex, 0, gpuPass.Textures[j].View, true);
+                                    Descriptors.Set(bindingBase + gpuPass.Textures[j].BindingIndex, 0, gpuPass.Textures[j].View, true);
                                     break;
                             }
                             curMaxBinding = Math.Max(bindingBase + gpuPass.Textures[j].BindingIndex, curMaxBinding);
@@ -652,10 +681,18 @@ namespace Kokoro.Graphics
                                 }
                                 bp.Framebuffer[AttachmentKind.ColorAttachment0 + j] = Attachments[p.AttachmentUsage[j].Name].View;
                             }
-                            bp.RenderPass.Build(DeviceIndex); //TODO: Add multi-device support
+                            bp.RenderPass.Build(DeviceIndex);
+                            bp.Framebuffer.RenderPass = bp.RenderPass;
+                            bp.Framebuffer.Build(DeviceIndex);
 
                             //Setup the pipeline
-                            bp.Pipeline = new PipelineLayout();
+                            bp.PipelineLayout = new PipelineLayout()
+                            {
+                                Descriptors = Pool.Layouts.Count == 0 ? null : new DescriptorSet[] { Descriptors }
+                            };
+                            bp.PipelineLayout.Build(DeviceIndex);
+
+                            bp.Pipeline = new Pipeline();
                             bp.Pipeline.Shaders.AddRange(p.Shaders);
                             bp.Pipeline.Topology = p.Topology;
                             bp.Pipeline.DepthClamp = p.DepthClamp;
@@ -666,7 +703,7 @@ namespace Kokoro.Graphics
                             bp.Pipeline.DepthTest = p.DepthTest;
                             bp.Pipeline.RenderPass = bp.RenderPass;
                             bp.Pipeline.Framebuffer = bp.Framebuffer;
-                            bp.Pipeline.Descriptors = Descriptors.layoutCount == 0 ? null : new DescriptorSet[] { Descriptors };
+                            bp.Pipeline.PipelineLayout = bp.PipelineLayout;
                             bp.Pipeline.Build(DeviceIndex);
 
                             GraphicsPasses.Add(bp);
@@ -718,7 +755,7 @@ namespace Kokoro.Graphics
                 cmdbuf.SetPipeline(e.Pipeline, 0);
 
                 //Bind descriptors
-                cmdbuf.SetDescriptors(e.Pipeline, Descriptors, DescriptorBindPoint.Graphics, 0, 0);
+                cmdbuf.SetDescriptors(e.PipelineLayout, Descriptors, DescriptorBindPoint.Graphics, 0);
 
                 //Set viewport
                 cmdbuf.SetViewport(0, 0, e.Framebuffer.Width, e.Framebuffer.Height);
@@ -799,7 +836,8 @@ namespace Kokoro.Graphics
             public IBasePass Pass;
             public Framebuffer Framebuffer;
             public RenderPass RenderPass;
-            public PipelineLayout Pipeline;
+            public PipelineLayout PipelineLayout;
+            public Pipeline Pipeline;
             public CommandBuffer[] Commands;
         }
     }

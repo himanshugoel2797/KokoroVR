@@ -8,6 +8,7 @@ namespace Kokoro.Graphics
 {
     public class ImageView : IDisposable
     {
+        public string Name { get; set; }
         public ImageFormat Format { get; set; }
         public ImageViewType ViewType { get; set; }
         public uint BaseLevel { get; set; }
@@ -15,7 +16,7 @@ namespace Kokoro.Graphics
         public uint BaseLayer { get; set; }
         public uint LayerCount { get; set; }
 
-        internal IntPtr viewPtr { get; private set; }
+        internal IntPtr hndl { get; private set; }
         internal Image parent;
         internal int devID;
         private bool locked;
@@ -32,7 +33,7 @@ namespace Kokoro.Graphics
                     {
                         sType = VkStructureType.StructureTypeImageViewCreateInfo,
                         flags = 0,
-                        image = img.img,
+                        image = img.hndl,
                         viewType = (VkImageViewType)ViewType,
                         format = (VkFormat)Format,
                         components = new VkComponentMapping()
@@ -74,11 +75,23 @@ namespace Kokoro.Graphics
                     {
                         IntPtr viewPtr_p = IntPtr.Zero;
                         var res = vkCreateImageView(devInfo.Device, creatInfo.Pointer(), null, &viewPtr_p);
-                        viewPtr = viewPtr_p;
+                        hndl = viewPtr_p;
                         parent = img;
                         devID = img.devID;
                         if (res != VkResult.Success)
                             throw new Exception("Failed to create view.");
+                    }
+
+                    if (GraphicsDevice.EnableValidation)
+                    {
+                        var objName = new VkDebugUtilsObjectNameInfoEXT()
+                        {
+                            sType = VkStructureType.StructureTypeDebugUtilsObjectNameInfoExt,
+                            pObjectName = Name,
+                            objectType = VkObjectType.ObjectTypeImageView,
+                            objectHandle = (ulong)hndl
+                        };
+                        GraphicsDevice.SetDebugUtilsObjectNameEXT(GraphicsDevice.GetDeviceInfo(devID).Device, objName.Pointer());
                     }
                 }
 
@@ -103,7 +116,7 @@ namespace Kokoro.Graphics
                 // TODO: free unmanaged resources (unmanaged objects) and override a finalizer below.
                 // TODO: set large fields to null.
                 if (locked)
-                    vkDestroyImageView(GraphicsDevice.GetDeviceInfo(devID).Device, viewPtr, null);
+                    vkDestroyImageView(GraphicsDevice.GetDeviceInfo(devID).Device, hndl, null);
 
                 disposedValue = true;
             }
