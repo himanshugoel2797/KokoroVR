@@ -119,7 +119,7 @@ namespace Kokoro.Graphics
         #endregion
 
         #region Render Pass
-        public void SetPipeline(Pipeline pipeline, float depthClearVal)
+        public void SetPipeline(GraphicsPipeline pipeline, float depthClearVal)
         {
             if (locked)
             {
@@ -161,6 +161,19 @@ namespace Kokoro.Graphics
                 throw new Exception("Command buffer not built.");
         }
 
+        public void SetPipeline(ComputePipeline pipeline)
+        {
+            if (locked)
+            {
+                unsafe
+                {
+                    vkCmdBindPipeline(hndl, VkPipelineBindPoint.PipelineBindPointCompute, pipeline.hndl);
+                }
+            }
+            else
+                throw new Exception("Command buffer not built.");
+        }
+
         public void EndRenderPass()
         {
             if (locked)
@@ -192,7 +205,7 @@ namespace Kokoro.Graphics
         #endregion
 
         #region Staging
-        public void Stage<T>(GpuBuffer src, ulong src_off, GpuBuffer dst, ulong dst_off, ulong len) where T : unmanaged
+        public void Stage(GpuBuffer src, ulong src_off, GpuBuffer dst, ulong dst_off, ulong len)
         {
             if (locked)
             {
@@ -207,6 +220,44 @@ namespace Kokoro.Graphics
             else
                 throw new Exception("Command buffer not built.");
         }
+
+        public void Stage(GpuBuffer src, ulong src_off, Image dst)
+        {
+            if (locked)
+            {
+                unsafe
+                {
+                    var bufCopy = new VkBufferImageCopy()
+                    {
+                        bufferOffset = src_off,
+                        bufferRowLength = 0,
+                        bufferImageHeight = 0,
+                        imageSubresource = new VkImageSubresourceLayers()
+                        {
+                            aspectMask = VkImageAspectFlags.ImageAspectColorBit,
+                            mipLevel = 0,
+                            baseArrayLayer = 0,
+                            layerCount = 1
+                        },
+                        imageOffset = new VkOffset3D()
+                        {
+                            x = 0,
+                            y = 0,
+                            z = 0
+                        },
+                        imageExtent = new VkExtent3D()
+                        {
+                            width = dst.Width,
+                            height = dst.Height,
+                            depth = dst.Depth
+                        }
+                    };
+                    vkCmdCopyBufferToImage(hndl, src.hndl, dst.hndl, (VkImageLayout)dst.InitialLayout, 1, bufCopy.Pointer());
+                }
+            }
+            else
+                throw new Exception("Command buffer not built.");
+        }
         #endregion
 
         #region Draw
@@ -215,6 +266,60 @@ namespace Kokoro.Graphics
             if (locked)
             {
                 vkCmdDraw(hndl, vertexCnt, instanceCnt, firstVertex, baseInstance);
+            }
+            else
+                throw new Exception("Command buffer not built.");
+        }
+
+        public void DrawIndexed(GpuBuffer indexBuffer, ulong offset, IndexType indexType, uint indexCnt, uint instanceCnt, uint firstIndex, int firstVertex, uint baseInstance)
+        {
+            if (locked)
+            {
+                vkCmdBindIndexBuffer(hndl, indexBuffer.hndl, offset, (VkIndexType)indexType);
+                vkCmdDrawIndexed(hndl, indexCnt, instanceCnt, firstIndex, firstVertex, baseInstance);
+            }
+            else
+                throw new Exception("Command buffer not built.");
+        }
+
+        public void DrawIndirect(GpuBuffer drawBuffer, ulong offset, GpuBuffer cntBuffer, ulong cntOffset, uint maxCnt, uint stride)
+        {
+            if (locked)
+            {
+                vkCmdDrawIndirectCount(hndl, drawBuffer.hndl, offset, cntBuffer.hndl, cntOffset, maxCnt, stride);
+            }
+            else
+                throw new Exception("Command buffer not built.");
+        }
+
+        public void DrawIndexedIndirect(GpuBuffer indexBuffer, ulong indexOffset, IndexType indexType, GpuBuffer drawBuffer, ulong offset, GpuBuffer cntBuffer, ulong cntOffset, uint maxCnt, uint stride)
+        {
+            if (locked)
+            {
+                vkCmdBindIndexBuffer(hndl, indexBuffer.hndl, indexOffset, (VkIndexType)indexType);
+                vkCmdDrawIndexedIndirectCount(hndl, drawBuffer.hndl, offset, cntBuffer.hndl, cntOffset, maxCnt, stride);
+            }
+            else
+                throw new Exception("Command buffer not built.");
+        }
+        #endregion
+
+        #region Compute
+        public void Dispatch(uint x, uint y, uint z)
+        {
+            if (locked)
+            {
+                vkCmdDispatch(hndl, x, y, z);
+            }
+            else
+                throw new Exception("Command buffer not built.");
+        }
+
+        public void DispatchIndirect(GpuBuffer indirectBuf, ulong offset)
+        {
+            if (locked)
+            {
+                vkCmdDispatchIndirect(hndl, indirectBuf.hndl, offset);
             }
             else
                 throw new Exception("Command buffer not built.");

@@ -59,9 +59,9 @@ namespace Kokoro.Graphics
 
                 var waitStages = stackalloc VkPipelineStageFlags[waitSems.Length];
                 var cmdBuffers = stackalloc IntPtr[] { buffer.hndl };
-                
-                for(int i = 0; i < waitSems.Length; i++)
-                waitStages[i] = VkPipelineStageFlags.PipelineStageTopOfPipeBit;
+
+                for (int i = 0; i < waitSems.Length; i++)
+                    waitStages[i] = VkPipelineStageFlags.PipelineStageColorAttachmentOutputBit;
 
                 var timelineSems = new VkTimelineSemaphoreSubmitInfo()
                 {

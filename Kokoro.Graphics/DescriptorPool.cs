@@ -7,36 +7,41 @@ using static VulkanSharp.Raw.Vk;
 
 namespace Kokoro.Graphics
 {
+    public class DescriptorLayout
+    {
+        public uint BindingIndex;
+        public DescriptorType Type;
+        public uint Count;
+        public ShaderType Stages;
+        public Sampler[] ImmutableSamplers;
+    }
+
+    public class PoolEntry
+    {
+        public DescriptorType Type;
+        public uint Count;
+    }
+
     public class DescriptorPool
     {
-        public class DescriptorLayout
-        {
-            public uint BindingIndex;
-            public DescriptorType Type;
-            public uint Count;
-            public ShaderType Stages;
-            public Sampler[] ImmutableSamplers;
-        }
-
-        public class PoolEntry
-        {
-            public DescriptorType Type;
-            public uint Count;
-        }
 
         public string Name { get; set; }
-        public List<DescriptorLayout> Layouts { get; private set; }
-        public List<PoolEntry> PoolEntries { get; private set; }
+        public IReadOnlyList<DescriptorLayout> Layouts { get => layouts; }
+        public IReadOnlyList<PoolEntry> PoolEntries { get => poolEntries; }
+        
         internal int layoutCount = 0;
         internal IntPtr layout_hndl;
         internal IntPtr pool_hndl;
+        
         private int devID;
         private bool locked;
+        private readonly List<DescriptorLayout> layouts;
+        private readonly List<PoolEntry> poolEntries;
 
         public DescriptorPool()
         {
-            Layouts = new List<DescriptorLayout>();
-            PoolEntries = new List<PoolEntry>();
+            layouts = new List<DescriptorLayout>();
+            poolEntries = new List<PoolEntry>();
         }
 
         public void Add(uint bindingIdx, DescriptorType type, uint cnt, ShaderType stage)
@@ -49,7 +54,7 @@ namespace Kokoro.Graphics
                 Stages = stage
             };
             layoutCount++;
-            Layouts.Add(l);
+            layouts.Add(l);
 
             int i = 0;
             for (; i < PoolEntries.Count; i++)
@@ -65,7 +70,7 @@ namespace Kokoro.Graphics
                     Count = 1,
                     Type = type
                 };
-                PoolEntries.Add(p);
+                poolEntries.Add(p);
             }
         }
 
@@ -80,7 +85,7 @@ namespace Kokoro.Graphics
                 ImmutableSamplers = samplers
             };
             layoutCount++;
-            Layouts.Add(l);
+            layouts.Add(l);
 
             int i = 0;
             for (; i < PoolEntries.Count; i++)
@@ -96,7 +101,7 @@ namespace Kokoro.Graphics
                     Count = 1,
                     Type = type
                 };
-                PoolEntries.Add(p);
+                poolEntries.Add(p);
             }
         }
 

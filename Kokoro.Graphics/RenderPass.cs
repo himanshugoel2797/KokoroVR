@@ -28,6 +28,7 @@ namespace Kokoro.Graphics
         public IDictionary<AttachmentKind, ImageLayout> StartLayout { get; private set; }
         public IDictionary<AttachmentKind, ImageLayout> FinalLayout { get; private set; }
         public IDictionary<AttachmentKind, ImageFormat> Formats { get; private set; }
+        //TODO Handle subpass dependencies
 
         internal IntPtr hndl;
         private int devID;

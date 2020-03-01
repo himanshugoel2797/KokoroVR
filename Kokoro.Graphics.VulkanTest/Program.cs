@@ -40,20 +40,26 @@ namespace Kokoro.Graphics.VulkanTest
                 Levels = 1,
                 Usage = ImageUsage.DepthAttachment | ImageUsage.TransferSrc,
             });
+            fbuf.RegisterShaderParams(new ShaderParameterSet()
+            {
+                Name = "output_shader_params",
+                Buffers = null,
+                SampledAttachments = null,
+                Textures = null,
+            });
             fbuf.RegisterPass(new GraphicsPass()
             {
                 Name = "main_pass",
                 CullMode = CullMode.None,
-                Buffers = null,
                 DepthAttachment = new AttachmentUsageInfo()
                 {
                     Name = "output_dpth",
-                    Usage = AttachmentUsage.WriteOnlyClear
+                    Usage = AttachmentUsage.WriteOnly
                 },
                 AttachmentUsage = new AttachmentUsageInfo[]{
                     new AttachmentUsageInfo(){
                         Name = "output",
-                        Usage = AttachmentUsage.WriteOnlyClear
+                        Usage = AttachmentUsage.WriteOnly
                     }
                 },
                 DepthClamp = false,
@@ -62,9 +68,7 @@ namespace Kokoro.Graphics.VulkanTest
                 LineWidth = 1,
                 PassDependencies = null,
                 RasterizerDiscard = false,
-                SampledAttachments = null,
                 Shaders = new ShaderSource[] { vert, frag },
-                Textures = null,
                 Topology = PrimitiveType.Triangle,
                 DrawCmd = new PlainDrawCmd()
                 {
@@ -76,67 +80,11 @@ namespace Kokoro.Graphics.VulkanTest
             });
             fbuf.SetOutputPass("main_pass", "output");
             fbuf.Compile();
-            while (true)
+            while (!GraphicsDevice.Window.IsExiting)
             {
                 fbuf.Execute();
                 GraphicsDevice.Window.PollEvents();
             }
-
-
-            /*var pool = new CommandPool();
-            pool.Transient = false;
-            pool.Build(0, CommandQueueKind.Graphics);
-
-            var pass = new RenderPass[GraphicsDevice.MaxFrameCount];
-            var pipeline = new PipelineLayout[GraphicsDevice.MaxFrameCount];
-            var cmdBuf = new CommandBuffer[GraphicsDevice.MaxFrameCount];
-
-            for (int i = 0; i < GraphicsDevice.MaxFrameCount; i++)
-            {
-                pass[i] = new RenderPass();
-                pass[i].InitialLayout[AttachmentKind.ColorAttachment0] = ImageLayout.Undefined;
-                pass[i].StartLayout[AttachmentKind.ColorAttachment0] = ImageLayout.ColorAttachmentOptimal;
-                pass[i].FinalLayout[AttachmentKind.ColorAttachment0] = ImageLayout.PresentSrc;
-                pass[i].LoadOp[AttachmentKind.ColorAttachment0] = AttachmentLoadOp.DoneCare;
-                pass[i].StoreOp[AttachmentKind.ColorAttachment0] = AttachmentStoreOp.Store;
-                pass[i].Formats[AttachmentKind.ColorAttachment0] = ImageFormat.B8G8R8A8Unorm;
-
-                pass[i].InitialLayout[AttachmentKind.DepthAttachment] = ImageLayout.Undefined;
-                pass[i].StartLayout[AttachmentKind.DepthAttachment] = ImageLayout.DepthAttachmentOptimal;
-                pass[i].FinalLayout[AttachmentKind.DepthAttachment] = ImageLayout.DepthAttachmentOptimal;
-                pass[i].LoadOp[AttachmentKind.DepthAttachment] = AttachmentLoadOp.DoneCare;
-                pass[i].StoreOp[AttachmentKind.DepthAttachment] = AttachmentStoreOp.Store;
-                pass[i].Formats[AttachmentKind.DepthAttachment] = ImageFormat.Depth32f;
-
-                pass[i].Build(0);
-
-                pipeline[i] = new PipelineLayout
-                {
-                    Framebuffer = GraphicsDevice.DefaultFramebuffer[i],
-                    RenderPass = pass[i],
-                    DepthTest = DepthTest.Always
-                };
-                pipeline[i].Shaders.Add(vert);
-                pipeline[i].Shaders.Add(frag);
-                pipeline[i].Build(0);
-
-                cmdBuf[i] = new CommandBuffer();
-                cmdBuf[i].Build(pool);
-                cmdBuf[i].BeginRecording();
-                cmdBuf[i].SetPipeline(pipeline[i]);
-                cmdBuf[i].SetViewport(0, 0, GraphicsDevice.DefaultFramebuffer[0].Width, GraphicsDevice.DefaultFramebuffer[0].Height);
-                cmdBuf[i].Draw(3, 1, 0, 0);
-                cmdBuf[i].EndRenderPass();
-                cmdBuf[i].EndRecording();
-            }
-
-            while (!GraphicsDevice.Window.IsExiting)
-            {
-                GraphicsDevice.Window.PollEvents();
-                GraphicsDevice.AcquireFrame();
-                GraphicsDevice.SubmitGraphicsCommandBuffer(cmdBuf[GraphicsDevice.CurrentFrameIndex]);
-                GraphicsDevice.PresentFrame();
-            }*/
         }
     }
 }

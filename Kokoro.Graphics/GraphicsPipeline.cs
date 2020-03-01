@@ -6,7 +6,7 @@ using static VulkanSharp.Raw.Vk;
 
 namespace Kokoro.Graphics
 {
-    public class Pipeline
+    public class GraphicsPipeline
     {
         public string Name { get; set; }
         public List<ShaderSource> Shaders { get; }
@@ -25,7 +25,8 @@ namespace Kokoro.Graphics
         private int devID;
         private bool locked;
 
-        public Pipeline() {
+        public GraphicsPipeline()
+        {
             Shaders = new List<ShaderSource>();
         }
 

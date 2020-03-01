@@ -33,6 +33,24 @@ namespace Kokoro.Graphics
         Always = VkCompareOp.CompareOpAlways
     }
 
+    public enum PipelineStage
+    {
+        Top = VkPipelineStageFlags.PipelineStageTopOfPipeBit,
+        DrawIndirect = VkPipelineStageFlags.PipelineStageDrawIndirectBit,
+        VertInput = VkPipelineStageFlags.PipelineStageVertexInputBit,
+        VertShader = VkPipelineStageFlags.PipelineStageVertexShaderBit,
+        TessCtrlShader = VkPipelineStageFlags.PipelineStageTessellationControlShaderBit,
+        TessEvalShader = VkPipelineStageFlags.PipelineStageTessellationEvaluationShaderBit,
+        GeomShader = VkPipelineStageFlags.PipelineStageGeometryShaderBit,
+        FragShader = VkPipelineStageFlags.PipelineStageFragmentShaderBit,
+        EarlyFragTests = VkPipelineStageFlags.PipelineStageEarlyFragmentTestsBit,
+        LateFragTests = VkPipelineStageFlags.PipelineStageLateFragmentTestsBit,
+        ColorAttachOut = VkPipelineStageFlags.PipelineStageColorAttachmentOutputBit,
+        Transfer = VkPipelineStageFlags.PipelineStageTransferBit,
+        CompShader = VkPipelineStageFlags.PipelineStageComputeShaderBit,
+        Bottom = VkPipelineStageFlags.PipelineStageBottomOfPipeBit,
+    }
+
     public class PipelineLayout : IDisposable
     {
         public string Name { get; set; }

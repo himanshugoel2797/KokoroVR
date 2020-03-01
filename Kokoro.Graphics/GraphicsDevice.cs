@@ -35,7 +35,26 @@ namespace Kokoro.Graphics
         private static IntPtr surfaceHndl;
         private static IntPtr swapChainHndl;
         private static VkDebugUtilsMessengerCreateInfoEXT debugCreatInfo;
-        private static readonly string[] requiredDeviceExtns;
+        private static readonly string[] requiredDeviceExtns = new string[]
+            {
+                VkKhrSwapchainExtensionName,
+                VkExtSubgroupSizeControlExtensionName,
+                VkKhrTimelineSemaphoreExtensionName,
+                VkKhrShaderFloat16Int8ExtensionName,
+                VkKhrUniformBufferStandardLayoutExtensionName,
+                VkKhr8bitStorageExtensionName,
+                VkExtDescriptorIndexingExtensionName,
+                VkKhrCreateRenderpass2ExtensionName,
+                VkKhrSeparateDepthStencilLayoutsExtensionName,
+                VkKhrDrawIndirectCountExtensionName,
+                VkKhrShaderDrawParametersExtensionName
+            };
+        private static readonly string[] optionalDeviceExtns = new string[]
+        {
+            VkAmdRasterizationOrderExtensionName
+        };
+
+        private static bool[] optionalExtn_avail;
         private static VkPresentModeKHR present_mode;
         private static VkSurfaceFormatKHR surface_fmt;
         private static uint swapchain_img_cnt;
@@ -43,6 +62,7 @@ namespace Kokoro.Graphics
         private static ImageView[] swapchainViews;
         private static VkExtent2D surface_extent;
         private static IntPtr debugMessenger;
+
         public const int MaxIndirectDrawsUBO = 256; //TODO: check if needed
         public const int MaxIndirectDrawsSSBO = 1024;
         public const int EyeCount = 1;
@@ -62,29 +82,15 @@ namespace Kokoro.Graphics
         public static uint Width { get; private set; }
         public static uint Height { get; private set; }
 
-        static GraphicsDevice()
-        {
-            requiredDeviceExtns = new string[]
-            {
-                VkKhrSwapchainExtensionName,
-                VkExtSubgroupSizeControlExtensionName,
-                VkKhrTimelineSemaphoreExtensionName,
-                VkKhrShaderFloat16Int8ExtensionName,
-                VkKhrUniformBufferStandardLayoutExtensionName,
-                VkKhr8bitStorageExtensionName,
-                VkExtDescriptorIndexingExtensionName,
-                VkKhrCreateRenderpass2ExtensionName,
-                VkKhrSeparateDepthStencilLayoutsExtensionName
-            };
-        }
-
         #region Debug Management
         internal static PFN_vkCreateDebugUtilsMessengerEXT CreateDebugUtilsMessengerEXT;
         internal static PFN_vkSetDebugUtilsObjectNameEXT SetDebugUtilsObjectNameEXT;
+        internal static PFN_vkDestroyDebugUtilsMessengerEXT DestroyDebugUtilsMessengerEXT;
         private static void SetupDebugMessengers(IntPtr instance)
         {
             CreateDebugUtilsMessengerEXT = Marshal.GetDelegateForFunctionPointer<PFN_vkCreateDebugUtilsMessengerEXT>(vkGetInstanceProcAddr(instance, nameof(vkCreateDebugUtilsMessengerEXT)));
             SetDebugUtilsObjectNameEXT = Marshal.GetDelegateForFunctionPointer<PFN_vkSetDebugUtilsObjectNameEXT>(vkGetInstanceProcAddr(instance, nameof(vkSetDebugUtilsObjectNameEXT)));
+            DestroyDebugUtilsMessengerEXT = Marshal.GetDelegateForFunctionPointer<PFN_vkDestroyDebugUtilsMessengerEXT>(vkGetInstanceProcAddr(instance, nameof(vkDestroyDebugUtilsMessengerEXT)));
         }
         private static bool DebugCallback(VkDebugUtilsMessageSeverityFlagsEXT severity, VkDebugUtilsMessageTypeFlagsEXT type, IntPtr callbackData, IntPtr userData)
         {
@@ -124,11 +130,6 @@ namespace Kokoro.Graphics
             Console.WriteLine($" {cbkData.pMessage}");
             return false;
         }
-
-        private static void DestroyDebugUtilsMessengerEXT(IntPtr instance, IntPtr debugMessenger, ManagedPtrArray<VkAllocationCallbacks> pAllocator)
-        {
-            Marshal.GetDelegateForFunctionPointer<PFN_vkDestroyDebugUtilsMessengerEXT>(vkGetInstanceProcAddr(instance, "vkDestroyDebugUtilsMessengerEXT"))?.Invoke(instance, debugMessenger, pAllocator);
-        }
         #endregion
 
         #region Initialization
@@ -148,6 +149,13 @@ namespace Kokoro.Graphics
                     b_p_str = b_p_str.Substring(0, b_p_str.IndexOf('\0'));
                     if (requiredDeviceExtns.Contains(b_p_str))
                         avail_extns--;
+                    int pos = 0;
+                    for (; pos < optionalDeviceExtns.Length; pos++)
+                        if (optionalDeviceExtns[pos] == b_p_str)
+                        {
+                            optionalExtn_avail[pos] = true;
+                            break;
+                        }
                 }
 
             return avail_extns == 0;
@@ -230,6 +238,7 @@ namespace Kokoro.Graphics
                 present_valid = true;
                 chosen_present = VkPresentModeKHR.PresentModeFifoKhr;
             }
+            chosen_present = VkPresentModeKHR.PresentModeImmediateKhr;
 
             if (!fmt_valid)
                 return 0;
@@ -244,6 +253,7 @@ namespace Kokoro.Graphics
 
         public static void Init()
         {
+            optionalExtn_avail = new bool[optionalDeviceExtns.Length];
             Console.BackgroundColor = ConsoleColor.Black;
             Console.ForegroundColor = ConsoleColor.White;
             Window = new GameWindow(AppName);
@@ -258,7 +268,6 @@ namespace Kokoro.Graphics
                 var glfwExtns = glfwGetRequiredInstanceExtensions(&glfwExtnCnt);
                 for (int i = 0; i < glfwExtnCnt; i++)
                     instExtns.Add(Marshal.PtrToStringAnsi(glfwExtns[i]));
-                devExtns.AddRange(requiredDeviceExtns);
                 if (EnableValidation)
                 {
                     instLayers.Add("VK_LAYER_KHRONOS_validation");
@@ -272,10 +281,6 @@ namespace Kokoro.Graphics
                 var extns = stackalloc IntPtr[instExtns.Count];
                 for (int i = 0; i < instExtns.Count; i++)
                     extns[i] = Marshal.StringToHGlobalAnsi(instExtns[i]);
-
-                var devExtns_ptr = stackalloc IntPtr[devExtns.Count];
-                for (int i = 0; i < devExtns.Count; i++)
-                    devExtns_ptr[i] = Marshal.StringToHGlobalAnsi(devExtns[i]);
                 {
                     var appInfo =
                         new VkApplicationInfo()
@@ -527,6 +532,16 @@ namespace Kokoro.Graphics
                     };
                     var descIndexing_ptr = descIndexing.Pointer();
 
+                    var shaderDrawParams = new VkPhysicalDeviceShaderDrawParametersFeatures()
+                    {
+                        sType = VkStructureType.StructureTypePhysicalDeviceShaderDrawParametersFeatures,
+                        shaderDrawParameters = true,
+                        pNext = descIndexing_ptr,
+                    };
+                    var shaderDrawParams_ptr = shaderDrawParams.Pointer();
+
+                    //var drawIndirectCount = new VkDrawIndirecCount
+
                     /*var devFeats12 = new VkPhysicalDeviceVulkan12Features()
                     {
                         sType = VkStructureType.StructureTypePhysicalDeviceVulkan12Features,
@@ -550,6 +565,14 @@ namespace Kokoro.Graphics
                     };*/
                     //var devFeats12_ptr = devFeats12.Pointer();
 
+                    devExtns.AddRange(requiredDeviceExtns);
+                    for (int i = 0; i < optionalExtn_avail.Length; i++)
+                        if (optionalExtn_avail[i])
+                            devExtns.Add(optionalDeviceExtns[i]);
+                    var devExtns_ptr = stackalloc IntPtr[devExtns.Count];
+                    for (int i = 0; i < devExtns.Count; i++)
+                        devExtns_ptr[i] = Marshal.StringToHGlobalAnsi(devExtns[i]);
+
                     var qCreatInfos_ptr = qCreatInfos.Pointer();
                     var devFeats_ptr = devFeats.Pointer();
                     var devCreatInfo = new VkDeviceCreateInfo()
@@ -562,7 +585,7 @@ namespace Kokoro.Graphics
                         ppEnabledLayerNames = layers,
                         pEnabledFeatures = devFeats_ptr,
                         pQueueCreateInfos = qCreatInfos_ptr,
-                        pNext = descIndexing_ptr
+                        pNext = shaderDrawParams_ptr
                     };
                     var devCreatInfo_ptr = devCreatInfo.Pointer();
                     IntPtr deviceHndl = IntPtr.Zero;
@@ -571,7 +594,7 @@ namespace Kokoro.Graphics
                         throw new Exception("Failed to create logical device.");
                     DeviceInformation[0].Device = deviceHndl;
 
-                    //TODO Setup memory allocator
+                    //Setup memory allocator
                     var allocCreatInfo = new VmaAllocatorCreateInfo()
                     {
                         physicalDevice = DeviceInformation[0].PhysicalDevice,
@@ -674,6 +697,7 @@ namespace Kokoro.Graphics
                                 Usage = ImageUsage.Sampled,
                                 InitialLayout = ImageLayout.Undefined,
                                 Cubemappable = false,
+                                Name = $"Swapchain_{i}",
                             };
                             swapchainImages[i].Build(0, swapchainImages_l[i]);
                         }
@@ -691,23 +715,25 @@ namespace Kokoro.Graphics
                                 Format = (ImageFormat)surface_fmt.format,
                                 LayerCount = 1,
                                 LevelCount = 1,
-                                ViewType = ImageViewType.View2D
+                                ViewType = ImageViewType.View2D,
+                                Name = $"Swapchain_{i}",
                             };
                             swapchainViews[i].Build(swapchainImages[i]);
 
                             DefaultFramebuffer[i] = new Framebuffer(surface_extent.width, surface_extent.height);
+                            DefaultFramebuffer[i].Name = $"Swapchain_{i}";
                             DefaultFramebuffer[i][AttachmentKind.ColorAttachment0] = swapchainViews[i];
                         }
                     }
+                    for (int i = 0; i < instLayers.Count; i++)
+                        Marshal.FreeHGlobal(layers[i]);
+                    for (int i = 0; i < instExtns.Count; i++)
+                        Marshal.FreeHGlobal(extns[i]);
+                    for (int i = 0; i < devExtns.Count; i++)
+                        Marshal.FreeHGlobal(devExtns_ptr[i]);
 
                     //TODO allocate compute and trasnfer queues for all secondary devices
                 }
-                for (int i = 0; i < instLayers.Count; i++)
-                    Marshal.FreeHGlobal(layers[i]);
-                for (int i = 0; i < instExtns.Count; i++)
-                    Marshal.FreeHGlobal(extns[i]);
-                for (int i = 0; i < devExtns.Count; i++)
-                    Marshal.FreeHGlobal(devExtns_ptr[i]);
 
                 FrameFinishedSemaphore = new GpuSemaphore[MaxFramesInFlight];
                 ImageAvailableSemaphore = new GpuSemaphore[MaxFramesInFlight];
