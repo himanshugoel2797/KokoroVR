@@ -1,7 +1,9 @@
 ﻿using System;
+using System.Buffers;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using VulkanSharp.Raw;
 using static VulkanSharp.Raw.Vk;
 
 namespace Kokoro.Graphics
@@ -20,6 +22,7 @@ namespace Kokoro.Graphics
         public RenderPass RenderPass { get; set; }
         public Framebuffer Framebuffer { get; set; }
         public PipelineLayout PipelineLayout { get; set; }
+        public Memory<int>[] SpecializationData { get; set; }
 
         internal IntPtr hndl;
         private int devID;
@@ -38,12 +41,28 @@ namespace Kokoro.Graphics
                 {
                     //create pipeline shader stages
                     var shaderStages = new VkPipelineShaderStageCreateInfo[Shaders.Count];
+                    var shaderSpecializations = new ManagedPtr<VkSpecializationInfo>[Shaders.Count];
+                    var shaderSpecializationBufferPtrs = new MemoryHandle[Shaders.Count];
                     for (int i = 0; i < shaderStages.Length; i++)
                     {
+                        if (SpecializationData != null)
+                        {
+                            shaderSpecializationBufferPtrs[i] = SpecializationData[i].Pin();
+
+                            shaderSpecializations[i] = new VkSpecializationInfo()
+                            {
+                                mapEntryCount = (uint)SpecializationData[i].Length,
+                                pMapEntries = Shaders[i].Specialize(),
+                                dataSize = (uint)SpecializationData[i].Length * sizeof(int),
+                                pData = (IntPtr)shaderSpecializationBufferPtrs[i].Pointer
+                            }.Pointer();
+                        }
+
                         shaderStages[i].sType = VkStructureType.StructureTypePipelineShaderStageCreateInfo;
                         shaderStages[i].stage = (VkShaderStageFlags)Shaders[i].ShaderType;
                         shaderStages[i].module = Shaders[i].ids[deviceIndex];
                         shaderStages[i].pName = "main";
+                        shaderStages[i].pSpecializationInfo = shaderSpecializations[i] != null ? shaderSpecializations[i] : IntPtr.Zero;
                     }
                     var shaderStages_ptr = shaderStages.Pointer();
 

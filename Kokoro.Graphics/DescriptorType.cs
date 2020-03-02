@@ -11,6 +11,7 @@ namespace Kokoro.Graphics
         UniformTexelBuffer = VkDescriptorType.DescriptorTypeUniformTexelBuffer,
         StorageTexelBuffer = VkDescriptorType.DescriptorTypeStorageTexelBuffer,
         UniformBuffer = VkDescriptorType.DescriptorTypeUniformBuffer,
+        UniformBufferDynamic = VkDescriptorType.DescriptorTypeUniformBufferDynamic,
         StorageBuffer = VkDescriptorType.DescriptorTypeStorageBuffer,
         InputAttachment = VkDescriptorType.DescriptorTypeInputAttachment
     }

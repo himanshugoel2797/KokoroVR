@@ -1,12 +1,10 @@
-﻿using Kokoro.Input.LowLevel;
+﻿using Kokoro.Graphics;
 using Kokoro.Math;
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Text;
-using System.Threading.Tasks;
 
-namespace KokoroVR.Input
+namespace KokoroVR2.Input
 {
     /// <summary>
     /// Stores the states of the Mouse buttons
@@ -38,7 +36,7 @@ namespace KokoroVR.Input
             }
             set
             {
-                InputLL.SetMousePos(value);
+                GraphicsDevice.Window.SetMousePos(value.X, value.Y);
             }
         }
         /// <summary>
@@ -49,13 +47,6 @@ namespace KokoroVR.Input
         /// The status of the mouse buttons
         /// </summary>
         public static MouseButtons ButtonsDown { get; private set; }
-        /// <summary>
-        /// The mouse position in normalized device coordinates
-        /// </summary>
-        public static Vector2 NDMousePos
-        {
-            get; private set;
-        }
         /// <summary>
         /// The projection matrix to convert mouse coordinates from screen space to normalized device coordinates
         /// </summary>
@@ -71,18 +62,17 @@ namespace KokoroVR.Input
             lock (locker)
             {
                 prevMouse = curMouse;
-                curMouse = InputLL.UpdateMouse();
+                curMouse.X = (float)GraphicsDevice.Window.MouseX;
+                curMouse.Y = (float)GraphicsDevice.Window.MouseY;
 
                 MouseDelta = prevMouse - curMouse;
 
                 ButtonsDown = new MouseButtons()
                 {
-                    Left = InputLL.LeftMouseButtonDown(),
-                    Right = InputLL.RightMouseButtonDown(),
-                    Middle = InputLL.MiddleMouseButtonDown()
+                    Left = GraphicsDevice.Window.LeftDown,
+                    Right = GraphicsDevice.Window.RightDown,
+                    Middle = GraphicsDevice.Window.MiddleDown
                 };
-
-                NDMousePos = InputLL.GetNDMousePos(curMouse);
             }
 
         }

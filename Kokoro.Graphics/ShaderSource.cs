@@ -5,6 +5,7 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using VulkanSharp.Raw;
 using static VulkanSharp.Raw.Vk;
 
 namespace Kokoro.Graphics
@@ -22,6 +23,7 @@ namespace Kokoro.Graphics
         //#if DEBUG
         public const string ShaderPath = "I://Code/KokoroVR/Resources/Vulkan/Shaders";
         public const string ShaderPath2 = "Resources/Vulkan/Shaders";
+        public const int BindingCount = 100;
         //#endif
 
         public static ShaderSource Load(ShaderType sType, string file)
@@ -31,6 +33,18 @@ namespace Kokoro.Graphics
 
         public static ShaderSource Load(ShaderType sType, string file, string defines, params string[] libraryName)
         {
+            if (GraphicsDevice.RebuildShaders)
+            {
+                if (File.Exists(Path.ChangeExtension(file, ".spv")))
+                    File.Delete(file);
+
+                if (File.Exists(Path.Combine(ShaderPath, Path.ChangeExtension(file, ".spv"))))
+                    File.Delete(Path.Combine(ShaderPath, Path.ChangeExtension(file, ".spv")));
+
+                if (File.Exists(Path.Combine(ShaderPath2, Path.ChangeExtension(file, ".spv"))))
+                    File.Delete(Path.Combine(ShaderPath2, Path.ChangeExtension(file, ".spv")));
+            }
+
             if (!File.Exists(file))
             {
                 if (File.Exists(Path.Combine(ShaderPath, file)))
@@ -65,16 +79,32 @@ namespace Kokoro.Graphics
         #endregion
 
         public ShaderType ShaderType => sType;
+        public uint SpecializationCount { get => (uint)specializationConsts.Count; }
 
         internal IntPtr[] ids;
         internal ShaderType sType;
         private List<SpecializationInfo> specializationConsts;
+        private ManagedPtrArray<VkSpecializationMapEntry> SpecializationEntries;
 
         public ShaderSource(ShaderType sType, string filename, string src, string defines, bool loadBuilt)
         {
             if (!loadBuilt)
             {
-                string preamble = $"#version 450 core\n#extension GL_ARB_separate_shader_objects : enable\n#define MAX_DRAWS_UBO {GraphicsDevice.MaxIndirectDrawsUBO}\n#define MAX_DRAWS_SSBO {GraphicsDevice.MaxIndirectDrawsSSBO}\n#define PI {System.Math.PI}\n#define EYECOUNT {GraphicsDevice.EyeCount}\n";
+                string preamble = @$"
+#version 450 core
+#extension GL_ARB_separate_shader_objects : enable
+#define MAX_DRAWS_UBO {GraphicsDevice.MaxIndirectDrawsUBO}
+#define MAX_DRAWS_SSBO {GraphicsDevice.MaxIndirectDrawsSSBO}
+#define PI {System.Math.PI}
+#define EYECOUNT {GraphicsDevice.EyeCount}
+#define BASE_BINDING {BindingCount}
+
+";
+
+                for (int i = 0; i < BindingCount; i++)
+                {
+                    preamble += $"layout(constant_id = {i}) const int Binding{i} = {i + 1};\n";
+                }
 
                 string shaderSrc = preamble + defines;
 
@@ -137,6 +167,8 @@ namespace Kokoro.Graphics
             }
 
             specializationConsts = new List<SpecializationInfo>();
+            for (uint i = 0; i < BindingCount; i++)
+                DefineSpecializationConst(i, i * sizeof(int), sizeof(int));
         }
 
         public void DefineSpecializationConst(uint id, uint offset, ulong sz)
@@ -147,6 +179,25 @@ namespace Kokoro.Graphics
                 offset = offset,
                 size = sz
             });
+        }
+
+        internal ManagedPtrArray<VkSpecializationMapEntry> Specialize()
+        {
+            if (SpecializationEntries == null)
+            {
+                var mapEntries = new VkSpecializationMapEntry[specializationConsts.Count];
+                for (int i = 0; i < specializationConsts.Count; i++)
+                {
+                    mapEntries[i] = new VkSpecializationMapEntry()
+                    {
+                        size = specializationConsts[i].size,
+                        constantID = specializationConsts[i].id,
+                        offset = specializationConsts[i].offset,
+                    };
+                }
+                SpecializationEntries = mapEntries.Pointer();
+            }
+            return SpecializationEntries;
         }
 
         #region IDisposable Support

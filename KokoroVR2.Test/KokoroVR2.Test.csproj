@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>netcoreapp3.1</TargetFramework>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Kokoro.Common\Kokoro.Common.csproj" />
+    <ProjectReference Include="..\Kokoro.Graphics\Kokoro.Graphics.csproj" />
+    <ProjectReference Include="..\Kokoro.Math\Kokoro.Math.csproj" />
+    <ProjectReference Include="..\Kokoro.Network.Client\Kokoro.Network.Client.csproj" />
+    <ProjectReference Include="..\Kokoro.Network.Server\Kokoro.Network.Server.csproj" />
+    <ProjectReference Include="..\Kokoro.Physics\Kokoro.Physics.csproj" />
+    <ProjectReference Include="..\KokoroVR2\KokoroVR2.csproj" />
+  </ItemGroup>
+
+</Project>

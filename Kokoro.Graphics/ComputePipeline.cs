@@ -10,6 +10,7 @@ namespace Kokoro.Graphics
         public string Name { get; set; }
         public ShaderSource Shader { get; set; }
         public PipelineLayout PipelineLayout { get; set; }
+        public Memory<int> SpecializationData { get; set; }
 
         internal IntPtr hndl;
         private int devID;
@@ -26,6 +27,16 @@ namespace Kokoro.Graphics
             {
                 unsafe
                 {
+                    var memHndl = SpecializationData.Pin();
+                    var specData = new VkSpecializationInfo()
+                    {
+                        mapEntryCount = (uint)SpecializationData.Length,
+                        dataSize = (uint)SpecializationData.Length * sizeof(int),
+                        pMapEntries = Shader.Specialize(),
+                        pData = (IntPtr)memHndl.Pointer
+                    };
+                    var specData_ptr = specData.Pointer();
+
                     var creatInfo = new VkComputePipelineCreateInfo()
                     {
                         sType = VkStructureType.StructureTypeComputePipelineCreateInfo,
@@ -34,7 +45,8 @@ namespace Kokoro.Graphics
                             sType = VkStructureType.StructureTypePipelineShaderStageCreateInfo,
                             stage = (VkShaderStageFlags)Shader.ShaderType,
                             module = Shader.ids[deviceIndex],
-                            pName = "main"
+                            pName = "main",
+                            pSpecializationInfo = specData_ptr
                         },
                         layout = PipelineLayout.hndl,
                     };

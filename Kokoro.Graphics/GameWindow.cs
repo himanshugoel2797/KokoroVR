@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.Text;
 using static VulkanSharp.Raw.Glfw;
 using static VulkanSharp.Raw.Vk;
+using KokoroVR2.Input;
 
 namespace Kokoro.Graphics
 {
@@ -27,6 +28,50 @@ namespace Kokoro.Graphics
                 int h = 0;
                 glfwGetWindowSize(windowHndl, null, &h);
                 return h;
+            }
+        }
+
+        public double MouseX
+        {
+            get
+            {
+                double x = 0;
+                glfwGetCursorPos(windowHndl, &x, null);
+                return x;
+            }
+        }
+
+        public double MouseY
+        {
+            get
+            {
+                double y = 0;
+                glfwGetCursorPos(windowHndl, null, &y);
+                return y;
+            }
+        }
+
+        public bool LeftDown
+        {
+            get
+            {
+                return glfwGetMouseButton(windowHndl, GlfwMouseButtonLeft) == GlfwPress;
+            }
+        }
+
+        public bool RightDown
+        {
+            get
+            {
+                return glfwGetMouseButton(windowHndl, GlfwMouseButtonRight) == GlfwPress;
+            }
+        }
+
+        public bool MiddleDown
+        {
+            get
+            {
+                return glfwGetMouseButton(windowHndl, GlfwMouseButtonMiddle) == GlfwPress;
             }
         }
 
@@ -75,10 +120,12 @@ namespace Kokoro.Graphics
             prevHeight = Height;
 
             Stopwatch s = Stopwatch.StartNew();
-            var sTime = s.Elapsed.TotalMilliseconds;
+            var prevTime = s.Elapsed.TotalMilliseconds;
             Thread.Sleep(5);
+            var sTime = s.Elapsed.TotalMilliseconds;
             while (!IsExiting)
             {
+                sTime = s.Elapsed.TotalMilliseconds;
                 if (Width != prevWidth | Height != prevHeight)
                 {
                     Resized(Width, Height);
@@ -86,13 +133,29 @@ namespace Kokoro.Graphics
                     prevHeight = Height;
                 }
                 PollEvents();
-                Update(s.ElapsedMilliseconds, s.ElapsedMilliseconds - sTime);
-                Render(s.ElapsedMilliseconds, s.ElapsedMilliseconds - sTime);
+                Update(sTime, sTime - prevTime);
+                Render(sTime, sTime - prevTime);
                 if (fps > 0)
-                    while ((s.ElapsedMilliseconds - sTime) < 1000.0f / fps - 0.5f)
+                    while ((s.ElapsedMilliseconds - prevTime) < 1000.0f / fps - 0.5f)
                         Thread.Sleep(1);
-                sTime = s.ElapsedMilliseconds;
+                Console.WriteLine("Poll Time: " + (s.Elapsed.TotalMilliseconds - sTime) + "ms");
+                prevTime = sTime;
             }
+        }
+
+        public void SetMousePos(double x, double y)
+        {
+            glfwSetCursorPos(windowHndl, x, y);
+        }
+
+        public bool IsKeyDown(Key k)
+        {
+            return glfwGetKey(windowHndl, (int)k) == GlfwPress;
+        }
+
+        public bool IsKeyUp(Key k)
+        {
+            return glfwGetKey(windowHndl, (int)k) == GlfwRelease;
         }
 
         internal VkResult CreateSurface(IntPtr instanceHndl, IntPtr* surfacePtr)

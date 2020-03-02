@@ -28,11 +28,11 @@ namespace Kokoro.Graphics
         public string Name { get; set; }
         public IReadOnlyList<DescriptorLayout> Layouts { get => layouts; }
         public IReadOnlyList<PoolEntry> PoolEntries { get => poolEntries; }
-        
+
         internal int layoutCount = 0;
         internal IntPtr layout_hndl;
         internal IntPtr pool_hndl;
-        
+
         private int devID;
         private bool locked;
         private readonly List<DescriptorLayout> layouts;
@@ -128,7 +128,7 @@ namespace Kokoro.Graphics
 
                         bindingFlagSet[i] =
                             VkDescriptorBindingFlags.DescriptorBindingPartiallyBoundBit |
-                            VkDescriptorBindingFlags.DescriptorBindingUpdateAfterBindBit |
+                            (Layouts[i].Type == DescriptorType.UniformBufferDynamic ? 0 : VkDescriptorBindingFlags.DescriptorBindingUpdateAfterBindBit) |
                             VkDescriptorBindingFlags.DescriptorBindingUpdateUnusedWhilePendingBit;
                         bindings[i].binding = Layouts[i].BindingIndex;
                         bindings[i].descriptorCount = (uint)Layouts[i].Count;

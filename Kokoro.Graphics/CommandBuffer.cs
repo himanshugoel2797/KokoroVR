@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Text;
 using static VulkanSharp.Raw.Vk;
 
@@ -194,8 +195,11 @@ namespace Kokoro.Graphics
                 {
                     if (set != null && set.hndl != IntPtr.Zero)
                     {
+                        var dyn_cnt = set.Pool.Layouts.Count(a => a.Type == DescriptorType.UniformBufferDynamic);
                         var ptrs = stackalloc IntPtr[] { set.hndl };
-                        vkCmdBindDescriptorSets(hndl, (VkPipelineBindPoint)bindPoint, layout.hndl, set_binding, 1, ptrs, 0, null);
+                        var dyn_off = stackalloc uint[dyn_cnt];  //NOTE Added for the 0th binding global uniform buffer
+                        for (int i = 0; i < dyn_cnt; i++) dyn_off[i] = 0;
+                        vkCmdBindDescriptorSets(hndl, (VkPipelineBindPoint)bindPoint, layout.hndl, set_binding, 1, ptrs, (uint)dyn_cnt, dyn_off);
                     }
                 }
             }
@@ -216,6 +220,17 @@ namespace Kokoro.Graphics
                     size = len
                 };
                 vkCmdCopyBuffer(hndl, src.hndl, dst.hndl, 1, bufCopy.Pointer());
+                vkCmdPipelineBarrier(hndl, VkPipelineStageFlags.PipelineStageTransferBit, VkPipelineStageFlags.PipelineStageAllCommandsBit, VkDependencyFlags.DependencyByRegionBit, 0, null, 1, new VkBufferMemoryBarrier()
+                {
+                    sType = VkStructureType.StructureTypeBufferMemoryBarrier,
+                    buffer = dst.hndl,
+                    offset = dst_off,
+                    srcAccessMask = VkAccessFlags.AccessTransferWriteBit,
+                    dstAccessMask = VkAccessFlags.AccessMemoryReadBit,
+                    srcQueueFamilyIndex = VkQueueFamilyIgnored,
+                    dstQueueFamilyIndex = VkQueueFamilyIgnored,
+                    size = len,
+                }.Pointer(), 0, null);
             }
             else
                 throw new Exception("Command buffer not built.");

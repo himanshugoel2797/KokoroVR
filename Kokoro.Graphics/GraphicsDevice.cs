@@ -73,14 +73,16 @@ namespace Kokoro.Graphics
         public static GameWindow Window { get; private set; }
         public static bool EnableValidation { get; set; }
         public static string AppName { get; set; }
+        public static string EngineName { get; set; }
         public static Framebuffer[] DefaultFramebuffer { get; private set; }
-        public static uint CurrentFrameIndex { get; private set; }
+        public static uint CurrentFrameID { get; private set; }
         public static ulong CurrentFrameCount { get; private set; }
         public static uint MaxFrameCount { get; private set; }
         public static uint MaxFramesInFlight { get; private set; } = 3;
         public static uint CurrentFrameNumber { get; private set; }
         public static uint Width { get; private set; }
         public static uint Height { get; private set; }
+        public static bool RebuildShaders { get; set; }
 
         #region Debug Management
         internal static PFN_vkCreateDebugUtilsMessengerEXT CreateDebugUtilsMessengerEXT;
@@ -287,7 +289,7 @@ namespace Kokoro.Graphics
                         {
                             sType = VkStructureType.StructureTypeApplicationInfo,
                             pApplicationName = AppName,
-                            pEngineName = "KokoroVR",
+                            pEngineName = EngineName,
                             apiVersion = VkApiVersion11,
                             applicationVersion = 1,
                             engineVersion = 1,
@@ -828,13 +830,13 @@ namespace Kokoro.Graphics
 
             uint imgIdx = 0;
             vkAcquireNextImageKHR(DeviceInformation[0].Device, swapChainHndl, ulong.MaxValue, ImageAvailableSemaphore[CurrentFrameNumber].hndl, IntPtr.Zero, &imgIdx);
-            CurrentFrameIndex = imgIdx;
+            CurrentFrameID = imgIdx;
         }
         public static void PresentFrame()
         {
             var waitSemaphores = stackalloc IntPtr[] { FrameFinishedSemaphore[CurrentFrameNumber].hndl };
             var waitSwapchains = stackalloc IntPtr[] { swapChainHndl };
-            var waitFrameIdx = stackalloc uint[] { CurrentFrameIndex };
+            var waitFrameIdx = stackalloc uint[] { CurrentFrameID };
 
             var presentInfo = new VkPresentInfoKHR()
             {

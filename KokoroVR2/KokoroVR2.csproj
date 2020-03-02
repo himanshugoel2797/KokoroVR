@@ -1,0 +1,30 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>netcoreapp3.1</TargetFramework>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <None Include="..\glfw3.dll" Link="glfw3.dll">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Kokoro.Common\Kokoro.Common.csproj" />
+    <ProjectReference Include="..\Kokoro.Graphics\Kokoro.Graphics.csproj" />
+    <ProjectReference Include="..\Kokoro.Math\Kokoro.Math.csproj" />
+    <ProjectReference Include="..\Kokoro.Network.Client\Kokoro.Network.Client.csproj" />
+    <ProjectReference Include="..\Kokoro.Network.Server\Kokoro.Network.Server.csproj" />
+    <ProjectReference Include="..\Kokoro.Physics\Kokoro.Physics.csproj" />
+  </ItemGroup>
+
+</Project>

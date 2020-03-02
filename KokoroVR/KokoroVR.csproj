@@ -18,9 +18,8 @@
     <CodeAnalysisRuleSet>MinimumRecommendedRules.ruleset</CodeAnalysisRuleSet>
   </PropertyGroup>
   <ItemGroup>
-    <ProjectReference Include="..\GPUPerfAPI.NET\GPUPerfAPI.NET.csproj" />
     <ProjectReference Include="..\Kokoro.Common\Kokoro.Common.csproj" />
-    <ProjectReference Include="..\Kokoro.GraphicsOLD\Kokoro.GraphicsOLD.csproj" />
+    <ProjectReference Include="..\Kokoro.Graphics\Kokoro.Graphics.csproj" />
     <ProjectReference Include="..\Kokoro.Math\Kokoro.Math.csproj" />
     <ProjectReference Include="..\Kokoro.Physics\Kokoro.Physics.csproj" />
     <ProjectReference Include="..\Valve.VR\Valve.VR.csproj" />
@@ -33,6 +32,6 @@
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="Microsoft.CSharp" Version="4.7.0" />
-    <PackageReference Include="System.Data.DataSetExtensions" Version="4.5.0" />
+    <PackageReference Include="System.Data.DataSetExtensions" Version="4.6.0-preview3.19128.7" />
   </ItemGroup>
 </Project>

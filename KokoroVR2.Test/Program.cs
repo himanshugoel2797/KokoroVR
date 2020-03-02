@@ -1,24 +1,25 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+﻿using Kokoro.Graphics;
+using System;
 
-namespace Kokoro.Graphics.VulkanTest
+namespace KokoroVR2.Test
 {
     class Program
     {
         static void Main(string[] args)
         {
-            GraphicsDevice.AppName = "Vulkan Test";
-            GraphicsDevice.EnableValidation = true;
-            GraphicsDevice.RebuildShaders = true;
-            GraphicsDevice.Init();
+            Engine.AppName = "Test";
+            Engine.EnableValidation = true;
+            Engine.Initialize();
+            Engine.OnRebuildGraph += Engine_OnRebuildGraph;
+            Engine.Start(0);
+        }
 
+        private static void Engine_OnRebuildGraph(double time_ms, double delta_ms)
+        {
             ShaderSource vert = ShaderSource.Load(ShaderType.VertexShader, "FullScreenTriangle/vertex.glsl");
             ShaderSource frag = ShaderSource.Load(ShaderType.FragmentShader, "UVRenderer/fragment.glsl");
 
-            var fbuf = new Framegraph(0);
+            var fbuf = Engine.Graph;
             fbuf.RegisterAttachment(new AttachmentInfo()
             {
                 Name = "output",
@@ -67,7 +68,7 @@ namespace Kokoro.Graphics.VulkanTest
                 DepthTest = DepthTest.Always,
                 EnableBlending = false,
                 LineWidth = 1,
-                PassDependencies = null,
+                PassDependencies = new string[] { Engine.Graph.GlobalParametersName },
                 RasterizerDiscard = false,
                 Shaders = new ShaderSource[] { vert, frag },
                 Topology = PrimitiveType.Triangle,
@@ -80,12 +81,6 @@ namespace Kokoro.Graphics.VulkanTest
                 }
             });
             fbuf.SetOutputPass("main_pass", "output");
-            fbuf.Compile();
-            while (!GraphicsDevice.Window.IsExiting)
-            {
-                fbuf.Execute();
-                GraphicsDevice.Window.PollEvents();
-            }
         }
     }
 }

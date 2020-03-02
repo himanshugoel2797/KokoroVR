@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System;
 using System.Threading;
 using static VulkanSharp.Raw.Vk;
+using System.Diagnostics;
 
 namespace Kokoro.Graphics
 {
@@ -182,7 +183,7 @@ namespace Kokoro.Graphics
     {
         public DrawCmdType CmdType { get; } = DrawCmdType.Indirect;
         public GpuBuffer DrawBuffer { get; set; }
-        public ulong Offset { get; set; }
+        public ulong DrawBufferOffset { get; set; }
         public GpuBuffer CountBuffer { get; set; }
         public ulong CountOffset { get; set; }
         public uint MaxCount { get; set; }
@@ -196,7 +197,7 @@ namespace Kokoro.Graphics
         public GpuBuffer IndexBuffer { get; set; }
         public ulong IndexOffset { get; set; }
         public GpuBuffer DrawBuffer { get; set; }
-        public ulong Offset { get; set; }
+        public ulong DrawBufferOffset { get; set; }
         public GpuBuffer CountBuffer { get; set; }
         public ulong CountOffset { get; set; }
         public uint MaxCount { get; set; }
@@ -271,6 +272,9 @@ namespace Kokoro.Graphics
     public class Framegraph
     {
         public Dictionary<string, IBasePass> Passes { get; private set; }
+        public GpuBuffer GlobalParameters { get; private set; }
+        public string GlobalParametersName => "GlobalParameters";
+        public ulong GlobalParametersLength => 16384;
 
         private readonly Dictionary<string, BuiltAttachment> Attachments;
         private readonly Dictionary<string, BuiltShaderParameterSet> ShaderParameters;
@@ -287,11 +291,15 @@ namespace Kokoro.Graphics
         private readonly int CurrentID;
         private string OutputAttachmentName;
         private static int fgraph_id = 0;
+        private static Fence[] TransferFences;
+        private static Fence[] ComputeFences;
 
         private RenderPass[] outputPass;
         private PipelineLayout[] pipelineLayouts;
         private GraphicsPipeline[] pipelines;
-        private GpuSemaphore finalSemaphore;
+        private GpuSemaphore finalGraphicsSemaphore;
+        private GpuSemaphore finalTransferSemaphore;
+        private GpuSemaphore finalComputeSemaphore;
         private ShaderSource outputV, outputF;
         private CommandBuffer[] outputCmds;
         private DescriptorPool outputPool;
@@ -310,6 +318,16 @@ namespace Kokoro.Graphics
             TransferPasses = new List<BuiltPass>();
             AsyncComputePasses = new List<BuiltPass>();
 
+            GlobalParameters = new GpuBuffer()
+            {
+                Name = GlobalParametersName,
+                MemoryUsage = MemoryUsage.GpuOnly,
+                Usage = BufferUsage.TransferDst | BufferUsage.Uniform,
+                Size = GlobalParametersLength,
+                Mapped = false
+            };
+            GlobalParameters.Build(device_index);
+
             Pool = new DescriptorPool();
             Pool.Name = $"Framegraph_{CurrentID}";
 
@@ -325,8 +343,23 @@ namespace Kokoro.Graphics
                 TransferCmdPool = new CommandPool[GraphicsDevice.MaxFramesInFlight];
                 AsyncComputeCmdPool = new CommandPool[GraphicsDevice.MaxFramesInFlight];
 
+                TransferFences = new Fence[GraphicsDevice.MaxFramesInFlight];
+                ComputeFences = new Fence[GraphicsDevice.MaxFramesInFlight];
+
                 for (int i = 0; i < GraphicsDevice.MaxFramesInFlight; i++)
                 {
+                    TransferFences[i] = new Fence()
+                    {
+                        CreateSignaled = true
+                    };
+                    TransferFences[i].Build(DeviceIndex);
+
+                    ComputeFences[i] = new Fence()
+                    {
+                        CreateSignaled = true
+                    };
+                    ComputeFences[i].Build(DeviceIndex);
+
                     GraphicsCmdPool[i] = new CommandPool()
                     {
                         Name = $"Graphics_fg_{CurrentID}",
@@ -349,6 +382,21 @@ namespace Kokoro.Graphics
                     AsyncComputeCmdPool[i].Build(DeviceIndex, CommandQueueKind.Compute);
                 }
             }
+
+            RegisterShaderParams(new ShaderParameterSet()
+            {
+                Name = GlobalParametersName,
+                Buffers = new BufferInfo[]
+                {
+                    new BufferInfo()
+                    {
+                        Name = GlobalParametersName,
+                        BindingIndex = 0,
+                        DescriptorType = DescriptorType.UniformBufferDynamic,
+                        DeviceBuffer = GlobalParameters,
+                    }
+                },
+            });
         }
 
         public void Reset()
@@ -550,9 +598,11 @@ namespace Kokoro.Graphics
                 }
             }
 
+            //Pool.Add(0, DescriptorType.UniformBufferDynamic, 1, ShaderType.All);
             Pool.Build(DeviceIndex, GraphicsDevice.MaxFramesInFlight);
             Descriptors.Pool = Pool;
             Descriptors.Build(DeviceIndex);
+            //Descriptors.Set(0, 0, GlobalParameters, 0, GlobalParametersLength);
 
             //Setup shader parameters
             for (int i = 0; i < shaderParamsList.Length; i++)
@@ -570,6 +620,9 @@ namespace Kokoro.Graphics
                                 Descriptors.Set(bindingBase + sp.Buffers[j].BindingIndex, 0, sp.Buffers[j].View);
                                 break;
                             case DescriptorType.UniformBuffer:
+                                Descriptors.Set(bindingBase + sp.Buffers[j].BindingIndex, 0, sp.Buffers[j].DeviceBuffer, 0, sp.Buffers[j].DeviceBuffer.Size);
+                                break;
+                            case DescriptorType.UniformBufferDynamic:
                                 Descriptors.Set(bindingBase + sp.Buffers[j].BindingIndex, 0, sp.Buffers[j].DeviceBuffer, 0, sp.Buffers[j].DeviceBuffer.Size);
                                 break;
                             case DescriptorType.UniformTexelBuffer:
@@ -611,6 +664,8 @@ namespace Kokoro.Graphics
             //Determine pass order
             for (int i = 0; i < ProcessedPassesList.Count; i++)
             {
+                //TODO Find all the dependencies and handle them automatically
+
                 //Setup this pass
                 var pass = Passes[ProcessedPassesList[i]];
                 var bp = new BuiltPass
@@ -632,9 +687,40 @@ namespace Kokoro.Graphics
                 //Add the semaphore for the current pass to the list
                 semaphoreDict[bp.Name] = bp.SignalSemaphores;
 
+                switch (pass.PassType)
+                {
+                    case PassType.Compute:
+                    case PassType.IndirectCompute:
+                    case PassType.Graphics:
+                        finalGraphicsSemaphore = bp.SignalSemaphores;
+                        break;
+                    case PassType.ImageUpload:
+                    case PassType.BufferUpload:
+                        finalTransferSemaphore = bp.SignalSemaphores;
+                        break;
+                    case PassType.AsyncCompute:
+                    case PassType.AsyncIndirectCompute:
+                        finalComputeSemaphore = bp.SignalSemaphores;
+                        break;
+                }
                 if (pass is IGpuPass gpuPass)
                 {
-                    finalSemaphore = bp.SignalSemaphores;
+                    var bindingIndices = new List<int>();
+                    if (gpuPass.ShaderParamName != null)
+                        for (int j = 0; j < gpuPass.ShaderParamName.Length; j++)
+                        {
+                            var sp = ShaderParameters[gpuPass.ShaderParamName[j]];
+                            if (sp.Params.Buffers != null)
+                                for (int k = 0; k < sp.Params.Buffers.Length; k++)
+                                    bindingIndices.Add((int)(sp.BindingBase + sp.Params.Buffers[k].BindingIndex));
+                            if (sp.Params.SampledAttachments != null)
+                                for (int k = 0; k < sp.Params.SampledAttachments.Length; k++)
+                                    bindingIndices.Add((int)(sp.BindingBase + sp.Params.SampledAttachments[k].BindingIndex));
+                            if (sp.Params.Textures != null)
+                                for (int k = 0; k < sp.Params.Textures.Length; k++)
+                                    bindingIndices.Add((int)(sp.BindingBase + sp.Params.Textures[k].BindingIndex));
+                        }
+                    bp.SpecializationData = new Memory<int>(bindingIndices.ToArray());
                 }
 
                 ProcessedBPsList.Add(bp);
@@ -803,6 +889,9 @@ namespace Kokoro.Graphics
                             bp.GraphicsPipeline.RenderPass = bp.RenderPass;
                             bp.GraphicsPipeline.Framebuffer = bp.Framebuffer;
                             bp.GraphicsPipeline.PipelineLayout = bp.PipelineLayout;
+                            bp.GraphicsPipeline.SpecializationData = new Memory<int>[p.Shaders.Length];
+                            for (int j = 0; j < bp.GraphicsPipeline.SpecializationData.Length; j++)
+                                bp.GraphicsPipeline.SpecializationData[j] = bp.SpecializationData;
                             bp.GraphicsPipeline.Build(DeviceIndex);
 
                             GraphicsPasses.Add(bp);
@@ -835,6 +924,7 @@ namespace Kokoro.Graphics
                             {
                                 Name = $"{pass.Name}_{CurrentID}",
                                 PipelineLayout = bp.PipelineLayout,
+                                SpecializationData = bp.SpecializationData,
                                 Shader = (pass as AsyncComputePass).Shader,
                             };
                             bp.ComputePipeline.Build(DeviceIndex);
@@ -862,6 +952,7 @@ namespace Kokoro.Graphics
                             {
                                 Name = $"{pass.Name}_{CurrentID}",
                                 PipelineLayout = bp.PipelineLayout,
+                                SpecializationData = bp.SpecializationData,
                                 Shader = (pass as AsyncComputePass).Shader,
                             };
                             bp.ComputePipeline.Build(DeviceIndex);
@@ -901,54 +992,54 @@ namespace Kokoro.Graphics
 
         private void SubmitGraphics()
         {
-            GraphicsDevice.AcquireFrame();
-
             foreach (var e in GraphicsPasses)
             {
-                var cmdbuf = e.Commands[GraphicsDevice.CurrentFrameIndex];
-                cmdbuf.Reset();
-                cmdbuf.BeginRecording();
-                var gpass = e.Pass as GraphicsPass;
-                var drCmd = gpass.DrawCmd;
+                for (int i = 0; i < GraphicsDevice.MaxFramesInFlight; i++) {
+                    var cmdbuf = e.Commands[i];
+                    cmdbuf.Reset();
+                    cmdbuf.BeginRecording();
+                    var gpass = e.Pass as GraphicsPass;
+                    var drCmd = gpass.DrawCmd;
 
-                //Bind the pipeline
-                cmdbuf.SetPipeline(e.GraphicsPipeline, 0);
+                    //Bind the pipeline
+                    cmdbuf.SetPipeline(e.GraphicsPipeline, 0);
 
-                //Bind descriptors
-                cmdbuf.SetDescriptors(e.PipelineLayout, Descriptors, DescriptorBindPoint.Graphics, 0);
+                    //Bind descriptors
+                    cmdbuf.SetDescriptors(e.PipelineLayout, Descriptors, DescriptorBindPoint.Graphics, 0);
 
-                //Set viewport
-                cmdbuf.SetViewport(0, 0, e.Framebuffer.Width, e.Framebuffer.Height);
+                    //Set viewport
+                    cmdbuf.SetViewport(0, 0, e.Framebuffer.Width, e.Framebuffer.Height);
 
-                switch (drCmd.CmdType)
-                {
-                    case DrawCmdType.Plain:
-                        {
-                            var plainDrCmd = drCmd as PlainDrawCmd;
-                            cmdbuf.Draw(plainDrCmd.VertexCount, plainDrCmd.InstanceCount, plainDrCmd.BaseVertex, plainDrCmd.BaseVertex);
-                        }
-                        break;
-                    case DrawCmdType.Indexed:
-                        {
-                            var indexedDrCmd = drCmd as IndexedDrawCmd;
-                            cmdbuf.Draw(indexedDrCmd.VertexCount, indexedDrCmd.InstanceCount, indexedDrCmd.BaseVertex, indexedDrCmd.BaseVertex);
-                        }
-                        break;
-                    case DrawCmdType.Indirect:
-                        {
-                            var indirDrCmd = drCmd as IndirectDrawCmd;
-                            cmdbuf.DrawIndirect(indirDrCmd.DrawBuffer, indirDrCmd.Offset, indirDrCmd.CountBuffer, indirDrCmd.CountOffset, indirDrCmd.MaxCount, indirDrCmd.Stride);
-                        }
-                        break;
-                    case DrawCmdType.IndexedIndirect:
-                        {
-                            var indirDrCmd = drCmd as IndexedIndirectDrawCmd;
-                            cmdbuf.DrawIndexedIndirect(indirDrCmd.IndexBuffer, indirDrCmd.IndexOffset, indirDrCmd.IndexType, indirDrCmd.DrawBuffer, indirDrCmd.Offset, indirDrCmd.CountBuffer, indirDrCmd.CountOffset, indirDrCmd.MaxCount, indirDrCmd.Stride);
-                        }
-                        break;
+                    switch (drCmd.CmdType)
+                    {
+                        case DrawCmdType.Plain:
+                            {
+                                var plainDrCmd = drCmd as PlainDrawCmd;
+                                cmdbuf.Draw(plainDrCmd.VertexCount, plainDrCmd.InstanceCount, plainDrCmd.BaseVertex, plainDrCmd.BaseVertex);
+                            }
+                            break;
+                        case DrawCmdType.Indexed:
+                            {
+                                var indexedDrCmd = drCmd as IndexedDrawCmd;
+                                cmdbuf.Draw(indexedDrCmd.VertexCount, indexedDrCmd.InstanceCount, indexedDrCmd.BaseVertex, indexedDrCmd.BaseVertex);
+                            }
+                            break;
+                        case DrawCmdType.Indirect:
+                            {
+                                var indirDrCmd = drCmd as IndirectDrawCmd;
+                                cmdbuf.DrawIndirect(indirDrCmd.DrawBuffer, indirDrCmd.DrawBufferOffset, indirDrCmd.CountBuffer, indirDrCmd.CountOffset, indirDrCmd.MaxCount, indirDrCmd.Stride);
+                            }
+                            break;
+                        case DrawCmdType.IndexedIndirect:
+                            {
+                                var indirDrCmd = drCmd as IndexedIndirectDrawCmd;
+                                cmdbuf.DrawIndexedIndirect(indirDrCmd.IndexBuffer, indirDrCmd.IndexOffset, indirDrCmd.IndexType, indirDrCmd.DrawBuffer, indirDrCmd.DrawBufferOffset, indirDrCmd.CountBuffer, indirDrCmd.CountOffset, indirDrCmd.MaxCount, indirDrCmd.Stride);
+                            }
+                            break;
+                    }
+                    cmdbuf.EndRenderPass();
+                    cmdbuf.EndRecording();
                 }
-                cmdbuf.EndRenderPass();
-                cmdbuf.EndRecording();
             }
         }
 
@@ -956,22 +1047,24 @@ namespace Kokoro.Graphics
         {
             foreach (var e in TransferPasses)
             {
-                var cmdbuf = e.Commands[GraphicsDevice.CurrentFrameIndex];
-                cmdbuf.Reset();
-                cmdbuf.BeginRecording();
+                for (int i = 0; i < GraphicsDevice.MaxFramesInFlight; i++)
+                {
+                    var cmdbuf = e.Commands[i];
+                    cmdbuf.Reset();
+                    cmdbuf.BeginRecording();
 
-                if (e.Pass.PassType == PassType.ImageUpload)
-                {
-                    var pass = e.Pass as ImageUploadPass;
-                    cmdbuf.Stage(pass.SourceBuffer, 0, pass.DestBuffer);
+                    if (e.Pass.PassType == PassType.ImageUpload)
+                    {
+                        var pass = e.Pass as ImageUploadPass;
+                        cmdbuf.Stage(pass.SourceBuffer, 0, pass.DestBuffer);
+                    }
+                    else if (e.Pass.PassType == PassType.BufferUpload)
+                    {
+                        var pass = e.Pass as BufferUploadPass;
+                        cmdbuf.Stage(pass.SourceBuffer, pass.LocalOffset, pass.DestBuffer, pass.DeviceOffset, pass.Size);
+                    }
+                    cmdbuf.EndRecording();
                 }
-                else if (e.Pass.PassType == PassType.BufferUpload)
-                {
-                    var pass = e.Pass as BufferUploadPass;
-                    cmdbuf.Stage(pass.SourceBuffer, pass.LocalOffset, pass.DestBuffer, pass.DeviceOffset, pass.Size);
-                }
-                cmdbuf.EndRenderPass();
-                cmdbuf.EndRecording();
             }
         }
 
@@ -979,63 +1072,79 @@ namespace Kokoro.Graphics
         {
             foreach (var e in AsyncComputePasses)
             {
-                var cmdbuf = e.Commands[GraphicsDevice.CurrentFrameIndex];
-                cmdbuf.Reset();
-                cmdbuf.BeginRecording();
-
-                if (e.Pass.PassType == PassType.AsyncCompute)
+                for (int i = 0; i < GraphicsDevice.MaxFramesInFlight; i++)
                 {
-                    var cpass = e.Pass as AsyncComputePass;
+                    var cmdbuf = e.Commands[i];
+                    cmdbuf.Reset();
+                    cmdbuf.BeginRecording();
 
-                    cmdbuf.SetPipeline(e.ComputePipeline);
-                    cmdbuf.SetDescriptors(e.PipelineLayout, Descriptors, DescriptorBindPoint.Compute, 0);
-                    cmdbuf.Dispatch(cpass.GroupX, cpass.GroupY, cpass.GroupZ);
-                }
-                else if (e.Pass.PassType == PassType.AsyncIndirectCompute)
-                {
-                    var cpass = e.Pass as AsyncIndirectComputePass;
+                    if (e.Pass.PassType == PassType.AsyncCompute)
+                    {
+                        var cpass = e.Pass as AsyncComputePass;
 
-                    cmdbuf.SetPipeline(e.ComputePipeline);
-                    cmdbuf.SetDescriptors(e.PipelineLayout, Descriptors, DescriptorBindPoint.Compute, 0);
-                    cmdbuf.DispatchIndirect(cpass.Buffer, cpass.Offset);
+                        cmdbuf.SetPipeline(e.ComputePipeline);
+                        cmdbuf.SetDescriptors(e.PipelineLayout, Descriptors, DescriptorBindPoint.Compute, 0);
+                        cmdbuf.Dispatch(cpass.GroupX, cpass.GroupY, cpass.GroupZ);
+                    }
+                    else if (e.Pass.PassType == PassType.AsyncIndirectCompute)
+                    {
+                        var cpass = e.Pass as AsyncIndirectComputePass;
+
+                        cmdbuf.SetPipeline(e.ComputePipeline);
+                        cmdbuf.SetDescriptors(e.PipelineLayout, Descriptors, DescriptorBindPoint.Compute, 0);
+                        cmdbuf.DispatchIndirect(cpass.Buffer, cpass.Offset);
+                    }
+                    cmdbuf.EndRecording();
                 }
-                cmdbuf.EndRenderPass();
-                cmdbuf.EndRecording();
             }
         }
 
-        public void Execute()
+        public void Execute(bool rebuildCmds)
         {
-            //Record and Submit command buffers across multiple threads
-            var graphicsThd = new Thread(SubmitGraphics);
-            var transferThd = new Thread(SubmitTransfer);
-            var asyncCompThd = new Thread(SubmitAsyncCompute);
+            ComputeFences[GraphicsDevice.CurrentFrameNumber].Wait();
+            TransferFences[GraphicsDevice.CurrentFrameNumber].Wait();
 
-            transferThd.Start();
-            asyncCompThd.Start();
-            graphicsThd.Start();
+            ComputeFences[GraphicsDevice.CurrentFrameNumber].Reset();
+            TransferFences[GraphicsDevice.CurrentFrameNumber].Reset();
+            GraphicsDevice.AcquireFrame();
 
-            transferThd.Join();
-            asyncCompThd.Join();
-            graphicsThd.Join();
+            if (rebuildCmds)
+            {
+                //Record and Submit command buffers across multiple threads
+                //var graphicsThd = new Thread(SubmitGraphics);
+                //var transferThd = new Thread(SubmitTransfer);
+                //var asyncCompThd = new Thread(SubmitAsyncCompute);
+
+                //transferThd.Start();
+                //asyncCompThd.Start();
+                //graphicsThd.Start();
+
+                //transferThd.Join();
+                //asyncCompThd.Join();
+                //graphicsThd.Join();
+
+                SubmitGraphics();
+                SubmitTransfer();
+                SubmitAsyncCompute();
+            }
 
             int maxLen = Math.Max(GraphicsPasses.Count, Math.Max(TransferPasses.Count, AsyncComputePasses.Count));
 
             for (int i = 0; i < maxLen; i++)
             {
                 if (i < AsyncComputePasses.Count)
-                    GraphicsDevice.GetDeviceInfo(DeviceIndex).ComputeQueue.SubmitCommandBuffer(AsyncComputePasses[i].Commands[GraphicsDevice.CurrentFrameIndex], AsyncComputePasses[i].WaitSemaphores, new GpuSemaphore[] { AsyncComputePasses[i].SignalSemaphores }, null);
+                    GraphicsDevice.GetDeviceInfo(DeviceIndex).ComputeQueue.SubmitCommandBuffer(AsyncComputePasses[i].Commands[GraphicsDevice.CurrentFrameID], AsyncComputePasses[i].WaitSemaphores, new GpuSemaphore[] { AsyncComputePasses[i].SignalSemaphores }, ComputeFences[GraphicsDevice.CurrentFrameNumber]);
 
                 if (i < TransferPasses.Count)
-                    GraphicsDevice.GetDeviceInfo(DeviceIndex).TransferQueue.SubmitCommandBuffer(TransferPasses[i].Commands[GraphicsDevice.CurrentFrameIndex], TransferPasses[i].WaitSemaphores, new GpuSemaphore[] { TransferPasses[i].SignalSemaphores }, null);
+                    GraphicsDevice.GetDeviceInfo(DeviceIndex).TransferQueue.SubmitCommandBuffer(TransferPasses[i].Commands[GraphicsDevice.CurrentFrameID], TransferPasses[i].WaitSemaphores, new GpuSemaphore[] { TransferPasses[i].SignalSemaphores }, TransferFences[GraphicsDevice.CurrentFrameNumber]);
 
                 if (i < GraphicsPasses.Count)
-                    GraphicsDevice.GetDeviceInfo(DeviceIndex).GraphicsQueue.SubmitCommandBuffer(GraphicsPasses[i].Commands[GraphicsDevice.CurrentFrameIndex], GraphicsPasses[i].WaitSemaphores, new GpuSemaphore[] { GraphicsPasses[i].SignalSemaphores }, null);
+                    GraphicsDevice.GetDeviceInfo(DeviceIndex).GraphicsQueue.SubmitCommandBuffer(GraphicsPasses[i].Commands[GraphicsDevice.CurrentFrameID], GraphicsPasses[i].WaitSemaphores, new GpuSemaphore[] { GraphicsPasses[i].SignalSemaphores }, null);
             }
 
             //Submit a blit to screen operation dependent on the last operation
-            GraphicsDevice.GetDeviceInfo(0).GraphicsQueue.SubmitCommandBuffer(outputCmds[GraphicsDevice.CurrentFrameIndex],
-                new GpuSemaphore[] { GraphicsDevice.ImageAvailableSemaphore[GraphicsDevice.CurrentFrameNumber], finalSemaphore },
+            GraphicsDevice.GetDeviceInfo(0).GraphicsQueue.SubmitCommandBuffer(outputCmds[GraphicsDevice.CurrentFrameID],
+                new GpuSemaphore[] { GraphicsDevice.ImageAvailableSemaphore[GraphicsDevice.CurrentFrameNumber], finalGraphicsSemaphore },
                 new GpuSemaphore[] { GraphicsDevice.FrameFinishedSemaphore[GraphicsDevice.CurrentFrameNumber] },
                 GraphicsDevice.InflightFences[GraphicsDevice.CurrentFrameNumber]);
             GraphicsDevice.PresentFrame();
@@ -1062,6 +1171,7 @@ namespace Kokoro.Graphics
 
         class BuiltPass
         {
+            public Memory<int> SpecializationData;
             public uint BindingBase;
             public string Name { get => Pass.Name; }
             public GpuSemaphore[] WaitSemaphores;
