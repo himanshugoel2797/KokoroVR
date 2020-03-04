@@ -27,7 +27,7 @@ namespace Kokoro.Graphics.VulkanTest
                 SizeY = 1,
                 Format = ImageFormat.B8G8R8A8Unorm,
                 Layers = 1,
-                Levels = 1,
+                UseMipMaps = false,
                 Usage = ImageUsage.ColorAttachment | ImageUsage.Sampled,
             });
             fbuf.RegisterAttachment(new AttachmentInfo()
@@ -38,7 +38,7 @@ namespace Kokoro.Graphics.VulkanTest
                 SizeY = 1,
                 Format = ImageFormat.Depth32f,
                 Layers = 1,
-                Levels = 1,
+                UseMipMaps = false,
                 Usage = ImageUsage.DepthAttachment | ImageUsage.TransferSrc,
             });
             fbuf.RegisterShaderParams(new ShaderParameterSet()
@@ -79,11 +79,11 @@ namespace Kokoro.Graphics.VulkanTest
                     VertexCount = 3
                 }
             });
-            fbuf.SetOutputPass("main_pass", "output");
+            fbuf.SetOutputPass("output");
             fbuf.Compile();
             while (!GraphicsDevice.Window.IsExiting)
             {
-                fbuf.Execute();
+                fbuf.Execute(true);
                 GraphicsDevice.Window.PollEvents();
             }
         }

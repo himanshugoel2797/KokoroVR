@@ -1,0 +1,75 @@
+//VertexShader
+
+#version 450 core
+#extension GL_ARB_separate_shader_objects : enable
+#extension GL_ARB_shader_draw_parameters : enable
+#define MAX_DRAWS_UBO 256
+#define MAX_DRAWS_SSBO 1024
+#define PI 3.141592653589793
+#define EYECOUNT 1
+
+layout(location = 0) out vec3 pos;
+layout(location = 1) flat out uint vox_v;
+layout(location = 2) flat out uint vox_idx;
+
+struct block_info_t {
+	vec4 o;
+};
+
+struct draw_cmd_t {
+	uint count;
+	uint instance_cnt;
+	uint base_index;
+	uint zr0;
+	uint base_instance;
+	uint index_block;
+	uint vbo_idx;
+	uint base_vertex;
+    vec4 aabb_min;
+    vec4 aabb_max;
+};
+
+layout(std140, set = 0, binding = 0) uniform GlobalParams_t {
+	mat4 proj;
+	mat4 view;
+	mat4 vp;
+	mat4 ivp;
+	mat4 prev_view;
+	mat4 prev_vp;
+	mat4 prev_ivp;
+	vec4 prev_eyePos;
+	vec4 prev_eyeUp;
+	vec4 prev_eyeDir;
+	vec4 eyePos;
+	vec4 eyeUp;
+	vec4 eyeDir;
+} GlobalParams;
+
+layout(std430, set = 0, binding = 1) readonly buffer BlockInfos_t {
+    block_info_t v[];
+} BlockInfo;
+
+layout(std430, set = 0, binding = 2) readonly buffer DrawCMDs_t {
+	uint drawCount;
+	uint pd0;
+	uint pd1;
+	uint pd2;
+    draw_cmd_t v[];
+} DrawCMDs;
+
+layout(set = 0, binding = 3, rgba8ui) uniform readonly uimageBuffer VertexBuffers[7];
+
+
+void main(){
+	uint ibo_block = DrawCMDs.v[gl_DrawIDARB].index_block;
+	uint vbo_idx = clamp(DrawCMDs.v[gl_DrawIDARB].vbo_idx, 0, 6);
+	uint ver_idx = bitfieldExtract(gl_VertexIndex, 0, 16);
+	vox_v = bitfieldExtract(gl_VertexIndex, 16, 16);
+	vox_idx = ibo_block;
+	
+	vec3 vs_pos = imageLoad(VertexBuffers[vbo_idx], int(DrawCMDs.v[gl_DrawIDARB].base_vertex + ver_idx)).xyz;
+	vec3 face_pos = vs_pos.xyz + BlockInfo.v[ibo_block].o.xyz;
+	pos = face_pos - GlobalParams.eyePos.xyz;
+	//normal = vec3( bitfieldExtract(norm_v, 0, 2), bitfieldExtract(norm_v, 2, 2), bitfieldExtract(norm_v, 4, 2) ) - 1.0f;
+	gl_Position = GlobalParams.vp * vec4(face_pos, 1);
+}

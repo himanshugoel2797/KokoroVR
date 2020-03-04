@@ -56,6 +56,7 @@ namespace KokoroVR2
             View = Matrix4.LookAt(CurrentPlayer.Position, Vector3.Zero, Vector3.UnitY);
             PrevView = Matrix4.LookAt(CurrentPlayer.Position, Vector3.Zero, Vector3.UnitY);
             Frustum = new Frustum(Matrix4.LookAt(CurrentPlayer.Position, Vector3.Zero, Vector3.UnitY), Projection, CurrentPlayer.Position);
+            DeferredRenderer = new DeferredRenderer();
         }
 
         private static void UpdateParams()
@@ -132,6 +133,12 @@ namespace KokoroVR2
             GraphicsDevice.Window.Run(fps);
         }
 
+        public static void Reset()
+        {
+            RebuildGraph = true;
+            Graph.Reset();
+        }
+
         private static void Window_Render(double time_ms, double delta_ms)
         {
             if (RebuildGraph)
@@ -146,7 +153,10 @@ namespace KokoroVR2
                     SourceBuffer = GlobalParametersStaging
                 });
 
+                DeferredRenderer.GenerateRenderGraph();
                 OnRebuildGraph?.Invoke(time_ms, delta_ms);
+                DeferredRenderer.FinalizeRenderGraph();
+                //TODO: Add other effects here
                 Graph.Compile();
                 RebuildGraph = false;
                 Graph.Execute(true);
@@ -157,6 +167,8 @@ namespace KokoroVR2
 
         private static void Window_Update(double time_ms, double delta_ms)
         {
+            Mouse.Update();
+            CurrentPlayer.Update(delta_ms);
             UpdateParams();
             OnUpdate?.Invoke(time_ms, delta_ms);
         }

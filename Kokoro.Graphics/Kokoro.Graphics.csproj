@@ -22,4 +22,7 @@
     <PackageReference Include="System.Data.DataSetExtensions" Version="4.6.0-preview3.19128.7" />
     <PackageReference Include="VulkanSharp.NET" Version="0.2.6" />
   </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Kokoro.Math\Kokoro.Math.csproj" />
+  </ItemGroup>
 </Project>

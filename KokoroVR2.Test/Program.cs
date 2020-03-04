@@ -1,86 +1,54 @@
 ﻿using Kokoro.Graphics;
+using Kokoro.Math;
+using KokoroVR2.Graphics;
+using KokoroVR2.Graphics.Voxel;
 using System;
 
 namespace KokoroVR2.Test
 {
     class Program
     {
+        static VoxelDictionary dictionary;
+        static ChunkStreamer streamer;
+        static ChunkObject obj;
+
         static void Main(string[] args)
         {
             Engine.AppName = "Test";
             Engine.EnableValidation = true;
             Engine.Initialize();
+
+            dictionary = new VoxelDictionary();
+            var mat_id = dictionary.Register(Vector3.One, Vector3.One, 0, 0);
+
+            var rng = new Random(0);
+            streamer = new ChunkStreamer(1 << 16, Engine.DeferredRenderer);
+            obj = new ChunkObject(streamer);
+
+            for (int x = -ChunkConstants.Side * 5; x < ChunkConstants.Side * 5; x++)
+                for (int y = -ChunkConstants.Side; y < ChunkConstants.Side; y++)
+                    for (int z = -ChunkConstants.Side * 5; z < ChunkConstants.Side * 5; z++)
+                        //if (rng.NextDouble() > 0.5f)
+                            obj.Set(x, y, z, mat_id);
+            obj.RebuildAll();
+
             Engine.OnRebuildGraph += Engine_OnRebuildGraph;
+            Engine.OnUpdate += Engine_OnUpdate;
             Engine.Start(0);
+        }
+
+        private static void Engine_OnUpdate(double time_ms, double delta_ms)
+        {
+            dictionary.Update();
+            streamer.InitialUpdate(delta_ms);
+            obj.Render(delta_ms);
+            streamer.FinalUpdate(delta_ms);
         }
 
         private static void Engine_OnRebuildGraph(double time_ms, double delta_ms)
         {
-            ShaderSource vert = ShaderSource.Load(ShaderType.VertexShader, "FullScreenTriangle/vertex.glsl");
-            ShaderSource frag = ShaderSource.Load(ShaderType.FragmentShader, "UVRenderer/fragment.glsl");
-
-            var fbuf = Engine.Graph;
-            fbuf.RegisterAttachment(new AttachmentInfo()
-            {
-                Name = "output",
-                BaseSize = SizeClass.ScreenRelative,
-                SizeX = 1,
-                SizeY = 1,
-                Format = ImageFormat.B8G8R8A8Unorm,
-                Layers = 1,
-                Levels = 1,
-                Usage = ImageUsage.ColorAttachment | ImageUsage.Sampled,
-            });
-            fbuf.RegisterAttachment(new AttachmentInfo()
-            {
-                Name = "output_dpth",
-                BaseSize = SizeClass.ScreenRelative,
-                SizeX = 1,
-                SizeY = 1,
-                Format = ImageFormat.Depth32f,
-                Layers = 1,
-                Levels = 1,
-                Usage = ImageUsage.DepthAttachment | ImageUsage.TransferSrc,
-            });
-            fbuf.RegisterShaderParams(new ShaderParameterSet()
-            {
-                Name = "output_shader_params",
-                Buffers = null,
-                SampledAttachments = null,
-                Textures = null,
-            });
-            fbuf.RegisterPass(new GraphicsPass()
-            {
-                Name = "main_pass",
-                CullMode = CullMode.None,
-                DepthAttachment = new AttachmentUsageInfo()
-                {
-                    Name = "output_dpth",
-                    Usage = AttachmentUsage.WriteOnly
-                },
-                AttachmentUsage = new AttachmentUsageInfo[]{
-                    new AttachmentUsageInfo(){
-                        Name = "output",
-                        Usage = AttachmentUsage.WriteOnly
-                    }
-                },
-                DepthClamp = false,
-                DepthTest = DepthTest.Always,
-                EnableBlending = false,
-                LineWidth = 1,
-                PassDependencies = new string[] { Engine.Graph.GlobalParametersName },
-                RasterizerDiscard = false,
-                Shaders = new ShaderSource[] { vert, frag },
-                Topology = PrimitiveType.Triangle,
-                DrawCmd = new PlainDrawCmd()
-                {
-                    BaseInstance = 0,
-                    BaseVertex = 0,
-                    InstanceCount = 1,
-                    VertexCount = 3
-                }
-            });
-            fbuf.SetOutputPass("main_pass", "output");
+            dictionary.GenerateRenderGraph();
+            streamer.GenerateRenderGraph();
         }
     }
 }

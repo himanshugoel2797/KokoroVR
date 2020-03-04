@@ -290,7 +290,7 @@ namespace Kokoro.Graphics
                             sType = VkStructureType.StructureTypeApplicationInfo,
                             pApplicationName = AppName,
                             pEngineName = EngineName,
-                            apiVersion = VkApiVersion11,
+                            apiVersion = VkApiVersion12,
                             applicationVersion = 1,
                             engineVersion = 1,
                             pNext = IntPtr.Zero
@@ -477,6 +477,7 @@ namespace Kokoro.Graphics
                     };
                     var devFeats11_ptr = devFeats11.Pointer();
 
+                    /*
                     var depthStenc = new VkPhysicalDeviceSeparateDepthStencilLayoutsFeatures()
                     {
                         sType = VkStructureType.StructureTypePhysicalDeviceSeparateDepthStencilLayoutsFeatures,
@@ -518,7 +519,6 @@ namespace Kokoro.Graphics
                         pNext = uboLayout_ptr
                     };
                     var storageByte_ptr = storageByte.Pointer();
-
                     var descIndexing = new VkPhysicalDeviceDescriptorIndexingFeatures()
                     {
                         sType = VkStructureType.StructureTypePhysicalDeviceDescriptorIndexingFeatures,
@@ -530,21 +530,14 @@ namespace Kokoro.Graphics
                         descriptorBindingUniformTexelBufferUpdateAfterBind = true,
                         descriptorBindingUpdateUnusedWhilePending = true,
                         descriptorBindingPartiallyBound = true,
+                        shaderStorageTexelBufferArrayDynamicIndexing = true,
                         pNext = storageByte_ptr,
                     };
-                    var descIndexing_ptr = descIndexing.Pointer();
-
-                    var shaderDrawParams = new VkPhysicalDeviceShaderDrawParametersFeatures()
-                    {
-                        sType = VkStructureType.StructureTypePhysicalDeviceShaderDrawParametersFeatures,
-                        shaderDrawParameters = true,
-                        pNext = descIndexing_ptr,
-                    };
-                    var shaderDrawParams_ptr = shaderDrawParams.Pointer();
+                    var descIndexing_ptr = descIndexing.Pointer();*/
 
                     //var drawIndirectCount = new VkDrawIndirecCount
 
-                    /*var devFeats12 = new VkPhysicalDeviceVulkan12Features()
+                    var devFeats12 = new VkPhysicalDeviceVulkan12Features()
                     {
                         sType = VkStructureType.StructureTypePhysicalDeviceVulkan12Features,
                         separateDepthStencilLayouts = true,
@@ -563,9 +556,10 @@ namespace Kokoro.Graphics
                         descriptorBindingUniformTexelBufferUpdateAfterBind = true,
                         descriptorBindingUpdateUnusedWhilePending = true,
                         descriptorBindingPartiallyBound = true,
+                        shaderStorageTexelBufferArrayDynamicIndexing = true,
                         pNext = devFeats11_ptr
-                    };*/
-                    //var devFeats12_ptr = devFeats12.Pointer();
+                    };
+                    var devFeats12_ptr = devFeats12.Pointer();
 
                     devExtns.AddRange(requiredDeviceExtns);
                     for (int i = 0; i < optionalExtn_avail.Length; i++)
@@ -587,7 +581,7 @@ namespace Kokoro.Graphics
                         ppEnabledLayerNames = layers,
                         pEnabledFeatures = devFeats_ptr,
                         pQueueCreateInfos = qCreatInfos_ptr,
-                        pNext = shaderDrawParams_ptr
+                        pNext = devFeats12_ptr
                     };
                     var devCreatInfo_ptr = devCreatInfo.Pointer();
                     IntPtr deviceHndl = IntPtr.Zero;
@@ -643,8 +637,8 @@ namespace Kokoro.Graphics
                     }
                     else
                     {
-                        cur_extent.width = Math.Clamp((uint)Window.Width, caps.minImageExtent.width, caps.maxImageExtent.width);
-                        cur_extent.height = Math.Clamp((uint)Window.Height, caps.minImageExtent.height, caps.maxImageExtent.height);
+                        cur_extent.width = System.Math.Clamp((uint)Window.Width, caps.minImageExtent.width, caps.maxImageExtent.width);
+                        cur_extent.height = System.Math.Clamp((uint)Window.Height, caps.minImageExtent.height, caps.maxImageExtent.height);
                     }
 
                     uint img_cnt = caps.minImageCount + 1;

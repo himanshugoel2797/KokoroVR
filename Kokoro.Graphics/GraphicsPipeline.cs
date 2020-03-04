@@ -134,7 +134,7 @@ namespace Kokoro.Graphics
                         depthBiasEnable = false,
                         depthBiasConstantFactor = 0,
                         depthBiasClamp = 0,
-                        depthBiasSlopeFactor = 0
+                        depthBiasSlopeFactor = 0,
                     };
                     var rasterizer_ptr = rasterizer.Pointer();
 
@@ -156,7 +156,10 @@ namespace Kokoro.Graphics
                     {
                         sType = VkStructureType.StructureTypePipelineDepthStencilStateCreateInfo,
                         depthTestEnable = (DepthTest == DepthTest.Always) ? false : true,
-                        depthCompareOp = (VkCompareOp)DepthTest
+                        depthCompareOp = (VkCompareOp)DepthTest,
+                        depthWriteEnable = true,
+                        maxDepthBounds = 1,
+                        minDepthBounds = 0,
                     };
                     var depthStencil_ptr = depthStencil.Pointer();
 

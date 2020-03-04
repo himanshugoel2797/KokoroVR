@@ -12,6 +12,21 @@ namespace Kokoro.Graphics
     public unsafe class GameWindow
     {
         private IntPtr* windowHndl;
+        private string text, fps;
+
+        public string Text
+        {
+            get
+            {
+                return text;
+            }
+            set
+            {
+                text = value;
+                glfwSetWindowTitle(windowHndl, text + fps);
+            }
+        }
+        public bool ShowFPS { get; set; } = true;
         public int Width
         {
             get
@@ -91,6 +106,7 @@ namespace Kokoro.Graphics
                 glfwWindowHint(GlfwClientApi, GlfwNoApi);
                 glfwWindowHint(GlfwResizable, GlfwFalse);
 
+                text = AppName;
                 windowHndl = glfwCreateWindow(1024, 1024, AppName, null, null);
             }
         }
@@ -123,12 +139,13 @@ namespace Kokoro.Graphics
             var prevTime = s.Elapsed.TotalMilliseconds;
             Thread.Sleep(5);
             var sTime = s.Elapsed.TotalMilliseconds;
+            Render(sTime, sTime - prevTime);
             while (!IsExiting)
             {
                 sTime = s.Elapsed.TotalMilliseconds;
                 if (Width != prevWidth | Height != prevHeight)
                 {
-                    Resized(Width, Height);
+                    if(Resized != null)Resized(Width, Height);
                     prevWidth = Width;
                     prevHeight = Height;
                 }
@@ -138,7 +155,12 @@ namespace Kokoro.Graphics
                 if (fps > 0)
                     while ((s.ElapsedMilliseconds - prevTime) < 1000.0f / fps - 0.5f)
                         Thread.Sleep(1);
-                Console.WriteLine("Poll Time: " + (s.Elapsed.TotalMilliseconds - sTime) + "ms");
+                if (ShowFPS)
+                {
+                    this.fps = $" | {s.Elapsed.TotalMilliseconds - sTime}ms";
+                    glfwSetWindowTitle(windowHndl, text + this.fps);
+                    //Console.WriteLine("Poll Time: " + (s.Elapsed.TotalMilliseconds - sTime) + "ms");
+                }
                 prevTime = sTime;
             }
         }

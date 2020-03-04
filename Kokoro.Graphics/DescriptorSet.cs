@@ -11,6 +11,7 @@ namespace Kokoro.Graphics
     {
         public string Name { get; set; }
         public DescriptorPool Pool { get; set; }
+        public DescriptorLayout Layout { get; set; }
         internal IntPtr hndl;
         private int devID;
         private bool locked;
@@ -19,17 +20,17 @@ namespace Kokoro.Graphics
         {
             if (!locked)
             {
-                if (Pool.Layouts.Count == 0 | Pool.PoolEntries.Count == 0)
+                if (Layout.Layouts.Count == 0 | Pool.PoolEntries.Count == 0)
                     return;
 
                 unsafe
                 {
-                    var layout_sets = stackalloc IntPtr[] { Pool.layout_hndl };
+                    var layout_sets = stackalloc IntPtr[] { Layout.hndl };
 
                     var desc_set_alloc_info = new VkDescriptorSetAllocateInfo()
                     {
                         sType = VkStructureType.StructureTypeDescriptorSetAllocateInfo,
-                        descriptorPool = Pool.pool_hndl,
+                        descriptorPool = Pool.hndl,
                         descriptorSetCount = 1,
                         pSetLayouts = layout_sets,
                     };
@@ -76,7 +77,7 @@ namespace Kokoro.Graphics
                 pImageInfo = img_info_ptr,
                 pBufferInfo = IntPtr.Zero,
                 pTexelBufferView = null,
-                descriptorType = (VkDescriptorType)Pool.Layouts[(int)binding].Type
+                descriptorType = (VkDescriptorType)Layout.Layouts[(int)binding].Type
             };
 
             vkUpdateDescriptorSets(GraphicsDevice.GetDeviceInfo(devID).Device, 1, desc_write.Pointer(), 0, null);
@@ -102,7 +103,7 @@ namespace Kokoro.Graphics
                 pImageInfo = img_info_ptr,
                 pBufferInfo = IntPtr.Zero,
                 pTexelBufferView = null,
-                descriptorType = (VkDescriptorType)Pool.Layouts[(int)binding].Type
+                descriptorType = (VkDescriptorType)Layout.Layouts[(int)binding].Type
             };
 
             vkUpdateDescriptorSets(GraphicsDevice.GetDeviceInfo(devID).Device, 1, desc_write.Pointer(), 0, null);
@@ -128,7 +129,7 @@ namespace Kokoro.Graphics
                 pImageInfo = IntPtr.Zero,
                 pBufferInfo = buf_info_ptr,
                 pTexelBufferView = null,
-                descriptorType = (VkDescriptorType)Pool.Layouts[(int)binding].Type
+                descriptorType = (VkDescriptorType)Layout.Layouts[(int)binding].Type
             };
 
             vkUpdateDescriptorSets(GraphicsDevice.GetDeviceInfo(devID).Device, 1, desc_write.Pointer(), 0, null);
@@ -149,7 +150,7 @@ namespace Kokoro.Graphics
                     pImageInfo = IntPtr.Zero,
                     pBufferInfo = IntPtr.Zero,
                     pTexelBufferView = &p_l,
-                    descriptorType = (VkDescriptorType)Pool.Layouts[(int)binding].Type
+                    descriptorType = (VkDescriptorType)Layout.Layouts[(int)binding].Type
                 };
 
                 vkUpdateDescriptorSets(GraphicsDevice.GetDeviceInfo(devID).Device, 1, desc_write.Pointer(), 0, null);

@@ -86,7 +86,7 @@ namespace Kokoro.Graphics
 
                     var descLayouts = stackalloc IntPtr[Descriptors == null ? 0 : Descriptors.Length];
                     if (Descriptors != null) 
-                        for (int i = 0; i < Descriptors.Length; i++) descLayouts[i] = Descriptors[i].Pool.layout_hndl;
+                        for (int i = 0; i < Descriptors.Length; i++) descLayouts[i] = Descriptors[i].Layout.hndl;
                     var pipelineLayoutInfo = new VkPipelineLayoutCreateInfo()
                     {
                         sType = VkStructureType.StructureTypePipelineLayoutCreateInfo,

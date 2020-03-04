@@ -20,7 +20,7 @@ namespace Kokoro.Graphics
         internal VmaAllocationInfo allocInfo { get; private set; }
         internal int devID { get; private set; }
         private bool locked;
-
+        
         public GpuBuffer() { }
 
         public void Build(int device_index)

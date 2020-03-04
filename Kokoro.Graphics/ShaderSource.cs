@@ -23,7 +23,6 @@ namespace Kokoro.Graphics
         //#if DEBUG
         public const string ShaderPath = "I://Code/KokoroVR/Resources/Vulkan/Shaders";
         public const string ShaderPath2 = "Resources/Vulkan/Shaders";
-        public const int BindingCount = 100;
         //#endif
 
         public static ShaderSource Load(ShaderType sType, string file)
@@ -93,19 +92,13 @@ namespace Kokoro.Graphics
                 string preamble = @$"
 #version 450 core
 #extension GL_ARB_separate_shader_objects : enable
+#extension GL_ARB_shader_draw_parameters : enable
 #define MAX_DRAWS_UBO {GraphicsDevice.MaxIndirectDrawsUBO}
 #define MAX_DRAWS_SSBO {GraphicsDevice.MaxIndirectDrawsSSBO}
 #define PI {System.Math.PI}
 #define EYECOUNT {GraphicsDevice.EyeCount}
-#define BASE_BINDING {BindingCount}
 
 ";
-
-                for (int i = 0; i < BindingCount; i++)
-                {
-                    preamble += $"layout(constant_id = {i}) const int Binding{i} = {i + 1};\n";
-                }
-
                 string shaderSrc = preamble + defines;
 
                 shaderSrc += src;
@@ -123,7 +116,7 @@ namespace Kokoro.Graphics
                     ShaderType.VertexShader => "vert",
                     _ => throw new Exception("Unknown shader type")
                 };
-                Process p = Process.Start("glslc", $"--target-env=vulkan1.1 -fshader-stage={shaderStageStr} {Path.ChangeExtension(filename, ".glsl_out")} -o {Path.ChangeExtension(filename, ".spv")}");
+                Process p = Process.Start(@"I:\Dev Tools\glslang-master-windows-x64-Release\bin\glslangvalidator.exe", $"-V110 -S {shaderStageStr} {Path.ChangeExtension(filename, ".glsl_out")} -o {Path.ChangeExtension(filename, ".spv")}");
                 p.WaitForExit();
             }
 
@@ -167,8 +160,6 @@ namespace Kokoro.Graphics
             }
 
             specializationConsts = new List<SpecializationInfo>();
-            for (uint i = 0; i < BindingCount; i++)
-                DefineSpecializationConst(i, i * sizeof(int), sizeof(int));
         }
 
         public void DefineSpecializationConst(uint id, uint offset, ulong sz)

@@ -195,7 +195,7 @@ namespace Kokoro.Graphics
                 {
                     if (set != null && set.hndl != IntPtr.Zero)
                     {
-                        var dyn_cnt = set.Pool.Layouts.Count(a => a.Type == DescriptorType.UniformBufferDynamic);
+                        var dyn_cnt = set.Layout.Layouts.Count(a => a.Type == DescriptorType.UniformBufferDynamic);
                         var ptrs = stackalloc IntPtr[] { set.hndl };
                         var dyn_off = stackalloc uint[dyn_cnt];  //NOTE Added for the 0th binding global uniform buffer
                         for (int i = 0; i < dyn_cnt; i++) dyn_off[i] = 0;

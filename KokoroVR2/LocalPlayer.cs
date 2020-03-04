@@ -24,8 +24,8 @@ namespace KokoroVR2
 
         float leftrightRot = MathHelper.PiOver2;
         float updownRot = -MathHelper.Pi / 10.0f;
-        public float rotationSpeed = 200f;
-        public float moveSpeed = 50000f;
+        public float rotationSpeed = 0.2f;
+        public float moveSpeed = 0.5f;
         Vector2 mousePos;
         Vector3 cameraRotatedUpVector;
 
@@ -80,8 +80,8 @@ namespace KokoroVR2
 
             if (Mouse.ButtonsDown.Left)
             {
-                if (System.Math.Abs(mousePos.X - Mouse.MousePos.X) > 0) leftrightRot -= (float)MathHelper.DegreesToRadians(rotationSpeed * (mousePos.X - Mouse.MousePos.X) * time / 10000f);
-                if (System.Math.Abs(mousePos.Y - Mouse.MousePos.Y) > 0) updownRot -= (float)MathHelper.DegreesToRadians(rotationSpeed * (mousePos.Y - Mouse.MousePos.Y) * time / 10000f);
+                if (System.Math.Abs(mousePos.X - Mouse.MousePos.X) > 0) leftrightRot -= (float)MathHelper.DegreesToRadians(rotationSpeed * (mousePos.X - Mouse.MousePos.X) * time / 1000f);
+                if (System.Math.Abs(mousePos.Y - Mouse.MousePos.Y) > 0) updownRot -= (float)MathHelper.DegreesToRadians(rotationSpeed * (mousePos.Y - Mouse.MousePos.Y) * time / 1000f);
             }
             else
             {
@@ -92,30 +92,30 @@ namespace KokoroVR2
 
             if (Engine.Keyboard.IsKeyDown(ForwardBinding))
             {
-                Position += Direction * (float)(moveSpeed * time / 10000f);
+                Position += Direction * (float)(moveSpeed * time / 1000f);
             }
             else if (Engine.Keyboard.IsKeyDown(BackwardBinding))
             {
-                Position -= Direction * (float)(moveSpeed * time / 10000f);
+                Position -= Direction * (float)(moveSpeed * time / 1000f);
             }
 
             if (Engine.Keyboard.IsKeyDown(LeftBinding))
             {
-                Position -= Right * (float)(moveSpeed * time / 10000f);
+                Position -= Right * (float)(moveSpeed * time / 1000f);
             }
             else if (Engine.Keyboard.IsKeyDown(RightBinding))
             {
-                Position += Right * (float)(moveSpeed * time / 10000f);
+                Position += Right * (float)(moveSpeed * time / 1000f);
             }
 
             //#if DEBUG
             if (Engine.Keyboard.IsKeyDown(DownBinding))
             {
-                Position -= cameraRotatedUpVector * (float)(moveSpeed * time / 10000f);
+                Position += cameraRotatedUpVector * (float)(moveSpeed * time / 1000f);
             }
             else if (Engine.Keyboard.IsKeyDown(UpBinding))
             {
-                Position += cameraRotatedUpVector * (float)(moveSpeed * time / 10000f);
+                Position -= cameraRotatedUpVector * (float)(moveSpeed * time / 1000f);
             }
 
             if (Engine.Keyboard.IsKeyDown(AccelerateBinding))
