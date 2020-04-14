@@ -6,16 +6,14 @@ namespace Kokoro.Graphics
 {
     public class StreamableBuffer
     {
-        private Framegraph graph;
         private bool isDirty;
 
         public GpuBuffer LocalBuffer { get; }
         public GpuBuffer HostBuffer { get; }
         public string Name { get; }
 
-        public StreamableBuffer(string name, Framegraph graph, ulong sz, BufferUsage usage)
+        public StreamableBuffer(string name, ulong sz, BufferUsage usage)
         {
-            this.graph = graph;
             this.Name = name;
             LocalBuffer = new GpuBuffer()
             {
@@ -48,30 +46,15 @@ namespace Kokoro.Graphics
             isDirty = true;
         }
 
-        public void GenerateRenderGraph()
-        {
-            graph.RegisterPass(new BufferUploadPass()
-            {
-                Active = true,
-                SourceBuffer = HostBuffer,
-                DestBuffer = LocalBuffer,
-                DeviceOffset = 0,
-                LocalOffset = 0,
-                Name = Name,
-                Size = HostBuffer.Size
-            });
-        }
-
         public void Update()
         {
             if (isDirty)
             {
-                graph.SetActiveState(Name, true);
                 isDirty = false;
             }
             else
             {
-                graph.SetActiveState(Name, false);
+
             }
         }
     }

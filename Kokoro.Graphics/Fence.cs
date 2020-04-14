@@ -33,7 +33,7 @@ namespace Kokoro.Graphics
                     hndl = hndl_l;
                     this.devID = devID;
 
-                    if (GraphicsDevice.EnableValidation)
+                    if (GraphicsDevice.EnableValidation && Name != null)
                     {
                         var objName = new VkDebugUtilsObjectNameInfoEXT()
                         {

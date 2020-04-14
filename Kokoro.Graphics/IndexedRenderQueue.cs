@@ -22,12 +22,12 @@ namespace Kokoro.Graphics
         public const uint DrawCountOffset = 0;
         public const uint DrawInfoOffset = sizeof(uint) * 4;
 
-        public IndexedRenderQueue(string name, Framegraph graph, int max_cnt, IndexType idxType)
+        public IndexedRenderQueue(string name, int max_cnt, IndexType idxType)
         {
             draws = new List<DrawData>();
             this.idxType = idxType;
             maxDraws = max_cnt;
-            IndirectBuffer = new StreamableBuffer(name, graph, (ulong)(max_cnt * 16 + 4) * sizeof(uint), BufferUsage.Indirect | BufferUsage.Storage);
+            IndirectBuffer = new StreamableBuffer(name, (ulong)(max_cnt * 16 + 4) * sizeof(uint), BufferUsage.Indirect | BufferUsage.Storage);
         }
 
         public void Reset()
@@ -46,11 +46,6 @@ namespace Kokoro.Graphics
                 });
             else
                 throw new Exception("Queue is full!");
-        }
-
-        public void GenerateRenderGraph()
-        {
-            IndirectBuffer.GenerateRenderGraph();
         }
 
         public void Update(Frustum f)

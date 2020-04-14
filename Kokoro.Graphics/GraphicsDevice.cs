@@ -716,9 +716,11 @@ namespace Kokoro.Graphics
                             };
                             swapchainViews[i].Build(swapchainImages[i]);
 
-                            DefaultFramebuffer[i] = new Framebuffer(surface_extent.width, surface_extent.height);
+                            DefaultFramebuffer[i] = new Framebuffer();
+                            DefaultFramebuffer[i].Width = surface_extent.width;
+                            DefaultFramebuffer[i].Height = surface_extent.height;
                             DefaultFramebuffer[i].Name = $"Swapchain_{i}";
-                            DefaultFramebuffer[i][AttachmentKind.ColorAttachment0] = swapchainViews[i];
+                            DefaultFramebuffer[i].ColorAttachments = new ImageView[] { swapchainViews[i] };
                         }
                     }
                     for (int i = 0; i < instLayers.Count; i++)
@@ -770,6 +772,20 @@ namespace Kokoro.Graphics
         {
             vkDeviceWaitIdle(DeviceInformation[devID].Device);
         }
+
+        internal static uint GetFamilyIndex(int devID, CommandQueueKind queue)
+        {
+            var devInfo = GetDeviceInfo(devID);
+            return queue switch
+            {
+                CommandQueueKind.Graphics => devInfo.GraphicsFamily,
+                CommandQueueKind.Compute => devInfo.ComputeFamily,
+                CommandQueueKind.Transfer => devInfo.TransferFamily,
+                CommandQueueKind.Present => devInfo.PresentFamily,
+                CommandQueueKind.Ignored => Vk.VkQueueFamilyIgnored,
+                _ => throw new Exception("Unknown command queue type.")
+            };
+        }
         #endregion
 
         #region Memory Management
@@ -805,14 +821,21 @@ namespace Kokoro.Graphics
         #endregion
 
         #region Submit
-        public static void SubmitGraphicsCommandBuffer(CommandBuffer buffer)
+        public static void SubmitGraphicsCommandBuffer(CommandBuffer buffer, GpuSemaphore waitSem)
         {
-            DeviceInformation[0].GraphicsQueue.SubmitCommandBuffer(buffer, new GpuSemaphore[] {
-                ImageAvailableSemaphore[CurrentFrameNumber]
+            SubmitCommandBuffer(buffer, new GpuSemaphore[] {
+                ImageAvailableSemaphore[CurrentFrameNumber],
+                waitSem
             }, new GpuSemaphore[] {
                 FrameFinishedSemaphore[CurrentFrameNumber]
             },
             InflightFences[CurrentFrameNumber]);
+        }
+
+        public static void SubmitCommandBuffer(CommandBuffer buffer, GpuSemaphore[] waitSems, GpuSemaphore[] signalSems, Fence f)
+        {
+            //Submit to the correct queue and device
+            buffer.cmdPool.queueFam.SubmitCommandBuffer(buffer, waitSems, signalSems, f);
         }
         #endregion
 

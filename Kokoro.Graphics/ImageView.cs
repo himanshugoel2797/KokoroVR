@@ -10,11 +10,15 @@ namespace Kokoro.Graphics
     {
         public string Name { get; set; }
         public ImageFormat Format { get; set; }
+        public ImageLayout Layout { get; set; }
         public ImageViewType ViewType { get; set; }
         public uint BaseLevel { get; set; }
         public uint LevelCount { get; set; }
         public uint BaseLayer { get; set; }
         public uint LayerCount { get; set; }
+        public uint Width { get => parent.Width; }
+        public uint Height { get => parent.Height; }
+        public uint Depth { get => parent.Depth; }
 
         internal IntPtr hndl { get; private set; }
         internal Image parent;
@@ -47,7 +51,6 @@ namespace Kokoro.Graphics
 
                     switch (Format)
                     {
-                        case ImageFormat.Depth16f:
                         case ImageFormat.Depth32f:
                             creatInfo.subresourceRange = new VkImageSubresourceRange()
                             {
@@ -82,7 +85,7 @@ namespace Kokoro.Graphics
                             throw new Exception("Failed to create view.");
                     }
 
-                    if (GraphicsDevice.EnableValidation)
+                    if (GraphicsDevice.EnableValidation && Name != null)
                     {
                         var objName = new VkDebugUtilsObjectNameInfoEXT()
                         {

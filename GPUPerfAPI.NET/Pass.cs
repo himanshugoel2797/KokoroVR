@@ -23,12 +23,16 @@ namespace GPUPerfAPI.NET
         {
             SampleIndex++;
             IsSampling = true;
-            Binding.BeginSampleGPA((uint)SampleIndex, list_id);
+            var ret = Binding.BeginSampleGPA((uint)SampleIndex, list_id);
+            if (ret != 0)
+                throw new Exception("GPA Failed.");
         }
 
         public void EndSample()
         {
-            Binding.EndSampleGPA(list_id);
+            var ret = Binding.EndSampleGPA(list_id);
+            if (ret != 0)
+                throw new Exception("GPA Failed.");
             IsSampling = false;
         }
 

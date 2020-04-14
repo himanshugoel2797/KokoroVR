@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Kokoro.Graphics.Framegraph;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -8,6 +9,7 @@ namespace Kokoro.Graphics.VulkanTest
 {
     class Program
     {
+        static FrameGraph graph;
         static void Main(string[] args)
         {
             GraphicsDevice.AppName = "Vulkan Test";
@@ -15,9 +17,68 @@ namespace Kokoro.Graphics.VulkanTest
             GraphicsDevice.RebuildShaders = true;
             GraphicsDevice.Init();
 
-            ShaderSource vert = ShaderSource.Load(ShaderType.VertexShader, "FullScreenTriangle/vertex.glsl");
-            ShaderSource frag = ShaderSource.Load(ShaderType.FragmentShader, "UVRenderer/fragment.glsl");
+            graph = new FrameGraph(0);
 
+            var vertS = new SpecializedShader()
+            {
+                Name = "FST_Vert",
+                Shader = ShaderSource.Load(ShaderType.VertexShader, "FullScreenTriangle/vertex.glsl"),
+                SpecializationData = null
+            };
+
+            var fragS = new SpecializedShader()
+            {
+                Name = "UVR_Frag",
+                Shader = ShaderSource.Load(ShaderType.FragmentShader, "UVRenderer/fragment.glsl"),
+                SpecializationData = null,
+            };
+
+            graph.TryRegisterShader(vertS);
+            graph.TryRegisterShader(fragS);
+
+            for (int i = 0; i < GraphicsDevice.MaxFramesInFlight; i++) {
+                var out_img = GraphicsDevice.DefaultFramebuffer[i].ColorAttachments[0];
+                graph.TryRegisterResource(out_img);
+            }
+
+            var gpass = new GraphicsPass()
+            {
+                Name = "main_pass",
+                Shaders = new string[] { vertS.Name, fragS.Name },
+                ViewportWidth = GraphicsDevice.Width,
+                ViewportHeight = GraphicsDevice.Height,
+                ViewportDynamic = false,
+                DepthWriteEnable = false,
+                CullMode = CullMode.None,
+                RenderLayout = new RenderLayout()
+                {
+                    Color = new RenderLayoutEntry[]
+                    {
+                        new RenderLayoutEntry()
+                        {
+                            DesiredLayout = ImageLayout.ColorAttachmentOptimal,
+                            FirstLoadStage = PipelineStage.ColorAttachOut,
+                            Format = GraphicsDevice.DefaultFramebuffer[GraphicsDevice.CurrentFrameID].ColorAttachments[0].Format,
+                            LastStoreStage = PipelineStage.ColorAttachOut,
+                            LoadOp = AttachmentLoadOp.DontCare,
+                            StoreOp = AttachmentStoreOp.Store,
+                        },
+                    },
+                    Depth = null,
+                },
+                DescriptorSetup = new DescriptorSetup()
+                {
+                    Descriptors = null,
+                    PushConstants = null,
+                },                
+            };
+            graph.TryRegisterGraphicsPass(gpass);
+            graph.GatherDescriptors();
+
+            GraphicsDevice.Window.Render += Window_Render;
+            GraphicsDevice.Window.Run(60);
+
+            /*
             var fbuf = new Framegraph(0);
             fbuf.RegisterAttachment(new AttachmentInfo()
             {
@@ -85,7 +146,37 @@ namespace Kokoro.Graphics.VulkanTest
             {
                 fbuf.Execute(true);
                 GraphicsDevice.Window.PollEvents();
-            }
+            }*/
+        }
+
+        private static void Window_Render(double time_ms, double delta_ms)
+        {
+            //Acquire the frame
+            GraphicsDevice.AcquireFrame();
+
+            graph.QueueOp(new GpuOp()
+            {
+                ColorAttachments = new string[] { GraphicsDevice.DefaultFramebuffer[GraphicsDevice.CurrentFrameID].ColorAttachments[0].Name },
+                DepthAttachment = null,
+                PassName = "main_pass",
+                Resources = new GpuResourceRequest[]
+                {
+                    new GpuResourceRequest()
+                    {
+                        Name = GraphicsDevice.DefaultFramebuffer[GraphicsDevice.CurrentFrameID].ColorAttachments[0].Name,
+                        Accesses = AccessFlags.None,
+                        DesiredLayout = ImageLayout.Undefined,
+                        FirstLoadStage = PipelineStage.ColorAttachOut,
+                        LastStoreStage = PipelineStage.ColorAttachOut,
+                        Stores = AccessFlags.ColorAttachmentWrite,
+                    }
+                },
+                Cmd = GpuCmd.Draw,
+                VertexCount = 3,
+            });
+
+            graph.Build();
+            GraphicsDevice.PresentFrame();
         }
     }
 }

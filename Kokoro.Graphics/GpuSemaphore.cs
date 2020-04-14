@@ -55,7 +55,7 @@ namespace Kokoro.Graphics
                     hndl = semaphorePtr_l;
                     devID = deviceIndex;
 
-                    if (GraphicsDevice.EnableValidation)
+                    if (GraphicsDevice.EnableValidation && Name != null)
                     {
                         var objName = new VkDebugUtilsObjectNameInfoEXT()
                         {

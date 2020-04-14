@@ -150,7 +150,7 @@ namespace Kokoro.Graphics
                     prevHeight = Height;
                 }
                 PollEvents();
-                Update(sTime, sTime - prevTime);
+                if(Update != null)Update(sTime, sTime - prevTime);
                 Render(sTime, sTime - prevTime);
                 if (fps > 0)
                     while ((s.ElapsedMilliseconds - prevTime) < 1000.0f / fps - 0.5f)

@@ -6,47 +6,19 @@ using static VulkanSharp.Raw.Vk;
 
 namespace Kokoro.Graphics
 {
-    public enum AttachmentKind
-    {
-        ColorAttachment0,
-        ColorAttachment1,
-        ColorAttachment2,
-        ColorAttachment3,
-        ColorAttachment4,
-        ColorAttachment5,
-        ColorAttachment6,
-        ColorAttachment7,
-        ColorAttachment8,
-        ColorAttachment9,
-        DepthAttachment = 1024,
-    }
     public class Framebuffer
     {
         public string Name { get; set; }
-        public uint Width { get; private set; }
-        public uint Height { get; private set; }
-        public IDictionary<AttachmentKind, ImageView> Attachments { get; }
+        public uint Width { get; set; }
+        public uint Height { get; set; }
+        public ImageView[] ColorAttachments { get; set; }
+        public ImageView DepthAttachment { get; set; }
         public RenderPass RenderPass { get; set; }
         internal IntPtr hndl;
         private bool locked;
 
-        public Framebuffer(uint w, uint h)
+        public Framebuffer()
         {
-            Attachments = new Dictionary<AttachmentKind, ImageView>();
-            Width = w;
-            Height = h;
-        }
-
-        public ImageView this[AttachmentKind attachment]
-        {
-            set
-            {
-                Attachments[attachment] = value;
-            }
-            get
-            {
-                return Attachments[attachment];
-            }
         }
 
         public void Build(int deviceIndex)
@@ -56,18 +28,24 @@ namespace Kokoro.Graphics
                 unsafe
                 {
                     //Setup framebuffer
-                    uint attachmentCnt = (uint)Attachments.Count;
-                    var attachmentIndices = Attachments.Keys.OrderBy(a => a).ToArray();
-                    var attachments = stackalloc IntPtr[(int)attachmentCnt];
-                    if (Attachments.ContainsKey(AttachmentKind.DepthAttachment))
-                        attachments[attachmentCnt - 1] = Attachments[AttachmentKind.DepthAttachment].hndl;
-                    for (int i = 0; i < attachmentCnt; i++)
-                        attachments[i] = Attachments[attachmentIndices[i]].hndl;
+                    var attachmentCnt = (ColorAttachments == null ? 0 : ColorAttachments.Length) + (DepthAttachment == null ? 0 : 1);
+                    var attachments = stackalloc IntPtr[attachmentCnt];
+                    if (ColorAttachments != null)
+                        for (int i = 0; i < ColorAttachments.Length; i++)
+                        {
+                            attachments[i] = ColorAttachments[i].hndl;
+                            if (ColorAttachments[i].Width != Width)
+                                throw new Exception();
+                            if (ColorAttachments[i].Height != Height)
+                                throw new Exception();
+                        }
+                    if (DepthAttachment != null)
+                        attachments[attachmentCnt - 1] = DepthAttachment.hndl;
 
                     var framebufferInfo = new VkFramebufferCreateInfo()
                     {
                         sType = VkStructureType.StructureTypeFramebufferCreateInfo,
-                        attachmentCount = attachmentCnt,
+                        attachmentCount = (uint)attachmentCnt,
                         pAttachments = attachments,
                         renderPass = RenderPass.hndl,
                         width = Width,

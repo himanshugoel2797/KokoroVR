@@ -9,6 +9,7 @@ namespace Kokoro.Graphics
     public class CommandBuffer : IDisposable
     {
         public string Name { get; set; }
+        public bool IsRecording { get; private set; }
 
         internal IntPtr hndl;
         internal CommandPool cmdPool;
@@ -61,6 +62,7 @@ namespace Kokoro.Graphics
         {
             if (locked)
             {
+                IsRecording = false;
                 vkResetCommandBuffer(hndl, 0);
             }
             else
@@ -80,6 +82,8 @@ namespace Kokoro.Graphics
 
                 if (vkBeginCommandBuffer(hndl, beginInfo.Pointer()) != VkResult.Success)
                     throw new Exception("Failed to begin recording command buffer.");
+
+                IsRecording = true;
             }
             else
                 throw new Exception("Command buffer not built.");
@@ -91,6 +95,8 @@ namespace Kokoro.Graphics
             {
                 if (vkEndCommandBuffer(hndl) != VkResult.Success)
                     throw new Exception("Failed to end recording command buffer.");
+
+                IsRecording = false;
             }
             else
                 throw new Exception("Command buffer not built.");
@@ -120,15 +126,16 @@ namespace Kokoro.Graphics
         #endregion
 
         #region Render Pass
-        public void SetPipeline(GraphicsPipeline pipeline, float depthClearVal)
+        public void SetPipeline(GraphicsPipeline pipeline, Framebuffer framebuffer, float depthClearVal)
         {
             if (locked)
             {
                 unsafe
                 {
                     //var clearVal_arr = new VkClearValue[pipeline.Framebuffer.Attachments.Count];
-                    var clearVal_ptrs = stackalloc float[pipeline.Framebuffer.Attachments.Count * 4];
-                    for (int i = 0; i < pipeline.Framebuffer.Attachments.Count * 4; i++)
+                    var clearVal_len = (framebuffer.ColorAttachments == null ? 0 : framebuffer.ColorAttachments.Length) * 4 + (framebuffer.DepthAttachment == null ? 0 : 4);
+                    var clearVal_ptrs = stackalloc float[clearVal_len];
+                    for (int i = 0; i < clearVal_len; i++)
                     {
                         clearVal_ptrs[i] = 0;
                     }
@@ -137,7 +144,7 @@ namespace Kokoro.Graphics
                     {
                         sType = VkStructureType.StructureTypeRenderPassBeginInfo,
                         renderPass = pipeline.RenderPass.hndl,
-                        framebuffer = pipeline.Framebuffer.hndl,
+                        framebuffer = framebuffer.hndl,
                         renderArea = new VkRect2D()
                         {
                             offset = new VkOffset2D()
@@ -147,11 +154,11 @@ namespace Kokoro.Graphics
                             },
                             extent = new VkExtent2D()
                             {
-                                width = pipeline.Framebuffer.Width,
-                                height = pipeline.Framebuffer.Height
+                                width = framebuffer.Width,
+                                height = framebuffer.Height
                             }
                         },
-                        clearValueCount = (uint)pipeline.Framebuffer.Attachments.Count,
+                        clearValueCount = (uint)clearVal_len / 4,
                         pClearValues = (IntPtr)clearVal_ptrs,
                     };
                     vkCmdBeginRenderPass(hndl, beginInfo.Pointer(), VkSubpassContents.SubpassContentsInline);
@@ -220,17 +227,70 @@ namespace Kokoro.Graphics
                     size = len
                 };
                 vkCmdCopyBuffer(hndl, src.hndl, dst.hndl, 1, bufCopy.Pointer());
-                vkCmdPipelineBarrier(hndl, VkPipelineStageFlags.PipelineStageTransferBit, VkPipelineStageFlags.PipelineStageAllCommandsBit, VkDependencyFlags.DependencyByRegionBit, 0, null, 1, new VkBufferMemoryBarrier()
+                /*vkCmdPipelineBarrier(hndl, VkPipelineStageFlags.PipelineStageTransferBit, VkPipelineStageFlags.PipelineStageAllCommandsBit, 0, 0, null, 1, new VkBufferMemoryBarrier()
                 {
                     sType = VkStructureType.StructureTypeBufferMemoryBarrier,
                     buffer = dst.hndl,
                     offset = dst_off,
                     srcAccessMask = VkAccessFlags.AccessTransferWriteBit,
-                    dstAccessMask = VkAccessFlags.AccessMemoryReadBit,
-                    srcQueueFamilyIndex = VkQueueFamilyIgnored,
+                    dstAccessMask = 0,
+                    srcQueueFamilyIndex = cmdPool.queueFamily,
                     dstQueueFamilyIndex = VkQueueFamilyIgnored,
                     size = len,
-                }.Pointer(), 0, null);
+                }.Pointer(), 0, null);*/
+            }
+            else
+                throw new Exception("Command buffer not built.");
+        }
+
+        public void Barrier(PipelineStage srcStage, PipelineStage dstStage, BufferMemoryBarrier[] bufferBarriers, ImageMemoryBarrier[] imageBarriers)
+        {
+            if (locked)
+            {
+                var bufferBarrier = new VkBufferMemoryBarrier[bufferBarriers == null ? 0 : bufferBarriers.Length];
+                if(bufferBarriers != null)
+                    for(int i = 0; i < bufferBarrier.Length; i++)
+                    {
+                        bufferBarrier[i] = new VkBufferMemoryBarrier()
+                        {
+                            sType = VkStructureType.StructureTypeBufferMemoryBarrier,
+                            buffer = bufferBarriers[i].Buffer.hndl,
+                            srcQueueFamilyIndex = GraphicsDevice.GetFamilyIndex(devID, bufferBarriers[i].SrcFamily),
+                            dstQueueFamilyIndex = GraphicsDevice.GetFamilyIndex(devID, bufferBarriers[i].DstFamily),
+                            srcAccessMask = (VkAccessFlags)bufferBarriers[i].Accesses,
+                            dstAccessMask = (VkAccessFlags)bufferBarriers[i].Stores,
+                            offset = bufferBarriers[i].Offset,
+                            size = bufferBarriers[i].Size,
+                        };
+                    }
+
+                var imageBarrier = new VkImageMemoryBarrier[imageBarriers == null ? 0 : imageBarriers.Length];
+                if (imageBarriers != null)
+                    for (int i = 0; i < imageBarrier.Length; i++)
+                    {
+                        imageBarrier[i] = new VkImageMemoryBarrier()
+                        {
+                            sType = VkStructureType.StructureTypeImageMemoryBarrier,
+                            oldLayout = (VkImageLayout)imageBarriers[i].OldLayout,
+                            newLayout = (VkImageLayout)imageBarriers[i].NewLayout,
+                            image = imageBarriers[i].Image.hndl,
+                            srcQueueFamilyIndex = GraphicsDevice.GetFamilyIndex(devID, imageBarriers[i].SrcFamily),
+                            dstQueueFamilyIndex = GraphicsDevice.GetFamilyIndex(devID, imageBarriers[i].DstFamily),
+                            srcAccessMask = (VkAccessFlags)imageBarriers[i].Accesses,
+                            dstAccessMask = (VkAccessFlags)imageBarriers[i].Stores,
+                            subresourceRange = new VkImageSubresourceRange()
+                            {
+                                aspectMask = (imageBarriers[i].Image.Format == ImageFormat.Depth32f ? VkImageAspectFlags.ImageAspectDepthBit : VkImageAspectFlags.ImageAspectColorBit),
+                                baseArrayLayer = imageBarriers[i].BaseArrayLayer,
+                                baseMipLevel = imageBarriers[i].BaseMipLevel,
+                                layerCount = imageBarriers[i].LayerCount,
+                                levelCount = imageBarriers[i].LevelCount,
+                            },
+                        };
+                    }
+                var imageBarrier_ptr = imageBarrier.Pointer();
+                var bufferBarrier_ptr = bufferBarrier.Pointer();
+                vkCmdPipelineBarrier(hndl, (VkPipelineStageFlags)srcStage, (VkPipelineStageFlags)dstStage, 0, 0, IntPtr.Zero, (uint)bufferBarrier.Length, bufferBarrier_ptr, (uint)imageBarrier.Length, imageBarrier_ptr);
             }
             else
                 throw new Exception("Command buffer not built.");
@@ -357,7 +417,12 @@ namespace Kokoro.Graphics
                 // TODO: set large fields to null.
                 if (locked)
                 {
-                    throw new NotImplementedException("Figure out how to handle command buffer resets");
+                    unsafe
+                    {
+                        IntPtr buf_hndl = hndl;
+                        vkFreeCommandBuffers(GraphicsDevice.GetDeviceInfo(devID).Device, cmdPool.hndl, 1, &buf_hndl);
+                    }
+                    //throw new NotImplementedException("Figure out how to handle command buffer resets");
                 }
 
                 disposedValue = true;

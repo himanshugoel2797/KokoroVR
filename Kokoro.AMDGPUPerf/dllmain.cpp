@@ -1,6 +1,7 @@
 // dllmain.cpp : Defines the entry point for the DLL application.
 #include "framework.h"
 #include "GPAInterfaceLoader.h"
+#include <stdio.h>
 
 BOOL APIENTRY DllMain(HMODULE hModule,
 	DWORD  ul_reason_for_call,
@@ -25,6 +26,10 @@ GPA_ContextId contextId;
 GPAFunctionTable* gpaFuncTable = nullptr;
 GPAFuncTableInfo* g_pFuncTableInfo = nullptr;
 
+static void Logger(GPA_Logging_Type msgType, const char* msg) {
+	printf(msg);
+}
+
 FEXPORT bool InitializeGPA() {
 	bool retVal = false;
 
@@ -34,6 +39,7 @@ FEXPORT bool InitializeGPA() {
 		if (gpaFuncTable != nullptr) {
 			retVal = GPA_STATUS_OK == gpaFuncTable->GPA_Initialize(GPA_INITIALIZE_DEFAULT_BIT);
 		}
+		gpaFuncTable->GPA_RegisterLoggingCallback(GPA_LOGGING_ALL, &Logger);
 	}
 	return retVal;
 }

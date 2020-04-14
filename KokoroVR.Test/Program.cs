@@ -1,4 +1,5 @@
 ﻿using Kokoro.Graphics;
+using Kokoro.Graphics.Profiling;
 using Kokoro.Math;
 using KokoroVR.Graphics;
 using KokoroVR.Graphics.Voxel;
@@ -17,8 +18,9 @@ namespace KokoroVR.Test
         static void Main()
         {
             Engine.Initialize(ExperienceKind.Standing);
-            Engine.LogMetrics = false;
-            Engine.LogAMDMetrics = false;
+            //Engine.LogMetrics = false;
+            //Engine.LogAMDMetrics = false;
+            //PerfAPI.MetricsEnabled = true;
             //For ray tracing, store 32x32x32 cubemaps with direct 
             var w = new VoxelWorld("TestWorld", 10);
             Engine.AddWorld(w);

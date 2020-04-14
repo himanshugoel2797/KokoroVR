@@ -2,10 +2,15 @@
 using System;
 using System.Collections.Generic;
 using System.Text;
-using Valve.VR.Internal;
 
 namespace KokoroVR
 {
+    public enum EVREye
+    {
+        Eye_Left = 0,
+        Eye_Right = 1
+    }
+
     public class VRHand
     {
         public static readonly VRHand Left = new VRHand(0);
@@ -154,7 +159,7 @@ namespace KokoroVR
 
         public float TimeOffset { get; private set; }
 
-        internal PoseData(HmdMatrix34_t mat, bool hmd, float timeOff, HmdVector3_t vel, HmdVector3_t angular_vel, ulong origin)
+        /*internal PoseData(HmdMatrix34_t mat, bool hmd, float timeOff, HmdVector3_t vel, HmdVector3_t angular_vel, ulong origin)
         {
             PoseMatrix = new Matrix4(mat.m0, mat.m4, mat.m8, 0,
                mat.m1, mat.m5, mat.m9, 0,
@@ -174,6 +179,6 @@ namespace KokoroVR
 
             ActiveOrigin = origin;
             TimeOffset = timeOff;
-        }
+        }*/
     }
 }

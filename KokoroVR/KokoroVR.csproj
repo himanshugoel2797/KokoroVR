@@ -19,10 +19,9 @@
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="..\Kokoro.Common\Kokoro.Common.csproj" />
-    <ProjectReference Include="..\Kokoro.Graphics\Kokoro.Graphics.csproj" />
+    <ProjectReference Include="..\Kokoro.GraphicsOLD\Kokoro.GraphicsOLD.csproj" />
     <ProjectReference Include="..\Kokoro.Math\Kokoro.Math.csproj" />
     <ProjectReference Include="..\Kokoro.Physics\Kokoro.Physics.csproj" />
-    <ProjectReference Include="..\Valve.VR\Valve.VR.csproj" />
   </ItemGroup>
   <ItemGroup>
     <Folder Include="Network\" />

@@ -45,16 +45,24 @@ namespace Kokoro.Graphics
                 var waitSemaphoreVals = stackalloc ulong[waitSems.Length];
                 var signalSemaphoreVals = stackalloc ulong[signalSems.Length];
 
+                bool hasTimeline = false;
+
                 for (int i = 0; i < waitSems.Length; i++)
                 {
-                    waitSemaphoreVals[i] = GraphicsDevice.CurrentFrameCount;
+                    waitSemaphoreVals[i] = waitSems[i].timeline ? GraphicsDevice.CurrentFrameCount : 1;
                     waitSemaphores[i] = waitSems[i].hndl;
+
+                    if (waitSems[i].timeline)
+                        hasTimeline = true;
                 }
 
                 for (int i = 0; i < signalSems.Length; i++)
                 {
-                    signalSemaphoreVals[i] = GraphicsDevice.CurrentFrameCount + 1;
+                    signalSemaphoreVals[i] = signalSems[i].timeline ? GraphicsDevice.CurrentFrameCount + 1 : 0;
                     signalSemaphores[i] = signalSems[i].hndl;
+
+                    if (signalSems[i].timeline)
+                        hasTimeline = true;
                 }
 
                 var waitStages = stackalloc VkPipelineStageFlags[waitSems.Length];
@@ -83,7 +91,7 @@ namespace Kokoro.Graphics
                     pCommandBuffers = cmdBuffers,
                     signalSemaphoreCount = (uint)signalSems.Length,
                     pSignalSemaphores = signalSemaphores,
-                    pNext = timelineSems_ptr
+                    pNext = hasTimeline ? timelineSems_ptr : IntPtr.Zero
                 };
                 var ptr = submitInfo.Pointer();
                 if (vkQueueSubmit(Handle, 1, ptr, fence == null ? IntPtr.Zero : fence.hndl) != VkResult.Success)

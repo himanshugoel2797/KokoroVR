@@ -13,7 +13,6 @@ namespace Kokoro.Graphics
         B8G8R8A8Snorm = VkFormat.FormatB8g8r8a8Snorm,
         R8G8B8A8UInt = VkFormat.FormatR8g8b8a8Uint,
         Depth32f = VkFormat.FormatD32Sfloat,
-        Depth16f = VkFormat.FormatD16Unorm,
         R32f = VkFormat.FormatR32Sfloat,
         R32UInt = VkFormat.FormatR32Uint,
         Rg32f = VkFormat.FormatR32g32Sfloat,

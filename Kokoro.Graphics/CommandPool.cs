@@ -55,7 +55,7 @@ namespace Kokoro.Graphics
                     hndl = commandPoolPtr_l;
                     devID = device_index;
 
-                    if (GraphicsDevice.EnableValidation)
+                    if (GraphicsDevice.EnableValidation && Name != null)
                     {
                         var objName = new VkDebugUtilsObjectNameInfoEXT()
                         {
@@ -71,6 +71,16 @@ namespace Kokoro.Graphics
             }
             else
                 throw new Exception("CommandPool is locked.");
+        }
+
+        public void Reset()
+        {
+            if (locked)
+            {
+                vkResetCommandPool(GraphicsDevice.GetDeviceInfo(devID).Device, hndl, VkCommandPoolResetFlags.CommandPoolResetReleaseResourcesBit);
+            }
+            else
+                throw new Exception("CommandPool not built.");
         }
 
         #region IDisposable Support

@@ -2,112 +2,12 @@
 
 #version 450 core
 #extension GL_ARB_separate_shader_objects : enable
+#extension GL_ARB_shader_draw_parameters : enable
 #define MAX_DRAWS_UBO 256
 #define MAX_DRAWS_SSBO 1024
 #define PI 3.141592653589793
 #define EYECOUNT 1
-#define BASE_BINDING 100
 
-layout(constant_id = 0) const int Binding0 = 1;
-layout(constant_id = 1) const int Binding1 = 2;
-layout(constant_id = 2) const int Binding2 = 3;
-layout(constant_id = 3) const int Binding3 = 4;
-layout(constant_id = 4) const int Binding4 = 5;
-layout(constant_id = 5) const int Binding5 = 6;
-layout(constant_id = 6) const int Binding6 = 7;
-layout(constant_id = 7) const int Binding7 = 8;
-layout(constant_id = 8) const int Binding8 = 9;
-layout(constant_id = 9) const int Binding9 = 10;
-layout(constant_id = 10) const int Binding10 = 11;
-layout(constant_id = 11) const int Binding11 = 12;
-layout(constant_id = 12) const int Binding12 = 13;
-layout(constant_id = 13) const int Binding13 = 14;
-layout(constant_id = 14) const int Binding14 = 15;
-layout(constant_id = 15) const int Binding15 = 16;
-layout(constant_id = 16) const int Binding16 = 17;
-layout(constant_id = 17) const int Binding17 = 18;
-layout(constant_id = 18) const int Binding18 = 19;
-layout(constant_id = 19) const int Binding19 = 20;
-layout(constant_id = 20) const int Binding20 = 21;
-layout(constant_id = 21) const int Binding21 = 22;
-layout(constant_id = 22) const int Binding22 = 23;
-layout(constant_id = 23) const int Binding23 = 24;
-layout(constant_id = 24) const int Binding24 = 25;
-layout(constant_id = 25) const int Binding25 = 26;
-layout(constant_id = 26) const int Binding26 = 27;
-layout(constant_id = 27) const int Binding27 = 28;
-layout(constant_id = 28) const int Binding28 = 29;
-layout(constant_id = 29) const int Binding29 = 30;
-layout(constant_id = 30) const int Binding30 = 31;
-layout(constant_id = 31) const int Binding31 = 32;
-layout(constant_id = 32) const int Binding32 = 33;
-layout(constant_id = 33) const int Binding33 = 34;
-layout(constant_id = 34) const int Binding34 = 35;
-layout(constant_id = 35) const int Binding35 = 36;
-layout(constant_id = 36) const int Binding36 = 37;
-layout(constant_id = 37) const int Binding37 = 38;
-layout(constant_id = 38) const int Binding38 = 39;
-layout(constant_id = 39) const int Binding39 = 40;
-layout(constant_id = 40) const int Binding40 = 41;
-layout(constant_id = 41) const int Binding41 = 42;
-layout(constant_id = 42) const int Binding42 = 43;
-layout(constant_id = 43) const int Binding43 = 44;
-layout(constant_id = 44) const int Binding44 = 45;
-layout(constant_id = 45) const int Binding45 = 46;
-layout(constant_id = 46) const int Binding46 = 47;
-layout(constant_id = 47) const int Binding47 = 48;
-layout(constant_id = 48) const int Binding48 = 49;
-layout(constant_id = 49) const int Binding49 = 50;
-layout(constant_id = 50) const int Binding50 = 51;
-layout(constant_id = 51) const int Binding51 = 52;
-layout(constant_id = 52) const int Binding52 = 53;
-layout(constant_id = 53) const int Binding53 = 54;
-layout(constant_id = 54) const int Binding54 = 55;
-layout(constant_id = 55) const int Binding55 = 56;
-layout(constant_id = 56) const int Binding56 = 57;
-layout(constant_id = 57) const int Binding57 = 58;
-layout(constant_id = 58) const int Binding58 = 59;
-layout(constant_id = 59) const int Binding59 = 60;
-layout(constant_id = 60) const int Binding60 = 61;
-layout(constant_id = 61) const int Binding61 = 62;
-layout(constant_id = 62) const int Binding62 = 63;
-layout(constant_id = 63) const int Binding63 = 64;
-layout(constant_id = 64) const int Binding64 = 65;
-layout(constant_id = 65) const int Binding65 = 66;
-layout(constant_id = 66) const int Binding66 = 67;
-layout(constant_id = 67) const int Binding67 = 68;
-layout(constant_id = 68) const int Binding68 = 69;
-layout(constant_id = 69) const int Binding69 = 70;
-layout(constant_id = 70) const int Binding70 = 71;
-layout(constant_id = 71) const int Binding71 = 72;
-layout(constant_id = 72) const int Binding72 = 73;
-layout(constant_id = 73) const int Binding73 = 74;
-layout(constant_id = 74) const int Binding74 = 75;
-layout(constant_id = 75) const int Binding75 = 76;
-layout(constant_id = 76) const int Binding76 = 77;
-layout(constant_id = 77) const int Binding77 = 78;
-layout(constant_id = 78) const int Binding78 = 79;
-layout(constant_id = 79) const int Binding79 = 80;
-layout(constant_id = 80) const int Binding80 = 81;
-layout(constant_id = 81) const int Binding81 = 82;
-layout(constant_id = 82) const int Binding82 = 83;
-layout(constant_id = 83) const int Binding83 = 84;
-layout(constant_id = 84) const int Binding84 = 85;
-layout(constant_id = 85) const int Binding85 = 86;
-layout(constant_id = 86) const int Binding86 = 87;
-layout(constant_id = 87) const int Binding87 = 88;
-layout(constant_id = 88) const int Binding88 = 89;
-layout(constant_id = 89) const int Binding89 = 90;
-layout(constant_id = 90) const int Binding90 = 91;
-layout(constant_id = 91) const int Binding91 = 92;
-layout(constant_id = 92) const int Binding92 = 93;
-layout(constant_id = 93) const int Binding93 = 94;
-layout(constant_id = 94) const int Binding94 = 95;
-layout(constant_id = 95) const int Binding95 = 96;
-layout(constant_id = 96) const int Binding96 = 97;
-layout(constant_id = 97) const int Binding97 = 98;
-layout(constant_id = 98) const int Binding98 = 99;
-layout(constant_id = 99) const int Binding99 = 100;
 layout(location = 0) out vec2 uv;
 
 vec2 positions[3] = vec2[](

@@ -13,7 +13,7 @@ namespace Kokoro.Graphics
         public ulong Size { get; set; }
 
         internal IntPtr hndl { get; private set; }
-        private GpuBuffer parent;
+        internal GpuBuffer parent;
         private int devID;
         private bool locked;
 
@@ -42,7 +42,7 @@ namespace Kokoro.Graphics
                     parent = buf;
                     devID = buf.devID;
 
-                    if (GraphicsDevice.EnableValidation)
+                    if (GraphicsDevice.EnableValidation && Name != null)
                     {
                         var objName = new VkDebugUtilsObjectNameInfoEXT()
                         {

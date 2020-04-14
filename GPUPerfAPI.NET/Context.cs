@@ -11,6 +11,7 @@ namespace GPUPerfAPI.NET
         public static void Initialize()
         {
             var res = Binding.InitializeGPA();
+            if (!res) throw new Exception("Failed to initialize GPA.");
         }
 
         public Context(IntPtr hndl)

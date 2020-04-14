@@ -11,7 +11,7 @@ namespace KokoroVR2
         public static string AppName { get => GraphicsDevice.AppName; set => GraphicsDevice.AppName = value; }
         public static bool EnableValidation { get => GraphicsDevice.EnableValidation; set => GraphicsDevice.EnableValidation = value; }
         public static bool RebuildShaders { get => GraphicsDevice.RebuildShaders; set => GraphicsDevice.RebuildShaders = value; }
-        public static Framegraph Graph { get; private set; }
+        public static DescriptorPool DescriptorPool { get; private set; }
         public static uint Width { get => GraphicsDevice.Width; }
         public static uint Height { get => GraphicsDevice.Height; }
         public static GameWindow Window { get => GraphicsDevice.Window; }
@@ -21,10 +21,9 @@ namespace KokoroVR2
         public static Frustum Frustum { get; set; }
         public static LocalPlayer CurrentPlayer { get; private set; }
         public static DeferredRenderer DeferredRenderer { get; set; }
-        public static GpuBuffer GlobalParameters { get => Graph.GlobalParameters; }
+        public static GpuBuffer GlobalParameters { get; private set; }
         public static GpuBuffer GlobalParametersStaging { get; private set; }
         public static Keyboard Keyboard { get; set; }
-        public static bool RebuildGraph { get; set; }
 
         public delegate void FrameHandler(double time_ms, double delta_ms);
         public static event FrameHandler OnRebuildGraph;
@@ -34,15 +33,13 @@ namespace KokoroVR2
         {
             GraphicsDevice.EngineName = $"KokoroVR2";
             GraphicsDevice.Init();
-            Graph = new Framegraph(0);
-            RebuildGraph = true;
 
             GlobalParametersStaging = new GpuBuffer()
             {
-                Name = Graph.GlobalParametersName + "_Local",
+                Name = "GlobalParameters_Local",
                 Mapped = true,
                 MemoryUsage = MemoryUsage.CpuOnly,
-                Size = Graph.GlobalParametersLength,
+                Size = 4096,    //TODO adjust this
                 Usage = BufferUsage.TransferSrc
             };
             GlobalParametersStaging.Build(0);
@@ -57,6 +54,7 @@ namespace KokoroVR2
             PrevView = Matrix4.LookAt(CurrentPlayer.Position, Vector3.Zero, Vector3.UnitY);
             Frustum = new Frustum(Matrix4.LookAt(CurrentPlayer.Position, Vector3.Zero, Vector3.UnitY), Projection, CurrentPlayer.Position);
             DeferredRenderer = new DeferredRenderer();
+
         }
 
         private static void UpdateParams()
@@ -135,34 +133,12 @@ namespace KokoroVR2
 
         public static void Reset()
         {
-            RebuildGraph = true;
-            Graph.Reset();
+
         }
 
         private static void Window_Render(double time_ms, double delta_ms)
         {
-            if (RebuildGraph)
-            {
-                Graph.RegisterPass(new BufferUploadPass()
-                {
-                    Name = Graph.GlobalParametersName,
-                    DestBuffer = Graph.GlobalParameters,
-                    DeviceOffset = 0,
-                    LocalOffset = 0,
-                    Size = Graph.GlobalParametersLength,
-                    SourceBuffer = GlobalParametersStaging
-                });
-
-                DeferredRenderer.GenerateRenderGraph();
-                OnRebuildGraph?.Invoke(time_ms, delta_ms);
-                DeferredRenderer.FinalizeRenderGraph();
-                //TODO: Add other effects here
-                Graph.Compile();
-                RebuildGraph = false;
-                Graph.Execute(true);
-            }
-            else
-                Graph.Execute(false);
+            
         }
 
         private static void Window_Update(double time_ms, double delta_ms)

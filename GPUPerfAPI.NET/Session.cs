@@ -19,7 +19,9 @@ namespace GPUPerfAPI.NET
 
         public void EnableAllCounters()
         {
-            Binding.EnableAllCountersGPA(id);
+            var ret = Binding.EnableAllCountersGPA(id);
+            if (ret != 0)
+                throw new Exception("GPA Failed.");
             Binding.GetPassCountGPA(id, out var pass_cnt);
             PassCount = (int)pass_cnt;
         }
@@ -33,23 +35,31 @@ namespace GPUPerfAPI.NET
 
         public void DisableAllCounters()
         {
-            Binding.DisableAllCountersGPA(id);
+            var ret = Binding.DisableAllCountersGPA(id);
+            if (ret != 0)
+                throw new Exception("GPA Failed.");
         }
 
         public void DisableCounter(string name)
         {
-            Binding.DisableCounterByNameGPA(id, name);
+            var ret = Binding.DisableCounterByNameGPA(id, name);
+            if (ret != 0)
+                throw new Exception("GPA Failed.");
         }
 
         public void Start()
         {
             PassIndex = -1;
-            Binding.BeginSessionGPA(id);
+            int ret = Binding.BeginSessionGPA(id);
+            if (ret != 0)
+                throw new Exception("GPA Failed.");
         }
 
         public void Stop()
         {
-            Binding.EndSessionGPA(id);
+            var ret = Binding.EndSessionGPA(id);
+            if (ret != 0)
+                throw new Exception("GPA Failed.");
         }
 
         public SessionCounters[] GetResults(uint SampleCount)
@@ -109,14 +119,16 @@ namespace GPUPerfAPI.NET
         public Pass StartPass()
         {
             PassIndex++;
-            Binding.GLBeginCommandListGPA(id, (uint)PassIndex, out var cmd_list_id);
+            var ret = Binding.GLBeginCommandListGPA(id, (uint)PassIndex, out var cmd_list_id);
             return new Pass((uint)PassIndex, cmd_list_id);
         }
 
         public void EndPass(Pass pass)
         {
-            Binding.GLEndCommandListGPA(pass.list_id);
-            while(Binding.IsPassCompleteGPA(id, (uint)PassIndex) != 0)
+            var ret = Binding.GLEndCommandListGPA(pass.list_id);
+            if (ret != 0)
+                throw new Exception("GPA Failed.");
+            while (Binding.IsPassCompleteGPA(id, (uint)PassIndex) != 0)
             {
                 System.Threading.Thread.Sleep(1);
             }

@@ -59,7 +59,7 @@ namespace Kokoro.Graphics
             layouts.Add(l);
         }
 
-        public void Build(int devId, uint poolSz)
+        public void Build(int devId)
         {
             if (!locked)
             {

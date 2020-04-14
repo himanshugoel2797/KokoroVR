@@ -46,7 +46,7 @@ namespace Kokoro.Graphics
                         var vmaCreatInfo = new VmaAllocationCreateInfo()
                         {
                             flags = Mapped ? VmaAllocationCreateFlags.MappedBit : 0,
-                            usage = (VmaMemoryUsage)MemoryUsage
+                            usage = (VmaMemoryUsage)MemoryUsage,
                         };
 
                         var allocInfo_p = new ManagedPtr<VmaAllocationInfo>();
@@ -56,7 +56,7 @@ namespace Kokoro.Graphics
                         allocInfo = allocInfo_p.Value;
                         devID = device_index;
 
-                        if (GraphicsDevice.EnableValidation)
+                        if (GraphicsDevice.EnableValidation && Name != null)
                         {
                             var objName = new VkDebugUtilsObjectNameInfoEXT()
                             {

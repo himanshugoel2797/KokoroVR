@@ -11,7 +11,7 @@ namespace Kokoro.Graphics
     public class GraphicsPipeline
     {
         public string Name { get; set; }
-        public List<ShaderSource> Shaders { get; }
+        public ShaderSource[] Shaders { get; set; }
         public PrimitiveType Topology { get; set; } = PrimitiveType.Triangle;
         public bool DepthClamp { get; set; }
         public bool RasterizerDiscard { get; set; } = false;
@@ -20,9 +20,15 @@ namespace Kokoro.Graphics
         public bool EnableBlending { get; set; }
         public DepthTest DepthTest { get; set; } = DepthTest.Greater;
         public RenderPass RenderPass { get; set; }
-        public Framebuffer Framebuffer { get; set; }
         public PipelineLayout PipelineLayout { get; set; }
         public Memory<int>[] SpecializationData { get; set; }
+        public bool ViewportDynamic { get; set; }
+        public uint ViewportX { get; set; }
+        public uint ViewportY { get; set; }
+        public uint ViewportWidth { get; set; }
+        public uint ViewportHeight { get; set; }
+        public float ViewportMinDepth { get; set; }
+        public float ViewportMaxDepth { get; set; }
 
         internal IntPtr hndl;
         private int devID;
@@ -30,7 +36,6 @@ namespace Kokoro.Graphics
 
         public GraphicsPipeline()
         {
-            Shaders = new List<ShaderSource>();
         }
 
         public void Build(int deviceIndex)
@@ -40,9 +45,9 @@ namespace Kokoro.Graphics
                 unsafe
                 {
                     //create pipeline shader stages
-                    var shaderStages = new VkPipelineShaderStageCreateInfo[Shaders.Count];
-                    var shaderSpecializations = new ManagedPtr<VkSpecializationInfo>[Shaders.Count];
-                    var shaderSpecializationBufferPtrs = new MemoryHandle[Shaders.Count];
+                    var shaderStages = new VkPipelineShaderStageCreateInfo[Shaders.Length];
+                    var shaderSpecializations = new ManagedPtr<VkSpecializationInfo>[Shaders.Length];
+                    var shaderSpecializationBufferPtrs = new MemoryHandle[Shaders.Length];
                     for (int i = 0; i < shaderStages.Length; i++)
                     {
                         if (SpecializationData != null)
@@ -87,25 +92,25 @@ namespace Kokoro.Graphics
                     //VkPipelineViewportStateCreateInfo - dynamic state, no scissor
                     var viewport = new VkViewport()
                     {
-                        x = 0,
-                        y = 0,
-                        width = Framebuffer.Width,
-                        height = Framebuffer.Height,
-                        minDepth = 0,
-                        maxDepth = 1,
+                        x = ViewportX,
+                        y = ViewportY,
+                        width = ViewportWidth,
+                        height = ViewportHeight,
+                        minDepth = ViewportMinDepth,
+                        maxDepth = ViewportMaxDepth,
                     };
 
                     var scissor = new VkRect2D()
                     {
                         offset = new VkOffset2D()
                         {
-                            x = 0,
-                            y = 0
+                            x = (int)ViewportX,
+                            y = (int)ViewportY
                         },
                         extent = new VkExtent2D()
                         {
-                            width = Framebuffer.Width,
-                            height = Framebuffer.Height
+                            width = ViewportWidth,
+                            height = ViewportHeight
                         }
                     };
 
@@ -158,14 +163,14 @@ namespace Kokoro.Graphics
                         depthTestEnable = (DepthTest == DepthTest.Always) ? false : true,
                         depthCompareOp = (VkCompareOp)DepthTest,
                         depthWriteEnable = true,
-                        maxDepthBounds = 1,
-                        minDepthBounds = 0,
+                        maxDepthBounds = ViewportMaxDepth,
+                        minDepthBounds = ViewportMinDepth,
                     };
                     var depthStencil_ptr = depthStencil.Pointer();
 
 
                     //VkPipelineColorBlendStateCreateInfo - state
-                    var colorBlendStates = new VkPipelineColorBlendAttachmentState[RenderPass.InitialLayout.Keys.Count(a => a != AttachmentKind.DepthAttachment)];
+                    var colorBlendStates = new VkPipelineColorBlendAttachmentState[RenderPass.ColorAttachments == null ? 0 : RenderPass.ColorAttachments.Length];
                     for (int i = 0; i < colorBlendStates.Length; i++)
                     {
                         colorBlendStates[i] = new VkPipelineColorBlendAttachmentState()
@@ -198,7 +203,7 @@ namespace Kokoro.Graphics
                     var dynamicState = new VkPipelineDynamicStateCreateInfo()
                     {
                         sType = VkStructureType.StructureTypePipelineDynamicStateCreateInfo,
-                        dynamicStateCount = 1,
+                        dynamicStateCount = ViewportDynamic ? 1u : 0u,
                         pDynamicStates = dynamicStates
                     };
                     var dynamicState_ptr = dynamicState.Pointer();

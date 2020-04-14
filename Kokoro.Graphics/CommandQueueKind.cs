@@ -5,6 +5,7 @@
         Graphics,
         Compute,
         Transfer,
-        Present
+        Present,
+        Ignored,
     }
 }

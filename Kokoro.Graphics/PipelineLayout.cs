@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using VulkanSharp.Raw;
 using static VulkanSharp.Raw.Vk;
 
 namespace Kokoro.Graphics
@@ -51,10 +52,18 @@ namespace Kokoro.Graphics
         Bottom = VkPipelineStageFlags.PipelineStageBottomOfPipeBit,
     }
 
+    public class PushConstantRange
+    {
+        public uint Offset { get; set; }
+        public uint Size { get; set; }
+        public ShaderType Stages { get; set; }
+    }
+
     public class PipelineLayout : IDisposable
     {
         public string Name { get; set; }
         public DescriptorSet[] Descriptors { get; set; }
+        public PushConstantRange[] PushConstants { get; set; }
 
         internal IntPtr hndl;
         private int devID;
@@ -87,13 +96,25 @@ namespace Kokoro.Graphics
                     var descLayouts = stackalloc IntPtr[Descriptors == null ? 0 : Descriptors.Length];
                     if (Descriptors != null) 
                         for (int i = 0; i < Descriptors.Length; i++) descLayouts[i] = Descriptors[i].Layout.hndl;
+
+                    var pushConstants = new VkPushConstantRange[PushConstants == null ? 0 : PushConstants.Length];
+                    if (PushConstants != null)
+                        for (int i = 0; i < PushConstants.Length; i++)
+                            pushConstants[i] = new VkPushConstantRange()
+                            {
+                                offset = PushConstants[i].Offset,
+                                size = PushConstants[i].Size,
+                                stageFlags = (VkShaderStageFlags)PushConstants[i].Stages
+                            };
+                    var pushConstants_arr = pushConstants.Pointer();
+
                     var pipelineLayoutInfo = new VkPipelineLayoutCreateInfo()
                     {
                         sType = VkStructureType.StructureTypePipelineLayoutCreateInfo,
                         setLayoutCount = Descriptors == null ? 0 : (uint)Descriptors.Length, //TODO: add descriptor support
                         pSetLayouts = descLayouts,
-                        pushConstantRangeCount = 0, //TODO: setup push constants
-                        pPushConstantRanges = IntPtr.Zero,
+                        pushConstantRangeCount = PushConstants == null ? 0 : (uint)PushConstants.Length, //TODO: setup push constants
+                        pPushConstantRanges = PushConstants == null ? IntPtr.Zero : pushConstants_arr,
                     };
 
                     IntPtr pipelineLayout_l = IntPtr.Zero;
