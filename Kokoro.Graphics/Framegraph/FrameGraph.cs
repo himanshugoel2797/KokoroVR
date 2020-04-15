@@ -53,6 +53,12 @@ namespace Kokoro.Graphics.Framegraph
         public uint BaseInstance { get; set; } = 0;
         public uint VertexCount { get; set; }
         public uint InstanceCount { get; set; } = 1;
+        public string IndexBuffer { get; set; }
+        public string IndirectBuffer { get; set; }
+        public ulong IndexBufferOffset { get; set; }
+        public IndexType IndexType { get; set; }
+        public uint IndexCount { get; set; }
+        public uint FirstIndex { get; set; }
 
         internal CommandQueueKind QueueKind;
         internal bool barrierOp;
@@ -155,6 +161,8 @@ namespace Kokoro.Graphics.Framegraph
             public CommandBuffer CmdBuffer;
             public GpuSemaphore[] signalling;
             public GpuSemaphore[] waiting;
+            public PipelineStage SrcStage;
+            public PipelineStage DstStage;
         }
 
         public FrameGraph(int deviceIndex)
@@ -227,44 +235,44 @@ namespace Kokoro.Graphics.Framegraph
         }
 
         #region Registration
-        public bool TryRegisterShader(SpecializedShader shader)
+        public void RegisterShader(SpecializedShader shader)
         {
-            return Shaders.TryAdd(shader.Name, shader);
+            Shaders.AddOrUpdate(shader.Name, shader, (a, b) => shader);
         }
 
-        public bool TryRegisterGraphicsPass(GraphicsPass graphicsPass)
+        public void RegisterGraphicsPass(GraphicsPass graphicsPass)
         {
-            return GraphicsPasses.TryAdd(graphicsPass.Name, graphicsPass);
+            GraphicsPasses.AddOrUpdate(graphicsPass.Name, graphicsPass, (a, b) => graphicsPass);
         }
 
-        public bool TryRegisterComputePass(ComputePass computePass)
+        public void RegisterComputePass(ComputePass computePass)
         {
-            return ComputePasses.TryAdd(computePass.Name, computePass);
+            ComputePasses.AddOrUpdate(computePass.Name, computePass, (a, b) => computePass);
         }
 
-        public bool TryRegisterBufferTransferPass(BufferTransferPass bufferTransferPass)
+        public void RegisterBufferTransferPass(BufferTransferPass bufferTransferPass)
         {
-            return BufferTransferPasses.TryAdd(bufferTransferPass.Name, bufferTransferPass);
+            BufferTransferPasses.AddOrUpdate(bufferTransferPass.Name, bufferTransferPass, (a, b) => bufferTransferPass);
         }
 
-        public bool TryRegisterImageTransferPass(ImageTransferPass imageTransferPass)
+        public void RegisterImageTransferPass(ImageTransferPass imageTransferPass)
         {
-            return ImageTransferPasses.TryAdd(imageTransferPass.Name, imageTransferPass);
+            ImageTransferPasses.AddOrUpdate(imageTransferPass.Name, imageTransferPass, (a, b) => imageTransferPass);
         }
 
-        public bool TryRegisterResource(ImageView imageView)
+        public void RegisterResource(ImageView imageView)
         {
-            return ImageViews.TryAdd(imageView.Name, imageView);
+            ImageViews.AddOrUpdate(imageView.Name, imageView, (a, b) => imageView);
         }
 
-        public bool TryRegisterResource(GpuBuffer gpuBuffer)
+        public void RegisterResource(GpuBuffer gpuBuffer)
         {
-            return GpuBuffers.TryAdd(gpuBuffer.Name, gpuBuffer);
+            GpuBuffers.AddOrUpdate(gpuBuffer.Name, gpuBuffer, (a, b) => gpuBuffer);
         }
 
-        public bool TryRegisterResource(GpuBufferView gpuBufferView)
+        public void RegisterResource(GpuBufferView gpuBufferView)
         {
-            return GpuBufferViews.TryAdd(gpuBufferView.Name, gpuBufferView);
+            GpuBufferViews.AddOrUpdate(gpuBufferView.Name, gpuBufferView, (a, b) => gpuBufferView);
         }
         #endregion
 
@@ -273,10 +281,12 @@ namespace Kokoro.Graphics.Framegraph
             Ops.Enqueue(ops);
         }
 
-        private CompiledCommandBuffer[] GenerateCommands(Queue<GpuOp> ops, CommandPool cmdPool, List<SemaphoreState> semaphores)
+        private CompiledCommandBuffer[] GenerateCommands(LinkedList<GpuOp> ops, CommandPool cmdPool, List<SemaphoreState> semaphores)
         {
             if (ops.Count == 0)
                 return new CompiledCommandBuffer[0];
+
+            //TODO: Reorder barriers here to execute as early as possible
 
             //Figure out where command buffers need to be split and synchronized with semaphores
             var cmdBufs = new List<CompiledCommandBuffer>();
@@ -291,7 +301,8 @@ namespace Kokoro.Graphics.Framegraph
             bool renderPassBound = false;
             while (ops.Count > 0)
             {
-                var op = ops.Dequeue();
+                var op = ops.First.Value;
+                ops.RemoveFirst();
 
                 if (op.barrierOp | op.layoutOp | op.transitionOp)
                 {
@@ -377,6 +388,8 @@ namespace Kokoro.Graphics.Framegraph
                             CmdBuffer = cmdBuf,
                             signalling = signallingSemaphores.ToArray(),
                             waiting = waitingSemaphores.ToArray(),
+                            SrcStage = op.Resources[0].transitionSourceStage,
+                            DstStage = op.Resources[0].transitionDestStage,
                         });
                         signallingSemaphores.Clear();
                         waitingSemaphores.Clear();
@@ -392,33 +405,43 @@ namespace Kokoro.Graphics.Framegraph
                     continue;
                 }
 
-                switch (op.Cmd)
+                if (BufferTransferPasses.ContainsKey(op.PassName))
                 {
-                    case GpuCmd.Draw:
-                    case GpuCmd.DrawIndexed:
-                        {
-                            if (renderPassBound) cmdBuf.EndRenderPass();
-                            renderPassBound = false;
-                            //Bind the graphics pipeline, framebuffer, descriptors
-                            cmdBuf.SetDescriptors(PipelineLayouts[op.PassName], globalDescriptorSet, DescriptorBindPoint.Graphics, 0);
-                            cmdBuf.SetPipeline(GraphicsPipelines[op.PassName], Framebuffers[GetFramebufferName(op.ColorAttachments, op.DepthAttachment)], 0);
-                            renderPassBound = true;
-                        }
-                        break;
-                }
 
-                switch (op.Cmd)
+                }
+                else if (ImageTransferPasses.ContainsKey(op.PassName))
                 {
-                    case GpuCmd.Draw:
-                        {
-                            cmdBuf.Draw(op.VertexCount, op.InstanceCount, op.BaseVertex, op.BaseInstance);
-                        }
-                        break;
-                    case GpuCmd.DrawIndexed:
-                        {
-                            //cmdBuf.DrawIndexed()
-                        }
-                        break;
+
+                }else if (GraphicsPasses.ContainsKey(op.PassName))
+                {
+                    switch (op.Cmd)
+                    {
+                        case GpuCmd.Draw:
+                        case GpuCmd.DrawIndexed:
+                            {
+                                if (renderPassBound) cmdBuf.EndRenderPass();
+                                renderPassBound = false;
+                                //Bind the graphics pipeline, framebuffer, descriptors
+                                cmdBuf.SetDescriptors(PipelineLayouts[op.PassName], globalDescriptorSet, DescriptorBindPoint.Graphics, 0);
+                                cmdBuf.SetPipeline(GraphicsPipelines[op.PassName], Framebuffers[GetFramebufferName(op.ColorAttachments, op.DepthAttachment)], 0);
+                                renderPassBound = true;
+                            }
+                            break;
+                    }
+
+                    switch (op.Cmd)
+                    {
+                        case GpuCmd.Draw:
+                            {
+                                cmdBuf.Draw(op.VertexCount, op.InstanceCount, op.BaseVertex, op.BaseInstance);
+                            }
+                            break;
+                        case GpuCmd.DrawIndexed:
+                            {
+                                cmdBuf.DrawIndexed(GpuBuffers[op.IndexBuffer], op.IndexBufferOffset, op.IndexType, op.IndexCount, op.InstanceCount, op.FirstIndex, (int)op.BaseVertex, op.BaseInstance);
+                            }
+                            break;
+                    }
                 }
             }
             if (cmdBuf.IsRecording)
@@ -605,9 +628,9 @@ namespace Kokoro.Graphics.Framegraph
             var graphQ0 = new Queue<GpuOp>(Ops.Count);
             var compQ0 = new Queue<GpuOp>(Ops.Count);
             var transQ0 = new Queue<GpuOp>(Ops.Count);
-            var graphQ1 = new Queue<GpuOp>(Ops.Count);
-            var compQ1 = new Queue<GpuOp>(Ops.Count);
-            var transQ1 = new Queue<GpuOp>(Ops.Count);
+            var graphQ1 = new LinkedList<GpuOp>();
+            var compQ1 = new LinkedList<GpuOp>();
+            var transQ1 = new LinkedList<GpuOp>();
             var semaphoreSet = new List<SemaphoreState>(256);
             var imgViews = new Dictionary<string, ImageViewState>(ImageViews.Count);
             var buffers = new Dictionary<string, BufferState>(GpuBuffers.Count);
@@ -1199,7 +1222,7 @@ namespace Kokoro.Graphics.Framegraph
                         }
                     }
                 }
-                graphQ1.Enqueue(op);
+                graphQ1.AddLast(op);
             }
 
 
@@ -1243,7 +1266,7 @@ namespace Kokoro.Graphics.Framegraph
                     }
                 }
 
-                compQ1.Enqueue(op);
+                compQ1.AddLast(op);
             }
 
             while (transQ0.Count > 0)
@@ -1265,7 +1288,7 @@ namespace Kokoro.Graphics.Framegraph
                     semaphoreSet[op.ownerChangeSemaphoreIdx].semaphore = SemaphoreCache[GraphicsDevice.CurrentFrameID][semaphoreCntr++];
                 }
 
-                transQ1.Enqueue(op);
+                transQ1.AddLast(op);
             }
 
             if (SemaphoreCache[GraphicsDevice.CurrentFrameID].Count <= semaphoreCntr)

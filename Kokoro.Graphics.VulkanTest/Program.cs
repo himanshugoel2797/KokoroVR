@@ -33,12 +33,12 @@ namespace Kokoro.Graphics.VulkanTest
                 SpecializationData = null,
             };
 
-            graph.TryRegisterShader(vertS);
-            graph.TryRegisterShader(fragS);
+            graph.RegisterShader(vertS);
+            graph.RegisterShader(fragS);
 
             for (int i = 0; i < GraphicsDevice.MaxFramesInFlight; i++) {
                 var out_img = GraphicsDevice.DefaultFramebuffer[i].ColorAttachments[0];
-                graph.TryRegisterResource(out_img);
+                graph.RegisterResource(out_img);
             }
 
             var gpass = new GraphicsPass()
@@ -72,7 +72,7 @@ namespace Kokoro.Graphics.VulkanTest
                     PushConstants = null,
                 },                
             };
-            graph.TryRegisterGraphicsPass(gpass);
+            graph.RegisterGraphicsPass(gpass);
             graph.GatherDescriptors();
 
             GraphicsDevice.Window.Render += Window_Render;

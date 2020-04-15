@@ -8,6 +8,7 @@ using static VulkanSharp.Raw.Vma;
 using static VulkanSharp.Raw.Glfw;
 using System.Runtime.InteropServices;
 using System.Linq;
+using Kokoro.Graphics.Framegraph;
 
 namespace Kokoro.Graphics
 {
@@ -83,6 +84,7 @@ namespace Kokoro.Graphics
         public static uint Width { get; private set; }
         public static uint Height { get; private set; }
         public static bool RebuildShaders { get; set; }
+        public static FrameGraph RenderGraph { get; set; }
 
         #region Debug Management
         internal static PFN_vkCreateDebugUtilsMessengerEXT CreateDebugUtilsMessengerEXT;
@@ -754,6 +756,8 @@ namespace Kokoro.Graphics
                 Width = (uint)Window.Width;
                 Height = (uint)Window.Height;
             }
+
+            RenderGraph = new FrameGraph(0);
         }
         #endregion
 

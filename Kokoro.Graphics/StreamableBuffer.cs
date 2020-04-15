@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Text;
 
@@ -6,15 +7,25 @@ namespace Kokoro.Graphics
 {
     public class StreamableBuffer
     {
+        struct StageOffsets
+        {
+            public ulong Offset;
+            public ulong Size;
+        }
+
         private bool isDirty;
+        private ConcurrentQueue<StageOffsets> stagingSet;
 
         public GpuBuffer LocalBuffer { get; }
         public GpuBuffer HostBuffer { get; }
         public string Name { get; }
+        public ulong Size { get; }
 
         public StreamableBuffer(string name, ulong sz, BufferUsage usage)
         {
             this.Name = name;
+            this.Size = sz;
+            this.stagingSet = new ConcurrentQueue<StageOffsets>();
             LocalBuffer = new GpuBuffer()
             {
                 Name = name,
@@ -33,7 +44,6 @@ namespace Kokoro.Graphics
                 Usage = BufferUsage.TransferSrc
             };
             HostBuffer.Build(0);
-            isDirty = true;
         }
 
         public unsafe byte* BeginBufferUpdate()
@@ -43,19 +53,26 @@ namespace Kokoro.Graphics
 
         public void EndBufferUpdate()
         {
-            isDirty = true;
+            stagingSet.Enqueue(new StageOffsets()
+            {
+                Offset = 0,
+                Size = Size
+            });
+        }
+
+        public void EndBufferUpdate(ulong offset, ulong size)
+        {
+            stagingSet.Enqueue(new StageOffsets()
+            {
+                Offset = offset,
+                Size = size,
+            });
         }
 
         public void Update()
         {
-            if (isDirty)
-            {
-                isDirty = false;
-            }
-            else
-            {
-
-            }
+            while (stagingSet.TryDequeue(out var flushCmd))
+                GraphicsContext.RenderGraph.QueueOp()
         }
     }
 }
