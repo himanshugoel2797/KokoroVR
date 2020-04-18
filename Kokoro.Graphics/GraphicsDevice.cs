@@ -84,7 +84,6 @@ namespace Kokoro.Graphics
         public static uint Width { get; private set; }
         public static uint Height { get; private set; }
         public static bool RebuildShaders { get; set; }
-        public static FrameGraph RenderGraph { get; set; }
 
         #region Debug Management
         internal static PFN_vkCreateDebugUtilsMessengerEXT CreateDebugUtilsMessengerEXT;
@@ -756,8 +755,6 @@ namespace Kokoro.Graphics
                 Width = (uint)Window.Width;
                 Height = (uint)Window.Height;
             }
-
-            RenderGraph = new FrameGraph(0);
         }
         #endregion
 

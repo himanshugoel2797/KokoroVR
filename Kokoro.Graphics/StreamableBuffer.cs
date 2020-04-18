@@ -2,10 +2,11 @@
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Text;
+using Kokoro.Common;
 
 namespace Kokoro.Graphics
 {
-    public class StreamableBuffer
+    public class StreamableBuffer : UniquelyNamedObject
     {
         struct StageOffsets
         {
@@ -14,31 +15,26 @@ namespace Kokoro.Graphics
         }
 
         private bool isDirty;
-        private ConcurrentQueue<StageOffsets> stagingSet;
-
-        public GpuBuffer LocalBuffer { get; }
-        public GpuBuffer HostBuffer { get; }
-        public string Name { get; }
+        public GpuBuffer LocalBuffer { get; private set; }
+        public GpuBuffer HostBuffer { get; private set; }
         public ulong Size { get; }
+        public bool Streamable { get; private set; }
 
-        public StreamableBuffer(string name, ulong sz, BufferUsage usage)
+        public StreamableBuffer(string name, ulong sz, BufferUsage usage) : base(name)
         {
-            this.Name = name;
             this.Size = sz;
-            this.stagingSet = new ConcurrentQueue<StageOffsets>();
-            LocalBuffer = new GpuBuffer()
+            this.Streamable = true;
+            LocalBuffer = new GpuBuffer(name)
             {
-                Name = name,
                 MemoryUsage = MemoryUsage.GpuOnly,
                 Size = sz,
                 Usage = usage | BufferUsage.TransferDst,
             };
             LocalBuffer.Build(0);
 
-            HostBuffer = new GpuBuffer()
+            HostBuffer = new GpuBuffer(name + "_host")
             {
                 Mapped = true,
-                Name = name + "_host",
                 Size = sz,
                 MemoryUsage = MemoryUsage.CpuOnly,
                 Usage = BufferUsage.TransferSrc
@@ -46,33 +42,64 @@ namespace Kokoro.Graphics
             HostBuffer.Build(0);
         }
 
+        public void RebuildGraph()
+        {
+            GraphicsContext.RenderGraph.RegisterResource(LocalBuffer);
+
+            if (Streamable)
+            {
+                GraphicsContext.RenderGraph.RegisterResource(HostBuffer);
+                GraphicsContext.RenderGraph.RegisterBufferTransferPass(new Framegraph.BufferTransferPass(Name + "_transferOp")
+                {
+                    Source = HostBuffer.Name,
+                    Destination = LocalBuffer.Name,
+                    DestinationOffset = 0,
+                    SourceOffset = 0,
+                    Size = Size
+                });
+            }
+        }
+
         public unsafe byte* BeginBufferUpdate()
         {
+            if (!Streamable)
+                throw new InvalidOperationException("Streaming has been ended already!");
             return (byte*)HostBuffer.GetAddress();
         }
 
         public void EndBufferUpdate()
         {
-            stagingSet.Enqueue(new StageOffsets()
-            {
-                Offset = 0,
-                Size = Size
-            });
-        }
-
-        public void EndBufferUpdate(ulong offset, ulong size)
-        {
-            stagingSet.Enqueue(new StageOffsets()
-            {
-                Offset = offset,
-                Size = size,
-            });
+            isDirty = true;
         }
 
         public void Update()
         {
-            while (stagingSet.TryDequeue(out var flushCmd))
-                GraphicsContext.RenderGraph.QueueOp()
+            if (Streamable)
+            {
+                GraphicsContext.RenderGraph.QueueOp(new Framegraph.GpuOp()
+                {
+                    PassName = Name + "_transferOp",
+                    Resources = new Framegraph.GpuResourceRequest[]{
+                        new Framegraph.GpuResourceRequest(){
+                            Name = HostBuffer.Name,
+                        },
+                        new Framegraph.GpuResourceRequest(){
+                            Name = LocalBuffer.Name,
+                        },
+                    }
+                });
+                isDirty = false;
+            }
+        }
+
+        public void EndStreaming()
+        {
+            if (Streamable && !isDirty)
+            {
+                Streamable = false;
+                HostBuffer.Dispose();
+                HostBuffer = null;
+            }
         }
     }
 }

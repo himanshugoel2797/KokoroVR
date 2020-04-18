@@ -1,10 +1,11 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Text;
+using Kokoro.Common;
 
 namespace Kokoro.Graphics
 {
-    public class BufferAllocator
+    public class BufferAllocator : UniquelyNamedObject
     {
         private BlockAllocator alloc;
         private bool isDirty;
@@ -13,15 +14,12 @@ namespace Kokoro.Graphics
         public GpuBufferView BufferTex { get; }
         public GpuBuffer LocalBuffer { get; }
         public GpuBuffer HostBuffer { get; }
-        public string Name { get; }
 
-        public BufferAllocator(string name, uint block_sz, uint block_cnt, BufferUsage usage, ImageFormat iFmt)
+        public BufferAllocator(string name, uint block_sz, uint block_cnt, BufferUsage usage, ImageFormat iFmt) : base(name)
         {
-            this.Name = name;
             alloc = new BlockAllocator(block_cnt, block_sz);
-            LocalBuffer = new GpuBuffer()
+            LocalBuffer = new GpuBuffer(name)
             {
-                Name = name,
                 MemoryUsage = MemoryUsage.GpuOnly,
                 Size = block_sz * block_cnt,
                 Usage = usage | BufferUsage.TransferDst,
@@ -30,9 +28,8 @@ namespace Kokoro.Graphics
 
             if (((usage & BufferUsage.StorageTexel) | (usage & BufferUsage.UniformTexel)) != 0)
             {
-                BufferTex = new GpuBufferView()
+                BufferTex = new GpuBufferView(name + "_view")
                 {
-                    Name = name + "_view",
                     Format = iFmt,
                     Offset = 0,
                     Size = block_sz * block_cnt,
@@ -40,10 +37,9 @@ namespace Kokoro.Graphics
                 BufferTex.Build(LocalBuffer);
             }
 
-            HostBuffer = new GpuBuffer()
+            HostBuffer = new GpuBuffer(name + "_host")
             {
                 Mapped = true,
-                Name = name + "_host",
                 Size = block_sz * block_cnt,
                 MemoryUsage = MemoryUsage.CpuOnly,
                 Usage = BufferUsage.TransferSrc

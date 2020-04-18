@@ -1,3 +1,5 @@
+using Kokoro.Common;
+
 namespace Kokoro.Graphics.Framegraph
 {
     public class BufferTransferPass : UniquelyNamedObject
@@ -7,5 +9,7 @@ namespace Kokoro.Graphics.Framegraph
         public ulong SourceOffset { get; set; }
         public ulong DestinationOffset { get; set; }
         public ulong Size { get; set; }
+
+        public BufferTransferPass(string name) : base(name) { }
     }
 }

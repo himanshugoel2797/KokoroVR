@@ -10,7 +10,10 @@ namespace Kokoro.Graphics
     {
         public string Name { get; set; }
         public ImageFormat Format { get; set; }
-        public ImageLayout Layout { get; set; }
+        public ImageLayout CurrentLayout { get => parent.CurrentLayout; set => parent.CurrentLayout = value; }
+        public AccessFlags CurrentAccesses { get => parent.CurrentAccesses; set => parent.CurrentAccesses = value; }
+        public PipelineStage CurrentUsageStage { get => parent.CurrentUsageStage; set => parent.CurrentUsageStage = value; }
+        public CommandQueueKind OwningQueue { get => parent.OwningQueue; set => parent.OwningQueue = value; }
         public ImageViewType ViewType { get; set; }
         public uint BaseLevel { get; set; }
         public uint LevelCount { get; set; }

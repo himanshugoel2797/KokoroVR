@@ -36,14 +36,14 @@ namespace Kokoro.Graphics.VulkanTest
             graph.RegisterShader(vertS);
             graph.RegisterShader(fragS);
 
-            for (int i = 0; i < GraphicsDevice.MaxFramesInFlight; i++) {
+            for (int i = 0; i < GraphicsDevice.MaxFramesInFlight; i++)
+            {
                 var out_img = GraphicsDevice.DefaultFramebuffer[i].ColorAttachments[0];
                 graph.RegisterResource(out_img);
             }
 
-            var gpass = new GraphicsPass()
+            var gpass = new GraphicsPass("main_pass")
             {
-                Name = "main_pass",
                 Shaders = new string[] { vertS.Name, fragS.Name },
                 ViewportWidth = GraphicsDevice.Width,
                 ViewportHeight = GraphicsDevice.Height,
@@ -70,7 +70,7 @@ namespace Kokoro.Graphics.VulkanTest
                 {
                     Descriptors = null,
                     PushConstants = null,
-                },                
+                },
             };
             graph.RegisterGraphicsPass(gpass);
             graph.GatherDescriptors();

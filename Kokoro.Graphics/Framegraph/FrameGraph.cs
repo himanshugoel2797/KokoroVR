@@ -15,13 +15,6 @@ namespace Kokoro.Graphics.Framegraph
     {
         //Resource Requests
         public string Name { get; set; }
-        //Read Stage per resource
-        public PipelineStage FirstLoadStage { get; set; }
-        //Write Stages per resource
-        public PipelineStage LastStoreStage { get; set; }
-        public AccessFlags Accesses { get; set; }
-        public AccessFlags Stores { get; set; }
-        public ImageLayout DesiredLayout { get; set; }  //For framebuffer resources this must match the requirement in the GraphicsPass
 
         internal PipelineStage transitionSourceStage;
         internal PipelineStage transitionDestStage;
@@ -294,7 +287,8 @@ namespace Kokoro.Graphics.Framegraph
             var waitingSemaphores = new List<GpuSemaphore>();
             var cmdBuf = new CommandBuffer()
             {
-                Name = cmdPool.Name + "_" + cmdBufs.Count.ToString()
+                Name = cmdPool.Name + "_" + cmdBufs.Count.ToString(),
+                OneTimeSubmit = true,
             };
             cmdBuf.Build(cmdPool);
             cmdBuf.BeginRecording();
@@ -397,7 +391,8 @@ namespace Kokoro.Graphics.Framegraph
 
                         cmdBuf = new CommandBuffer()
                         {
-                            Name = cmdPool.Name + "_" + cmdBufs.Count.ToString()
+                            Name = cmdPool.Name + "_" + cmdBufs.Count.ToString(),
+                            OneTimeSubmit = true,
                         };
                         cmdBuf.Build(cmdPool);
                         cmdBuf.BeginRecording();
@@ -407,12 +402,14 @@ namespace Kokoro.Graphics.Framegraph
 
                 if (BufferTransferPasses.ContainsKey(op.PassName))
                 {
-
+                    var pass = BufferTransferPasses[op.PassName];
+                    cmdBuf.Stage(GpuBuffers[pass.Source], pass.SourceOffset, GpuBuffers[pass.Destination], pass.DestinationOffset, pass.Size);
                 }
                 else if (ImageTransferPasses.ContainsKey(op.PassName))
                 {
 
-                }else if (GraphicsPasses.ContainsKey(op.PassName))
+                }
+                else if (GraphicsPasses.ContainsKey(op.PassName))
                 {
                     switch (op.Cmd)
                     {
@@ -669,45 +666,15 @@ namespace Kokoro.Graphics.Framegraph
                                 throw new Exception();
                             if (gpass.RenderLayout.Color.Length != opSet[i].ColorAttachments.Length)
                                 throw new Exception();
-                            for (int j = 0; j < opSet[i].ColorAttachments.Length; j++)
-                            {
-                                for (k = 0; k < opSet[i].Resources.Length; k++)
-                                    if (opSet[i].ColorAttachments[j] == opSet[i].Resources[k].Name)
-                                    {
-                                        if (opSet[i].Resources[k].DesiredLayout == ImageLayout.Undefined)
-                                            opSet[i].Resources[k].DesiredLayout = gpass.RenderLayout.Color[j].DesiredLayout;
-
-                                        if (opSet[i].Resources[k].DesiredLayout != gpass.RenderLayout.Color[j].DesiredLayout)
-                                            throw new Exception("Desired layouts must match!");
-                                        break;
-                                    }
-                                if (k == opSet[i].Resources.Length)
-                                    throw new Exception($"Color Attachment #{j} not found in Resources.");
-                            }
                         }
                         if (gpass.RenderLayout.Depth == null && opSet[i].DepthAttachment != null)
                             throw new Exception();
                         if (gpass.RenderLayout.Depth != null && opSet[i].DepthAttachment == null)
                             throw new Exception();
-                        if (gpass.RenderLayout.Depth != null)
-                        {
-                            for (k = 0; k < opSet[i].Resources.Length; k++)
-                                if (opSet[i].DepthAttachment == opSet[i].Resources[k].Name)
-                                {
-                                    if (opSet[i].Resources[k].DesiredLayout == ImageLayout.Undefined)
-                                        opSet[i].Resources[k].DesiredLayout = gpass.RenderLayout.Depth.DesiredLayout;
-                                    if (opSet[i].Resources[k].DesiredLayout != gpass.RenderLayout.Depth.DesiredLayout)
-                                        throw new Exception("Desired layouts must match!");
-                                    break;
-                                }
-                            if (k == opSet[i].Resources.Length)
-                                throw new Exception("Depth Attachment not found in Resources.");
-                        }
                     }
 
                     for (int j = 0; j < opSet[i].Resources.Length; j++)
                     {
-                        //All resources are by default assumed owned by the first queue they're found on
                         var resourceName = opSet[i].Resources[j].Name;
                         if (ImageViews.ContainsKey(resourceName) && !imgViews.ContainsKey(resourceName))
                         {
@@ -1343,6 +1310,7 @@ namespace Kokoro.Graphics.Framegraph
 
             transitionBuffer[GraphicsDevice.CurrentFrameID] = new CommandBuffer();
             transitionBuffer[GraphicsDevice.CurrentFrameID].Name = "transitionBuffer";
+            transitionBuffer[GraphicsDevice.CurrentFrameID].OneTimeSubmit = true;
             transitionBuffer[GraphicsDevice.CurrentFrameID].Build(GraphicsCmdPool[GraphicsDevice.CurrentFrameID]);
             transitionBuffer[GraphicsDevice.CurrentFrameID].BeginRecording();
             transitionBuffer[GraphicsDevice.CurrentFrameID].Barrier(PipelineStage.ColorAttachOut, PipelineStage.ColorAttachOut, null, new ImageMemoryBarrier[]

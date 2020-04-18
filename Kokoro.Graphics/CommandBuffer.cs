@@ -10,6 +10,7 @@ namespace Kokoro.Graphics
     {
         public string Name { get; set; }
         public bool IsRecording { get; private set; }
+        public bool OneTimeSubmit { get; set; }
 
         internal IntPtr hndl;
         internal CommandPool cmdPool;
@@ -76,7 +77,7 @@ namespace Kokoro.Graphics
                 var beginInfo = new VkCommandBufferBeginInfo()
                 {
                     sType = VkStructureType.StructureTypeCommandBufferBeginInfo,
-                    flags = 0,
+                    flags = (OneTimeSubmit ? VkCommandBufferUsageFlags.CommandBufferUsageOneTimeSubmitBit : 0),
                     pInheritanceInfo = IntPtr.Zero
                 };
 
@@ -248,8 +249,8 @@ namespace Kokoro.Graphics
             if (locked)
             {
                 var bufferBarrier = new VkBufferMemoryBarrier[bufferBarriers == null ? 0 : bufferBarriers.Length];
-                if(bufferBarriers != null)
-                    for(int i = 0; i < bufferBarrier.Length; i++)
+                if (bufferBarriers != null)
+                    for (int i = 0; i < bufferBarrier.Length; i++)
                     {
                         bufferBarrier[i] = new VkBufferMemoryBarrier()
                         {

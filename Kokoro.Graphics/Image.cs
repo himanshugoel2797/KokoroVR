@@ -21,6 +21,10 @@ namespace Kokoro.Graphics
         public bool Cubemappable { get; set; }
         public MemoryUsage MemoryUsage { get; set; }
         public ImageLayout InitialLayout { get; set; }
+        public ImageLayout CurrentLayout { get; set; }
+        public AccessFlags CurrentAccesses { get; set; }
+        public PipelineStage CurrentUsageStage { get; set; }
+        public CommandQueueKind OwningQueue { get; set; }
 
         internal IntPtr hndl { get; private set; }
         internal IntPtr imgAlloc { get; private set; }
@@ -92,6 +96,10 @@ namespace Kokoro.Graphics
                         imgAlloc = imgAlloc_l;
                         allocInfo = allocInfo_p.Value;
                         devID = deviceIndex;
+
+                        CurrentLayout = InitialLayout;
+                        CurrentAccesses = AccessFlags.None;
+                        CurrentUsageStage = PipelineStage.Top;
 
                         if (GraphicsDevice.EnableValidation)
                         {

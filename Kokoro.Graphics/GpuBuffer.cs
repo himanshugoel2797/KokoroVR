@@ -1,18 +1,21 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Text;
+using Kokoro.Common;
 using VulkanSharp.Raw;
 using static VulkanSharp.Raw.Vk;
 using static VulkanSharp.Raw.Vma;
 
 namespace Kokoro.Graphics
 {
-    public class GpuBuffer : IDisposable
+    public class GpuBuffer : UniquelyNamedObject, IDisposable
     {
-        public string Name { get; set; }
         public ulong Size { get; set; }
         public BufferUsage Usage { get; set; }
         public MemoryUsage MemoryUsage { get; set; }
+        public AccessFlags CurrentAccesses { get; set; }
+        public PipelineStage CurrentUsageStage { get; set; }
+        public CommandQueueKind OwningQueue { get; set; }
         public bool Mapped { get; set; }
 
         internal IntPtr hndl { get; private set; }
@@ -20,8 +23,8 @@ namespace Kokoro.Graphics
         internal VmaAllocationInfo allocInfo { get; private set; }
         internal int devID { get; private set; }
         private bool locked;
-        
-        public GpuBuffer() { }
+
+        public GpuBuffer(string name) : base(name) { }
 
         public void Build(int device_index)
         {

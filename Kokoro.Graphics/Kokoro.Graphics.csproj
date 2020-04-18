@@ -24,5 +24,6 @@
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\Kokoro.Math\Kokoro.Math.csproj" />
+    <ProjectReference Include="..\Kokoro.Common\Kokoro.Common.csproj" />
   </ItemGroup>
 </Project>

@@ -1,14 +1,21 @@
 using System;
 
-namespace Kokoro.Graphics.Framegraph
+namespace Kokoro.Common
 {
     public abstract class UniquelyNamedObject
     {
-        public string Name { get; set; }
+        public static bool ThrowOnUniquenessViolation { get; set; } = false;
+
+
+        public string Name { get; }
 
         public UniquelyNamedObject(string name)
         {
             this.Name = name;
+#if DEBUG
+            if (ThrowOnUniquenessViolation)
+                throw new NotImplementedException();
+#endif
         }
 
         public override bool Equals(object obj)

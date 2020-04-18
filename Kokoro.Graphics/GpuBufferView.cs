@@ -1,23 +1,26 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Text;
+using Kokoro.Common;
 using static VulkanSharp.Raw.Vk;
 
 namespace Kokoro.Graphics
 {
-    public class GpuBufferView : IDisposable
+    public class GpuBufferView : UniquelyNamedObject, IDisposable
     {
-        public string Name { get; set; }
         public ImageFormat Format { get; set; }
         public ulong Offset { get; set; }
         public ulong Size { get; set; }
+        public AccessFlags CurrentAccesses { get => parent.CurrentAccesses; set => parent.CurrentAccesses = value; }
+        public PipelineStage CurrentUsageStage { get => parent.CurrentUsageStage; set => parent.CurrentUsageStage = value; }
+        public CommandQueueKind OwningQueue { get => parent.OwningQueue; set => parent.OwningQueue = value; }
 
         internal IntPtr hndl { get; private set; }
         internal GpuBuffer parent;
         private int devID;
         private bool locked;
 
-        public GpuBufferView() { }
+        public GpuBufferView(string name) : base(name) { }
 
         public void Build(GpuBuffer buf)
         {

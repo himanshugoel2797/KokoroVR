@@ -4,11 +4,13 @@ using System;
 
 namespace Kokoro.Graphics
 {
+    public delegate void FrameHandler(double time_ms, double delta_ms);
     public static class GraphicsContext
     {
         public static string AppName { get => GraphicsDevice.AppName; set => GraphicsDevice.AppName = value; }
         public static bool EnableValidation { get => GraphicsDevice.EnableValidation; set => GraphicsDevice.EnableValidation = value; }
         public static bool RebuildShaders { get => GraphicsDevice.RebuildShaders; set => GraphicsDevice.RebuildShaders = value; }
+        public static bool RenderGraphNeedsRebuild { get; set; }
         public static uint Width { get => GraphicsDevice.Width; }
         public static uint Height { get => GraphicsDevice.Height; }
         public static GameWindow Window { get => GraphicsDevice.Window; }
@@ -24,9 +26,9 @@ namespace Kokoro.Graphics
         public static Vector3 PrevCameraUp { get; set; }
         public static StreamableBuffer GlobalParameters { get; private set; }
         public static Framegraph.FrameGraph RenderGraph { get; set; }
-        public delegate void FrameHandler(double time_ms, double delta_ms);
         public static event FrameHandler OnRender;
         public static event FrameHandler OnUpdate;
+        public static event Action OnRebuildGraph;
 
         public static void Initialize()
         {
@@ -43,6 +45,17 @@ namespace Kokoro.Graphics
             View = Matrix4.LookAt(-Vector3.UnitZ, Vector3.Zero, Vector3.UnitY);
             PrevView = Matrix4.LookAt(-Vector3.UnitZ, Vector3.Zero, Vector3.UnitY);
             Frustum = new Frustum(View, Projection, -Vector3.UnitZ);
+
+            RenderGraphNeedsRebuild = true;
+
+            OnRebuildGraph += RebuildGlobalGraph;
+            GraphicsDevice.Window.Update += Window_Update;
+            GraphicsDevice.Window.Render += Window_Render;
+        }
+
+        private static void RebuildGlobalGraph()
+        {
+            GlobalParameters.RebuildGraph();
         }
 
         private static void UpdateParams()
@@ -111,24 +124,28 @@ namespace Kokoro.Graphics
                 p[off++] = 0;
 
                 GlobalParameters.EndBufferUpdate();
-                GlobalParameters.Update();
+                //GlobalParameters.Update();
             }
         }
 
         public static void Start(int fps)
         {
-            GraphicsDevice.Window.Update += Window_Update;
-            GraphicsDevice.Window.Render += Window_Render;
             GraphicsDevice.Window.Run(fps);
         }
 
         private static void Window_Render(double time_ms, double delta_ms)
         {
+            if (RenderGraphNeedsRebuild)
+            {
+                RenderGraphNeedsRebuild = false;
+                OnRebuildGraph?.Invoke();
+            }
             OnRender?.Invoke(time_ms, delta_ms);
         }
 
         private static void Window_Update(double time_ms, double delta_ms)
         {
+            UpdateParams();
             OnUpdate?.Invoke(time_ms, delta_ms);
         }
     }

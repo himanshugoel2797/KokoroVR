@@ -1,3 +1,5 @@
+using Kokoro.Common;
+
 namespace Kokoro.Graphics.Framegraph
 {
     public class ImageTransferPass : UniquelyNamedObject
@@ -14,5 +16,7 @@ namespace Kokoro.Graphics.Framegraph
         public uint MipLevel { get; set; }
         public uint BaseArrayLayer { get; set; }
         public uint LayerCount { get; set; }
+
+        public ImageTransferPass(string name) : base(name) { }
     }
 }
