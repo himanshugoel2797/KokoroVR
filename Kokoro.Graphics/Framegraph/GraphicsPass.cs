@@ -47,7 +47,6 @@ namespace Kokoro.Graphics.Framegraph
         public uint LevelCount { get; set; } = 1;
         public ImageLayout StartLayout { get; set; }
         public ImageLayout FinalLayout { get; set; }
-        public Sampler ImmutableSampler { get; set; }
         public ImageViewUsageEntry()
         {
             Kind = ResourceKind.ImageView;

@@ -372,8 +372,8 @@ namespace Kokoro.Graphics.Framegraph
             globalDescriptorLayout = new DescriptorLayout();
             globalDescriptorLayout.Name = "GlobalDescriptorLayout";
 
-            globalDescriptorPool.Add(DescriptorType.UniformBuffer, 1);
-            globalDescriptorLayout.Add(0, DescriptorType.UniformBuffer, 1, ShaderType.All);
+            //globalDescriptorPool.Add(DescriptorType.UniformBuffer, 1);
+            //globalDescriptorLayout.Add(0, DescriptorType.UniformBuffer, 1, ShaderType.All);
 
             var gPipes = GraphicsPasses.Values.ToArray();
             for (int i = 0; i < gPipes.Length; i++)
@@ -404,6 +404,10 @@ namespace Kokoro.Graphics.Framegraph
             var l_graphCmds = new List<CompiledCommandBuffer>();
             var l_acompCmds = new List<CompiledCommandBuffer>();
             var l_transCmds = new List<CompiledCommandBuffer>();
+
+            var activ_graphCmds = new List<CompiledCommandBuffer>();
+            var activ_acompCmds = new List<CompiledCommandBuffer>();
+            var activ_transCmds = new List<CompiledCommandBuffer>();
 
             //Assign queue ownership and validate passes
             while (Ops.TryDequeue(out var opSet))
@@ -476,6 +480,39 @@ namespace Kokoro.Graphics.Framegraph
                     var graphicsPass = GraphicsPasses[op.PassName];
                     var renderLayout = graphicsPass.RenderLayout;
                     var descriptorSetup = graphicsPass.DescriptorSetup;
+
+                    if (op.Resources != null)
+                        for (int i = 0; i < op.Resources.Length; i++)
+                        {
+                            if (GpuBuffers.ContainsKey(op.Resources[i]))
+                            {
+                                if ((graphicsPass.DescriptorSetup.Descriptors[i].DescriptorType == DescriptorType.UniformBuffer) ||
+                                    (graphicsPass.DescriptorSetup.Descriptors[i].DescriptorType == DescriptorType.UniformBufferDynamic) ||
+                                    (graphicsPass.DescriptorSetup.Descriptors[i].DescriptorType == DescriptorType.StorageBuffer))
+                                    globalDescriptorSet.Set(graphicsPass.DescriptorSetup.Descriptors[i].Index, 0, GpuBuffers[op.Resources[i]], 0, GpuBuffers[op.Resources[i]].Size);
+                                else
+                                    throw new NotImplementedException("May be an unimplemented descriptor type.");
+                            }
+                            else if (GpuBufferViews.ContainsKey(op.Resources[i]))
+                            {
+                                if ((graphicsPass.DescriptorSetup.Descriptors[i].DescriptorType == DescriptorType.UniformTexelBuffer) ||
+                                    (graphicsPass.DescriptorSetup.Descriptors[i].DescriptorType == DescriptorType.StorageTexelBuffer))
+                                    globalDescriptorSet.Set(graphicsPass.DescriptorSetup.Descriptors[i].Index, 0, GpuBufferViews[op.Resources[i]]);
+                                else
+                                    throw new NotImplementedException("May be an unimplemented descriptor type.");
+                            }
+                            else if (ImageViews.ContainsKey(op.Resources[i]))
+                            {
+                                if (graphicsPass.DescriptorSetup.Descriptors[i].DescriptorType == DescriptorType.SampledImage)
+                                    globalDescriptorSet.Set(graphicsPass.DescriptorSetup.Descriptors[i].Index, 0, ImageViews[op.Resources[i]], false);
+                                else if (graphicsPass.DescriptorSetup.Descriptors[i].DescriptorType == DescriptorType.StorageImage)
+                                    globalDescriptorSet.Set(graphicsPass.DescriptorSetup.Descriptors[i].Index, 0, ImageViews[op.Resources[i]], true);
+                                else if (graphicsPass.DescriptorSetup.Descriptors[i].DescriptorType == DescriptorType.CombinedImageSampler)
+                                    globalDescriptorSet.Set(graphicsPass.DescriptorSetup.Descriptors[i].Index, 0, ImageViews[op.Resources[i]], graphicsPass.DescriptorSetup.Descriptors[i].ImmutableSampler);
+                                else
+                                    throw new NotImplementedException("May be an unimplemented descriptor type.");
+                            }
+                        }
 
                     //Allocate the renderpass object
                     var rpass = CreateRenderPass(ref renderLayout, graphicsPass.Name);
@@ -1689,6 +1726,7 @@ namespace Kokoro.Graphics.Framegraph
                 {
                     var pass = ImageTransferPasses[op.PassName];
 
+                    throw new NotImplementedException("Image uploads have not been implemented yet.");
                 }
 
                 node = node.Next;
@@ -1761,17 +1799,29 @@ namespace Kokoro.Graphics.Framegraph
             compCmds[GraphicsDevice.CurrentFrameID] = l_acompCmds.ToArray();
             transCmds[GraphicsDevice.CurrentFrameID] = l_transCmds.ToArray();
 
-            int maxlen = System.Math.Max(graphCmds[GraphicsDevice.CurrentFrameID].Length, System.Math.Max(compCmds[GraphicsDevice.CurrentFrameID].Length, transCmds[GraphicsDevice.CurrentFrameID].Length));
+            for (int i = 0; i < l_graphCmds.Count; i++)
+                if (!l_graphCmds[i].CmdBuffer.IsEmpty)
+                    activ_graphCmds.Add(l_graphCmds[i]);
+
+            for (int i = 0; i < l_acompCmds.Count; i++)
+                if (!l_acompCmds[i].CmdBuffer.IsEmpty)
+                    activ_acompCmds.Add(l_acompCmds[i]);
+
+            for (int i = 0; i < l_transCmds.Count; i++)
+                if (!l_transCmds[i].CmdBuffer.IsEmpty)
+                    activ_transCmds.Add(l_transCmds[i]);
+
+            int maxlen = System.Math.Max(activ_graphCmds.Count - 1, System.Math.Max(activ_acompCmds.Count - 1, activ_transCmds.Count - 1));
             for (int i = 0; i < maxlen; i++)
             {
-                if (i < graphCmds[GraphicsDevice.CurrentFrameID].Length - 2 && !graphCmds[GraphicsDevice.CurrentFrameID][i].CmdBuffer.IsEmpty)
-                    GraphicsDevice.SubmitCommandBuffer(graphCmds[GraphicsDevice.CurrentFrameID][i].CmdBuffer, graphCmds[GraphicsDevice.CurrentFrameID][i].waiting, graphCmds[GraphicsDevice.CurrentFrameID][i].signalling, null);
+                if (i < activ_graphCmds.Count - 1)
+                    GraphicsDevice.SubmitCommandBuffer(activ_graphCmds[i].CmdBuffer, activ_graphCmds[i].waiting, activ_graphCmds[i].signalling, null);
 
-                if (i < compCmds[GraphicsDevice.CurrentFrameID].Length - 1 && !compCmds[GraphicsDevice.CurrentFrameID][i].CmdBuffer.IsEmpty)
-                    GraphicsDevice.SubmitCommandBuffer(compCmds[GraphicsDevice.CurrentFrameID][i].CmdBuffer, compCmds[GraphicsDevice.CurrentFrameID][i].waiting, compCmds[GraphicsDevice.CurrentFrameID][i].signalling, null);
+                if (i < activ_acompCmds.Count - 1)
+                    GraphicsDevice.SubmitCommandBuffer(activ_acompCmds[i].CmdBuffer, activ_acompCmds[i].waiting, activ_acompCmds[i].signalling, null);
 
-                if (i < transCmds[GraphicsDevice.CurrentFrameID].Length - 1 && !transCmds[GraphicsDevice.CurrentFrameID][i].CmdBuffer.IsEmpty)
-                    GraphicsDevice.SubmitCommandBuffer(transCmds[GraphicsDevice.CurrentFrameID][i].CmdBuffer, transCmds[GraphicsDevice.CurrentFrameID][i].waiting, transCmds[GraphicsDevice.CurrentFrameID][i].signalling, null);
+                if (i < activ_transCmds.Count - 1)
+                    GraphicsDevice.SubmitCommandBuffer(activ_transCmds[i].CmdBuffer, activ_transCmds[i].waiting, activ_transCmds[i].signalling, null);
             }
 
             transitionBuffer[GraphicsDevice.CurrentFrameID] = new CommandBuffer
@@ -1804,9 +1854,9 @@ namespace Kokoro.Graphics.Framegraph
             GraphicsDevice.DefaultFramebuffer[GraphicsDevice.CurrentFrameID].ColorAttachments[0].CurrentUsageStage = PipelineStage.ColorAttachOut;
 
             {
-                int i = compCmds[GraphicsDevice.CurrentFrameID].Length - 1;
-                if (i >= 0 && !compCmds[GraphicsDevice.CurrentFrameID][i].CmdBuffer.IsEmpty)
-                    GraphicsDevice.SubmitCommandBuffer(compCmds[GraphicsDevice.CurrentFrameID][i].CmdBuffer, compCmds[GraphicsDevice.CurrentFrameID][i].waiting, compCmds[GraphicsDevice.CurrentFrameID][i].signalling, compFences[GraphicsDevice.CurrentFrameID]);
+                int i = activ_acompCmds.Count - 1;
+                if (i >= 0)
+                    GraphicsDevice.SubmitCommandBuffer(activ_acompCmds[i].CmdBuffer, activ_acompCmds[i].waiting, activ_acompCmds[i].signalling, compFences[GraphicsDevice.CurrentFrameID]);
                 else
                 {
                     compFences[GraphicsDevice.CurrentFrameID].Dispose();
@@ -1818,9 +1868,9 @@ namespace Kokoro.Graphics.Framegraph
                     compFences[GraphicsDevice.CurrentFrameID].Build(DeviceIndex);
                 }
 
-                i = transCmds[GraphicsDevice.CurrentFrameID].Length - 1;
-                if (i >= 0 && !transCmds[GraphicsDevice.CurrentFrameID][i].CmdBuffer.IsEmpty)
-                    GraphicsDevice.SubmitCommandBuffer(transCmds[GraphicsDevice.CurrentFrameID][i].CmdBuffer, transCmds[GraphicsDevice.CurrentFrameID][i].waiting, transCmds[GraphicsDevice.CurrentFrameID][i].signalling, transFences[GraphicsDevice.CurrentFrameID]);
+                i = activ_transCmds.Count - 1;
+                if (i >= 0)
+                    GraphicsDevice.SubmitCommandBuffer(activ_transCmds[i].CmdBuffer, activ_transCmds[i].waiting, activ_transCmds[i].signalling, transFences[GraphicsDevice.CurrentFrameID]);
                 else
                 {
                     transFences[GraphicsDevice.CurrentFrameID].Dispose();
@@ -1832,9 +1882,8 @@ namespace Kokoro.Graphics.Framegraph
                     transFences[GraphicsDevice.CurrentFrameID].Build(DeviceIndex);
                 }
 
-                i = graphCmds[GraphicsDevice.CurrentFrameID].Length - 1;
-                if (!graphCmds[GraphicsDevice.CurrentFrameID][i].CmdBuffer.IsEmpty)
-                    GraphicsDevice.SubmitCommandBuffer(graphCmds[GraphicsDevice.CurrentFrameID][i].CmdBuffer, graphCmds[GraphicsDevice.CurrentFrameID][i].waiting, new GpuSemaphore[] { finalGfxSem }, null);
+                i = activ_graphCmds.Count - 1;
+                GraphicsDevice.SubmitCommandBuffer(activ_graphCmds[i].CmdBuffer, activ_graphCmds[i].waiting, new GpuSemaphore[] { finalGfxSem }, null);
             }
 
             //Submit the last graphics command with an additional sync + fence for the frame

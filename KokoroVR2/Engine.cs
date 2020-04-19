@@ -59,7 +59,15 @@ namespace KokoroVR2
         private static void Window_Update(double time_ms, double delta_ms)
         {
             Mouse.Update();
+            GraphicsContext.PrevCameraDirection = CurrentPlayer.Direction;
+            GraphicsContext.PrevCameraPosition = CurrentPlayer.Position;
+            GraphicsContext.PrevCameraUp = CurrentPlayer.Up;
+            GraphicsContext.PrevView = View;
             CurrentPlayer.Update(delta_ms);
+            GraphicsContext.CameraDirection = CurrentPlayer.Direction;
+            GraphicsContext.CameraPosition = CurrentPlayer.Position;
+            GraphicsContext.CameraUp = CurrentPlayer.Up;
+            GraphicsContext.View = View;
         }
     }
 }

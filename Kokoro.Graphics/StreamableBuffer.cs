@@ -79,10 +79,6 @@ namespace Kokoro.Graphics
                 GraphicsContext.RenderGraph.QueueOp(new Framegraph.GpuOp()
                 {
                     PassName = Name + "_transferOp",
-                    Resources = new string[]{
-                        HostBuffer.Name,
-                        LocalBuffer.Name,
-                        },
                 });
                 isDirty = false;
             }

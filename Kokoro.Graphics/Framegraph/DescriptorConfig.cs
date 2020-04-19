@@ -10,6 +10,7 @@ namespace Kokoro.Graphics.Framegraph
         public uint Index { get; set; }
         public uint Count { get; set; }
         public DescriptorType DescriptorType { get; set; }
+        public Sampler ImmutableSampler { get; set; }
     }
 
     public class PushConstantConfig

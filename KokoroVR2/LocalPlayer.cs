@@ -8,7 +8,6 @@ namespace KokoroVR2
 {
     public class LocalPlayer : Player
     {
-
         public Matrix4 Pose { get; protected set; }
         public Vector3 Velocity { get; protected set; }
         public Vector3 AngularVelocity { get; protected set; }

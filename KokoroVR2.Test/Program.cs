@@ -71,9 +71,23 @@ namespace KokoroVR2.Test
                 },
                 DescriptorSetup = new DescriptorSetup()
                 {
-                    Descriptors = null,
+                    Descriptors = new DescriptorConfig[]{
+                        new DescriptorConfig(){
+                            Count = 1,
+                            Index = 0,
+                            DescriptorType = DescriptorType.UniformBuffer,
+                        }
+                    },
                     PushConstants = null,
                 },
+                Resources = new ResourceUsageEntry[]{
+                    new BufferUsageEntry(){
+                        StartStage = PipelineStage.VertShader,
+                        StartAccesses = AccessFlags.ShaderRead,
+                        FinalStage = PipelineStage.VertShader,
+                        FinalAccesses = AccessFlags.None
+                    }
+                }
             };
             graph.RegisterGraphicsPass(gpass);
             graph.GatherDescriptors();
@@ -103,13 +117,14 @@ namespace KokoroVR2.Test
                 DepthAttachment = null,
                 PassName = "main_pass",
                 Resources = new string[]{
-                    GraphicsDevice.DefaultFramebuffer[GraphicsDevice.CurrentFrameID].ColorAttachments[0].Name,
+                        Engine.GlobalParameters.Name
                     },
                 Cmd = GpuCmd.Draw,
                 VertexCount = 3,
             });
 
             Engine.RenderGraph.Build();
+
             GraphicsDevice.PresentFrame();
         }
 

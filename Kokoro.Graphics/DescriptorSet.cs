@@ -35,9 +35,9 @@ namespace Kokoro.Graphics
                         pSetLayouts = layout_sets,
                     };
 
-                    fixed(IntPtr* hndl_p = &hndl)
-                    if (vkAllocateDescriptorSets(GraphicsDevice.GetDeviceInfo(devId).Device, desc_set_alloc_info.Pointer(), hndl_p) != VkResult.Success)
-                        throw new Exception("Failed to allocate descriptor sets.");
+                    fixed (IntPtr* hndl_p = &hndl)
+                        if (vkAllocateDescriptorSets(GraphicsDevice.GetDeviceInfo(devId).Device, desc_set_alloc_info.Pointer(), hndl_p) != VkResult.Success)
+                            throw new Exception("Failed to allocate descriptor sets.");
                     devID = devId;
 
                     if (GraphicsDevice.EnableValidation)
@@ -89,7 +89,7 @@ namespace Kokoro.Graphics
             {
                 sampler = IntPtr.Zero,
                 imageView = img.hndl,
-                imageLayout = VkImageLayout.ImageLayoutGeneral
+                imageLayout = rw ? VkImageLayout.ImageLayoutGeneral : VkImageLayout.ImageLayoutShaderReadOnlyOptimal
             };
             var img_info_ptr = img_info.Pointer();
 
