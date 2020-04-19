@@ -77,10 +77,11 @@ namespace Kokoro.Graphics
         public static string EngineName { get; set; }
         public static Framebuffer[] DefaultFramebuffer { get; private set; }
         public static uint CurrentFrameID { get; private set; }
+        public static uint PrevFrameID { get; private set; }
         public static ulong CurrentFrameCount { get; private set; }
         public static uint MaxFrameCount { get; private set; }
         public static uint MaxFramesInFlight { get; private set; } = 3;
-        public static uint CurrentFrameNumber { get; private set; }
+        //public static uint CurrentFrameNumber { get; private set; }
         public static uint Width { get; private set; }
         public static uint Height { get; private set; }
         public static bool RebuildShaders { get; set; }
@@ -825,12 +826,12 @@ namespace Kokoro.Graphics
         public static void SubmitGraphicsCommandBuffer(CommandBuffer buffer, GpuSemaphore waitSem)
         {
             SubmitCommandBuffer(buffer, new GpuSemaphore[] {
-                ImageAvailableSemaphore[CurrentFrameNumber],
+                ImageAvailableSemaphore[CurrentFrameID],
                 waitSem
             }, new GpuSemaphore[] {
-                FrameFinishedSemaphore[CurrentFrameNumber]
+                FrameFinishedSemaphore[CurrentFrameID]
             },
-            InflightFences[CurrentFrameNumber]);
+            InflightFences[CurrentFrameID]);
         }
 
         public static void SubmitCommandBuffer(CommandBuffer buffer, GpuSemaphore[] waitSems, GpuSemaphore[] signalSems, Fence f)
@@ -843,16 +844,16 @@ namespace Kokoro.Graphics
         #region Frame
         public static void AcquireFrame()
         {
-            InflightFences[CurrentFrameNumber].Wait();
-            InflightFences[CurrentFrameNumber].Reset();
-
             uint imgIdx = 0;
-            vkAcquireNextImageKHR(DeviceInformation[0].Device, swapChainHndl, ulong.MaxValue, ImageAvailableSemaphore[CurrentFrameNumber].hndl, IntPtr.Zero, &imgIdx);
+            vkAcquireNextImageKHR(DeviceInformation[0].Device, swapChainHndl, ulong.MaxValue, ImageAvailableSemaphore[CurrentFrameID].hndl, IntPtr.Zero, &imgIdx);
+            PrevFrameID = CurrentFrameID;
             CurrentFrameID = imgIdx;
+            InflightFences[CurrentFrameID].Wait();
+            InflightFences[CurrentFrameID].Reset();
         }
         public static void PresentFrame()
         {
-            var waitSemaphores = stackalloc IntPtr[] { FrameFinishedSemaphore[CurrentFrameNumber].hndl };
+            var waitSemaphores = stackalloc IntPtr[] { FrameFinishedSemaphore[CurrentFrameID].hndl };
             var waitSwapchains = stackalloc IntPtr[] { swapChainHndl };
             var waitFrameIdx = stackalloc uint[] { CurrentFrameID };
 
@@ -868,7 +869,7 @@ namespace Kokoro.Graphics
 
             var presentInfo_ptr = presentInfo.Pointer();
             vkQueuePresentKHR(DeviceInformation[0].GraphicsQueue.Handle, presentInfo_ptr);
-            CurrentFrameNumber = (CurrentFrameNumber + 1) % MaxFramesInFlight;
+            //CurrentFrameNumber = (CurrentFrameNumber + 1) % MaxFramesInFlight;
             CurrentFrameCount++;
         }
         #endregion

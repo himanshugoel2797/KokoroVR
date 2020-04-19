@@ -22,8 +22,8 @@ namespace Kokoro.Graphics
         public MemoryUsage MemoryUsage { get; set; }
         public ImageLayout InitialLayout { get; set; }
         public ImageLayout CurrentLayout { get; set; }
-        public AccessFlags CurrentAccesses { get; set; }
-        public PipelineStage CurrentUsageStage { get; set; }
+        public AccessFlags CurrentAccesses { get; set; } = AccessFlags.None;
+        public PipelineStage CurrentUsageStage { get; set; } = PipelineStage.Top;
         public CommandQueueKind OwningQueue { get; set; }
 
         internal IntPtr hndl { get; private set; }

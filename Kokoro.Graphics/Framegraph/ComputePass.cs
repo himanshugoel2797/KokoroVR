@@ -11,5 +11,6 @@ namespace Kokoro.Graphics.Framegraph
         public bool IsAsync { get; set; }
         public string Shader { get; set; }
         public DescriptorSetup DescriptorSetup { get; set; }
+        public ResourceUsageEntry[] Resources { get; set; }
     }
 }

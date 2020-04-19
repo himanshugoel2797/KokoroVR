@@ -102,18 +102,9 @@ namespace KokoroVR2.Test
                 ColorAttachments = new string[] { GraphicsDevice.DefaultFramebuffer[GraphicsDevice.CurrentFrameID].ColorAttachments[0].Name },
                 DepthAttachment = null,
                 PassName = "main_pass",
-                Resources = new GpuResourceRequest[]
-                {
-                    new GpuResourceRequest()
-                    {
-                        Name = GraphicsDevice.DefaultFramebuffer[GraphicsDevice.CurrentFrameID].ColorAttachments[0].Name,
-                        Accesses = AccessFlags.None,
-                        DesiredLayout = ImageLayout.Undefined,
-                        FirstLoadStage = PipelineStage.ColorAttachOut,
-                        LastStoreStage = PipelineStage.ColorAttachOut,
-                        Stores = AccessFlags.ColorAttachmentWrite,
-                    }
-                },
+                Resources = new string[]{
+                    GraphicsDevice.DefaultFramebuffer[GraphicsDevice.CurrentFrameID].ColorAttachments[0].Name,
+                    },
                 Cmd = GpuCmd.Draw,
                 VertexCount = 3,
             });

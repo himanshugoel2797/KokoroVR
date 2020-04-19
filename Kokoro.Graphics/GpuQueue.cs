@@ -38,16 +38,19 @@ namespace Kokoro.Graphics
         #region Submit
         public void SubmitCommandBuffer(CommandBuffer buffer, GpuSemaphore[] waitSems, GpuSemaphore[] signalSems, Fence fence)
         {
+            if (buffer.IsEmpty)
+                throw new Exception();
+
             unsafe
             {
-                var waitSemaphores = stackalloc IntPtr[waitSems.Length];
-                var signalSemaphores = stackalloc IntPtr[signalSems.Length];
-                var waitSemaphoreVals = stackalloc ulong[waitSems.Length];
-                var signalSemaphoreVals = stackalloc ulong[signalSems.Length];
+                var waitSemaphores = stackalloc IntPtr[waitSems == null ? 0 : waitSems.Length];
+                var signalSemaphores = stackalloc IntPtr[signalSems == null ? 0 : signalSems.Length];
+                var waitSemaphoreVals = stackalloc ulong[waitSems == null ? 0 : waitSems.Length];
+                var signalSemaphoreVals = stackalloc ulong[signalSems == null ? 0 : signalSems.Length];
 
                 bool hasTimeline = false;
 
-                for (int i = 0; i < waitSems.Length; i++)
+                for (int i = 0; i < (waitSems == null ? 0 : waitSems.Length); i++)
                 {
                     waitSemaphoreVals[i] = waitSems[i].timeline ? GraphicsDevice.CurrentFrameCount : 1;
                     waitSemaphores[i] = waitSems[i].hndl;
@@ -56,7 +59,7 @@ namespace Kokoro.Graphics
                         hasTimeline = true;
                 }
 
-                for (int i = 0; i < signalSems.Length; i++)
+                for (int i = 0; i < (signalSems == null ? 0 : signalSems.Length); i++)
                 {
                     signalSemaphoreVals[i] = signalSems[i].timeline ? GraphicsDevice.CurrentFrameCount + 1 : 0;
                     signalSemaphores[i] = signalSems[i].hndl;
@@ -65,17 +68,17 @@ namespace Kokoro.Graphics
                         hasTimeline = true;
                 }
 
-                var waitStages = stackalloc VkPipelineStageFlags[waitSems.Length];
+                var waitStages = stackalloc VkPipelineStageFlags[waitSems == null ? 0 : waitSems.Length];
                 var cmdBuffers = stackalloc IntPtr[] { buffer.hndl };
 
-                for (int i = 0; i < waitSems.Length; i++)
+                for (int i = 0; i < (waitSems == null ? 0 : waitSems.Length); i++)
                     waitStages[i] = VkPipelineStageFlags.PipelineStageColorAttachmentOutputBit;
 
                 var timelineSems = new VkTimelineSemaphoreSubmitInfo()
                 {
                     sType = VkStructureType.StructureTypeTimelineSemaphoreSubmitInfo,
-                    signalSemaphoreValueCount = (uint)signalSems.Length,
-                    waitSemaphoreValueCount = (uint)waitSems.Length,
+                    signalSemaphoreValueCount = signalSems == null ? 0 : (uint)signalSems.Length,
+                    waitSemaphoreValueCount = waitSems == null ? 0 : (uint)waitSems.Length,
                     pSignalSemaphoreValues = signalSemaphoreVals,
                     pWaitSemaphoreValues = waitSemaphoreVals
                 };
@@ -84,12 +87,12 @@ namespace Kokoro.Graphics
                 var submitInfo = new VkSubmitInfo()
                 {
                     sType = VkStructureType.StructureTypeSubmitInfo,
-                    waitSemaphoreCount = (uint)waitSems.Length,
+                    waitSemaphoreCount = waitSems == null ? 0 : (uint)waitSems.Length,
                     pWaitSemaphores = waitSemaphores,
                     pWaitDstStageMask = waitStages,
                     commandBufferCount = 1,
                     pCommandBuffers = cmdBuffers,
-                    signalSemaphoreCount = (uint)signalSems.Length,
+                    signalSemaphoreCount = signalSems == null ? 0 : (uint)signalSems.Length,
                     pSignalSemaphores = signalSemaphores,
                     pNext = hasTimeline ? timelineSems_ptr : IntPtr.Zero
                 };

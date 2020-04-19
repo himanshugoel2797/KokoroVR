@@ -11,6 +11,11 @@ namespace Kokoro.Graphics.Framegraph
         public PipelineStage LastStoreStage { get; set; }
         public ImageFormat Format { get; set; }
 
+        public uint BaseArrayLayer { get; set; }
+        public uint BaseMipLevel { get; set; }
+        public uint LayerCount { get; set; } = 1;
+        public uint LevelCount { get; set; } = 1;
+
         public override bool Equals(object obj)
         {
             return this.Equals(obj as RenderLayoutEntry);

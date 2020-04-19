@@ -1,29 +1,11 @@
-﻿using Kokoro.Graphics;
-using Kokoro.Math.Data;
-using System;
+﻿using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
-using System.Drawing;
 using System.Linq;
-using System.Text;
 using System.Threading;
 
 namespace Kokoro.Graphics.Framegraph
 {
-
-    public struct GpuResourceRequest
-    {
-        //Resource Requests
-        public string Name { get; set; }
-
-        internal PipelineStage transitionSourceStage;
-        internal PipelineStage transitionDestStage;
-        internal ImageLayout transitionSourceLayout;
-        internal ImageLayout transitionDestLayout;
-        internal AccessFlags barrierSourceAccess;
-        internal AccessFlags barrierDestAccess;
-    }
-
     public enum GpuCmd
     {
         None,
@@ -35,9 +17,9 @@ namespace Kokoro.Graphics.Framegraph
     {
         //Pass Name
         public string PassName { get; set; }
-        public GpuResourceRequest[] Resources { get; set; }
+        public string[] Resources { get; set; }
 
-        //Only used to build the framebuffer, resource info must still be specified in Resources
+        //Only used to build the framebuffer
         public string[] ColorAttachments { get; set; }
         public string DepthAttachment { get; set; }
 
@@ -54,11 +36,6 @@ namespace Kokoro.Graphics.Framegraph
         public uint FirstIndex { get; set; }
 
         internal CommandQueueKind QueueKind;
-        internal bool barrierOp;
-        internal bool transitionOp;
-        internal bool layoutOp;
-        internal CommandQueueKind transitionDestQueueKind;
-        internal int ownerChangeSemaphoreIdx;
 
         public GpuOp() { }
         public GpuOp(GpuOp src)
@@ -69,17 +46,13 @@ namespace Kokoro.Graphics.Framegraph
             ColorAttachments = src.ColorAttachments;
             DepthAttachment = src.DepthAttachment;
             QueueKind = src.QueueKind;
-            barrierOp = src.barrierOp;
-            transitionOp = src.transitionOp;
-            layoutOp = src.layoutOp;
-            transitionDestQueueKind = src.transitionDestQueueKind;
-            ownerChangeSemaphoreIdx = src.ownerChangeSemaphoreIdx;
         }
     }
 
     public class FrameGraph
     {
         int DeviceIndex;
+        int SemaphoreCounter;
         SemaphoreSlim buildLock;
         DescriptorPool globalDescriptorPool;
         DescriptorLayout globalDescriptorLayout;
@@ -113,41 +86,6 @@ namespace Kokoro.Graphics.Framegraph
         CompiledCommandBuffer[][] transCmds;
 
         CommandBuffer[] transitionBuffer;
-
-        class ImageViewState
-        {
-            public ImageView view;
-            public ImageLayout layout;
-            public CommandQueueKind ownerQueue;
-            public PipelineStage lastStoreStage;
-            public AccessFlags lastStoreAccess;
-            public GpuOp lastStoreOp;
-        }
-
-        class BufferState
-        {
-            public GpuBuffer buffer;
-            public CommandQueueKind ownerQueue;
-            public PipelineStage lastStoreStage;
-            public AccessFlags lastStoreAccess;
-            public GpuOp lastStoreOp;
-        }
-
-        class BufferViewState
-        {
-            public GpuBufferView bufferView;
-            public CommandQueueKind ownerQueue;
-            public PipelineStage lastStoreStage;
-            public AccessFlags lastStoreAccess;
-            public GpuOp lastStoreOp;
-        }
-
-        class SemaphoreState
-        {
-            public GpuOp signaler;
-            public GpuOp waiter;
-            public GpuSemaphore semaphore;
-        }
 
         class CompiledCommandBuffer
         {
@@ -274,191 +212,6 @@ namespace Kokoro.Graphics.Framegraph
             Ops.Enqueue(ops);
         }
 
-        private CompiledCommandBuffer[] GenerateCommands(LinkedList<GpuOp> ops, CommandPool cmdPool, List<SemaphoreState> semaphores)
-        {
-            if (ops.Count == 0)
-                return new CompiledCommandBuffer[0];
-
-            //TODO: Reorder barriers here to execute as early as possible
-
-            //Figure out where command buffers need to be split and synchronized with semaphores
-            var cmdBufs = new List<CompiledCommandBuffer>();
-            var signallingSemaphores = new List<GpuSemaphore>();
-            var waitingSemaphores = new List<GpuSemaphore>();
-            var cmdBuf = new CommandBuffer()
-            {
-                Name = cmdPool.Name + "_" + cmdBufs.Count.ToString(),
-                OneTimeSubmit = true,
-            };
-            cmdBuf.Build(cmdPool);
-            cmdBuf.BeginRecording();
-            bool renderPassBound = false;
-            while (ops.Count > 0)
-            {
-                var op = ops.First.Value;
-                ops.RemoveFirst();
-
-                if (op.barrierOp | op.layoutOp | op.transitionOp)
-                {
-                    var imgBarrier = new ImageMemoryBarrier()
-                    {
-                        Accesses = op.Resources[0].barrierSourceAccess,
-                        Stores = op.Resources[0].barrierDestAccess,
-                        DstFamily = op.transitionOp ? op.transitionDestQueueKind : CommandQueueKind.Ignored,
-                        SrcFamily = op.transitionOp ? op.QueueKind : CommandQueueKind.Ignored,
-                        OldLayout = op.Resources[0].transitionSourceLayout,
-                        NewLayout = op.Resources[0].transitionDestLayout,
-                    };
-
-                    var bufBarrier = new BufferMemoryBarrier()
-                    {
-                        Accesses = op.Resources[0].barrierSourceAccess,
-                        Stores = op.Resources[0].barrierDestAccess,
-                        DstFamily = op.transitionOp ? op.transitionDestQueueKind : CommandQueueKind.Ignored,
-                        SrcFamily = op.transitionOp ? op.QueueKind : CommandQueueKind.Ignored,
-                    };
-
-                    bool addImgBarrier = false;
-                    if (ImageViews.ContainsKey(op.Resources[0].Name))
-                    {
-                        var imgView = ImageViews[op.Resources[0].Name];
-                        imgBarrier.Image = imgView.parent;
-                        imgBarrier.BaseArrayLayer = imgView.BaseLayer;
-                        imgBarrier.BaseMipLevel = imgView.BaseLevel;
-                        imgBarrier.LayerCount = imgView.LayerCount;
-                        imgBarrier.LevelCount = imgView.LevelCount;
-
-                        addImgBarrier = true;
-                    }
-
-                    bool addBufBarrier = false;
-                    if (GpuBufferViews.ContainsKey(op.Resources[0].Name))
-                    {
-                        var bufView = GpuBufferViews[op.Resources[0].Name];
-                        bufBarrier.Buffer = bufView.parent;
-                        bufBarrier.Offset = 0;
-                        bufBarrier.Size = bufView.Size;
-                        addBufBarrier = true;
-                    }
-                    else if (GpuBuffers.ContainsKey(op.Resources[0].Name))
-                    {
-                        var buf = GpuBuffers[op.Resources[0].Name];
-                        bufBarrier.Buffer = buf;
-                        bufBarrier.Offset = 0;
-                        bufBarrier.Size = buf.Size;
-                        addBufBarrier = true;
-                    }
-
-                    //Add signalled semaphore
-                    bool transitionOutOp = false;
-                    if (op.transitionOp)
-                    {
-                        var semaphoreData = semaphores[op.ownerChangeSemaphoreIdx];
-                        //if this is the source queue, signal the semaphore
-                        if (semaphoreData.signaler == op)
-                        {
-                            signallingSemaphores.Add(semaphoreData.semaphore);
-                            transitionOutOp = true;
-                        }
-
-                        //if this is the dest queue, wait for the semaphore
-                        if (semaphoreData.waiter == op)
-                            waitingSemaphores.Add(semaphoreData.semaphore);
-                    }
-
-                    //Emit barrier
-                    if (addImgBarrier)
-                        cmdBuf.Barrier(op.Resources[0].transitionSourceStage, op.Resources[0].transitionDestStage, null, new ImageMemoryBarrier[] { imgBarrier });
-                    else if (addBufBarrier)
-                        cmdBuf.Barrier(op.Resources[0].transitionSourceStage, op.Resources[0].transitionDestStage, new BufferMemoryBarrier[] { bufBarrier }, null);
-
-                    if (op.transitionOp && transitionOutOp)
-                    {
-                        //Emit command buffer
-                        if (renderPassBound) cmdBuf.EndRenderPass();
-                        cmdBuf.EndRecording();
-                        cmdBufs.Add(new CompiledCommandBuffer()
-                        {
-                            CmdBuffer = cmdBuf,
-                            signalling = signallingSemaphores.ToArray(),
-                            waiting = waitingSemaphores.ToArray(),
-                            SrcStage = op.Resources[0].transitionSourceStage,
-                            DstStage = op.Resources[0].transitionDestStage,
-                        });
-                        signallingSemaphores.Clear();
-                        waitingSemaphores.Clear();
-                        renderPassBound = false;
-
-                        cmdBuf = new CommandBuffer()
-                        {
-                            Name = cmdPool.Name + "_" + cmdBufs.Count.ToString(),
-                            OneTimeSubmit = true,
-                        };
-                        cmdBuf.Build(cmdPool);
-                        cmdBuf.BeginRecording();
-                    }
-                    continue;
-                }
-
-                if (BufferTransferPasses.ContainsKey(op.PassName))
-                {
-                    var pass = BufferTransferPasses[op.PassName];
-                    cmdBuf.Stage(GpuBuffers[pass.Source], pass.SourceOffset, GpuBuffers[pass.Destination], pass.DestinationOffset, pass.Size);
-                }
-                else if (ImageTransferPasses.ContainsKey(op.PassName))
-                {
-
-                }
-                else if (GraphicsPasses.ContainsKey(op.PassName))
-                {
-                    switch (op.Cmd)
-                    {
-                        case GpuCmd.Draw:
-                        case GpuCmd.DrawIndexed:
-                            {
-                                if (renderPassBound) cmdBuf.EndRenderPass();
-                                renderPassBound = false;
-                                //Bind the graphics pipeline, framebuffer, descriptors
-                                cmdBuf.SetDescriptors(PipelineLayouts[op.PassName], globalDescriptorSet, DescriptorBindPoint.Graphics, 0);
-                                cmdBuf.SetPipeline(GraphicsPipelines[op.PassName], Framebuffers[GetFramebufferName(op.ColorAttachments, op.DepthAttachment)], 0);
-                                renderPassBound = true;
-                            }
-                            break;
-                    }
-
-                    switch (op.Cmd)
-                    {
-                        case GpuCmd.Draw:
-                            {
-                                cmdBuf.Draw(op.VertexCount, op.InstanceCount, op.BaseVertex, op.BaseInstance);
-                            }
-                            break;
-                        case GpuCmd.DrawIndexed:
-                            {
-                                cmdBuf.DrawIndexed(GpuBuffers[op.IndexBuffer], op.IndexBufferOffset, op.IndexType, op.IndexCount, op.InstanceCount, op.FirstIndex, (int)op.BaseVertex, op.BaseInstance);
-                            }
-                            break;
-                    }
-                }
-            }
-            if (cmdBuf.IsRecording)
-            {
-                if (renderPassBound) cmdBuf.EndRenderPass();
-                cmdBuf.EndRecording();
-                cmdBufs.Add(new CompiledCommandBuffer()
-                {
-                    CmdBuffer = cmdBuf,
-                    signalling = signallingSemaphores.ToArray(),
-                    waiting = waitingSemaphores.ToArray(),
-                });
-                signallingSemaphores.Clear();
-                waitingSemaphores.Clear();
-                renderPassBound = false;
-            }
-
-            return cmdBufs.ToArray();
-        }
-
         private RenderPass CreateRenderPass(ref RenderLayout layout, string passname)
         {
             if (RenderPasses.ContainsKey(layout))
@@ -497,7 +250,6 @@ namespace Kokoro.Graphics.Framegraph
             RenderPasses[layout] = pass;
             return pass;
         }
-
         private string GetFramebufferName(string[] colorAttachments, string depthAttachment)
         {
             string framebufferName = "";
@@ -510,7 +262,6 @@ namespace Kokoro.Graphics.Framegraph
                 framebufferName += "depth_" + depthAttachment;
             return framebufferName;
         }
-
         private Framebuffer CreateFramebuffer(string[] colorAttachments, string depthAttachment, ref RenderLayout renderLayout)
         {
             var name = GetFramebufferName(colorAttachments, depthAttachment);
@@ -544,7 +295,6 @@ namespace Kokoro.Graphics.Framegraph
             Framebuffers[name] = fbuf;
             return fbuf;
         }
-
         private PipelineLayout CreatePipelineLayout(DescriptorSetup descriptorSetup, string passname)
         {
             if (PipelineLayouts.ContainsKey(passname))
@@ -572,7 +322,6 @@ namespace Kokoro.Graphics.Framegraph
             PipelineLayouts[passname] = layout;
             return layout;
         }
-
         private void CompileDescriptorConfig(DescriptorSetup config)
         {
             if (config.Descriptors != null)
@@ -582,7 +331,19 @@ namespace Kokoro.Graphics.Framegraph
                     globalDescriptorLayout.Add(config.Descriptors[i].Index, config.Descriptors[i].DescriptorType, config.Descriptors[i].Count, ShaderType.All);
                 }
         }
-
+        private GpuSemaphore AllocateSemaphore(string name)
+        {
+            if (SemaphoreCache[GraphicsDevice.CurrentFrameID].Count <= SemaphoreCounter)
+            {
+                var sem = new GpuSemaphore()
+                {
+                    Name = name
+                };
+                sem.Build(DeviceIndex, false, 0);
+                SemaphoreCache[GraphicsDevice.CurrentFrameID].Add(sem);
+            }
+            return SemaphoreCache[GraphicsDevice.CurrentFrameID][SemaphoreCounter++];
+        }
         public void GatherDescriptors()
         {
             buildLock.Wait();
@@ -615,27 +376,20 @@ namespace Kokoro.Graphics.Framegraph
 
             buildLock.Release();
         }
-
         public void Build()
         {
             buildLock.Wait();
 
-            int semaphoreCntr = 0;
+            SemaphoreCounter = 0;
             GpuSemaphore finalGfxSem = null;
-            var graphQ0 = new Queue<GpuOp>(Ops.Count);
-            var compQ0 = new Queue<GpuOp>(Ops.Count);
-            var transQ0 = new Queue<GpuOp>(Ops.Count);
-            var graphQ1 = new LinkedList<GpuOp>();
-            var compQ1 = new LinkedList<GpuOp>();
-            var transQ1 = new LinkedList<GpuOp>();
-            var semaphoreSet = new List<SemaphoreState>(256);
-            var imgViews = new Dictionary<string, ImageViewState>(ImageViews.Count);
-            var buffers = new Dictionary<string, BufferState>(GpuBuffers.Count);
-            var bufferViews = new Dictionary<string, BufferViewState>(GpuBufferViews.Count);
+            var Q0 = new LinkedList<GpuOp>();
+            var l_graphCmds = new List<CompiledCommandBuffer>();
+            var l_acompCmds = new List<CompiledCommandBuffer>();
+            var l_transCmds = new List<CompiledCommandBuffer>();
 
+            //Assign queue ownership and validate passes
             while (Ops.TryDequeue(out var opSet))
             {
-
                 for (int i = 0; i < opSet.Length; i++)
                 {
                     //Label queue kind based on pass info
@@ -657,7 +411,6 @@ namespace Kokoro.Graphics.Framegraph
                         //Make sure that the framebuffer attachment layouts match the graphicspass specification
                         //If layout is 'undefined', override the layout to match graphicspass
                         var gpass = GraphicsPasses[opSet[i].PassName];
-                        int k;
                         if (gpass.RenderLayout.Color == null && opSet[i].ColorAttachments != null)
                             throw new Exception();
                         if (gpass.RenderLayout.Color != null)
@@ -673,545 +426,13 @@ namespace Kokoro.Graphics.Framegraph
                             throw new Exception();
                     }
 
-                    for (int j = 0; j < opSet[i].Resources.Length; j++)
-                    {
-                        var resourceName = opSet[i].Resources[j].Name;
-                        if (ImageViews.ContainsKey(resourceName) && !imgViews.ContainsKey(resourceName))
-                        {
-                            //Collect all imageview resource names
-                            imgViews[resourceName] = new ImageViewState()
-                            {
-                                view = ImageViews[resourceName],
-                                layout = ImageViews[resourceName].Layout,
-                                ownerQueue = opSet[i].QueueKind,
-                            };
-                            if (opSet[i].QueueKind == CommandQueueKind.Transfer)
-                            {
-                                imgViews[resourceName].lastStoreStage = PipelineStage.Transfer;
-                                imgViews[resourceName].lastStoreOp = opSet[i];
-                            }
-                            else if (opSet[i].QueueKind == CommandQueueKind.Compute)
-                            {
-                                imgViews[resourceName].lastStoreStage = PipelineStage.CompShader;
-                                if (opSet[i].Resources[j].LastStoreStage != PipelineStage.Top)
-                                    imgViews[resourceName].lastStoreOp = opSet[i];
-                            }
-                            else
-                            {
-                                imgViews[resourceName].lastStoreStage = PipelineStage.Bottom;
-                                if (opSet[i].Resources[j].LastStoreStage != PipelineStage.Top)
-                                    imgViews[resourceName].lastStoreOp = opSet[i];
-                            }
-                            //Check the desired layout, emit a transition if needed
-                            if (ImageViews[resourceName].Layout != opSet[i].Resources[j].DesiredLayout)
-                            {
-                                var tr_op = new GpuOp();
-                                tr_op.Resources = new GpuResourceRequest[]
-                                {
-                                    new GpuResourceRequest()
-                                    {
-                                        Name = resourceName
-                                    }
-                                };
-
-                                tr_op.barrierOp = true;
-                                tr_op.Resources[0].transitionSourceStage = imgViews[resourceName].lastStoreStage;
-                                tr_op.Resources[0].transitionDestStage = opSet[i].Resources[j].FirstLoadStage;
-
-                                //Prepare a memory barrier for the last store ops to be ready for the latest load ops 
-                                tr_op.Resources[0].barrierSourceAccess = imgViews[resourceName].lastStoreAccess;
-                                tr_op.Resources[0].barrierDestAccess = opSet[i].Resources[j].Accesses;
-
-                                //Generate a layout transition
-                                tr_op.layoutOp = true;
-                                tr_op.Resources[0].transitionSourceLayout = imgViews[resourceName].layout;
-                                tr_op.Resources[0].transitionDestLayout = opSet[i].Resources[j].DesiredLayout;
-                                switch (imgViews[resourceName].ownerQueue)
-                                {
-                                    case CommandQueueKind.Compute:
-                                        compQ0.Enqueue(tr_op);
-                                        break;
-                                    case CommandQueueKind.Graphics:
-                                        graphQ0.Enqueue(tr_op);
-                                        break;
-                                    case CommandQueueKind.Transfer:
-                                        transQ0.Enqueue(tr_op);
-                                        break;
-                                    default:
-                                        throw new Exception();
-                                };
-                            }
-                        }
-                        else if (GpuBuffers.ContainsKey(resourceName) && !buffers.ContainsKey(resourceName))
-                        {
-                            //Collect all buffer resource names
-                            buffers[resourceName] = new BufferState()
-                            {
-                                ownerQueue = opSet[i].QueueKind,
-                                buffer = GpuBuffers[resourceName],
-                            };
-                            if (opSet[i].QueueKind == CommandQueueKind.Transfer)
-                            {
-                                buffers[resourceName].lastStoreStage = PipelineStage.Transfer;
-                                buffers[resourceName].lastStoreOp = opSet[i];
-                            }
-                            else if (opSet[i].QueueKind == CommandQueueKind.Compute)
-                            {
-                                buffers[resourceName].lastStoreStage = PipelineStage.CompShader;
-                                if (opSet[i].Resources[j].LastStoreStage != PipelineStage.Top)
-                                    buffers[resourceName].lastStoreOp = opSet[i];
-                            }
-                            else
-                            {
-                                buffers[resourceName].lastStoreStage = PipelineStage.Bottom;
-                                if (opSet[i].Resources[j].LastStoreStage != PipelineStage.Top)
-                                    buffers[resourceName].lastStoreOp = opSet[i];
-                            }
-                        }
-                        else if (GpuBufferViews.ContainsKey(resourceName) && !bufferViews.ContainsKey(resourceName))
-                        {
-                            //Collect all buffer view resource names
-                            bufferViews[resourceName] = new BufferViewState()
-                            {
-                                ownerQueue = opSet[i].QueueKind,
-                                bufferView = GpuBufferViews[resourceName]
-                            };
-                            if (opSet[i].QueueKind == CommandQueueKind.Transfer)
-                            {
-                                bufferViews[resourceName].lastStoreStage = PipelineStage.Transfer;
-                                bufferViews[resourceName].lastStoreOp = opSet[i];
-                            }
-                            else if (opSet[i].QueueKind == CommandQueueKind.Compute)
-                            {
-                                bufferViews[resourceName].lastStoreStage = PipelineStage.CompShader;
-                                if (opSet[i].Resources[j].LastStoreStage != PipelineStage.Top)
-                                    bufferViews[resourceName].lastStoreOp = opSet[i];
-                            }
-                            else
-                            {
-                                bufferViews[resourceName].lastStoreStage = PipelineStage.Bottom;
-                                if (opSet[i].Resources[j].LastStoreStage != PipelineStage.Top)
-                                    bufferViews[resourceName].lastStoreOp = opSet[i];
-                            }
-                        }
-                        //Detect and insert queue transition info + propogate state transitions
-                        else if (ImageViews.ContainsKey(resourceName))
-                        {
-                            var node = imgViews[resourceName];
-                            if (node.lastStoreOp != null)
-                            {
-                                var tr_op = new GpuOp();
-                                tr_op.Resources = new GpuResourceRequest[]
-                                {
-                                        new GpuResourceRequest()
-                                        {
-                                            Name = resourceName,
-                                        }
-                                };
-
-                                //propogate any necessary layout transitions and barriers
-                                tr_op.barrierOp = true;
-                                tr_op.Resources[0].transitionSourceStage = node.lastStoreStage;
-                                tr_op.Resources[0].transitionDestStage = opSet[i].Resources[j].FirstLoadStage;
-
-                                //Prepare a memory barrier for the last store ops to be ready for the latest load ops 
-                                tr_op.Resources[0].barrierSourceAccess = node.lastStoreAccess;
-                                tr_op.Resources[0].barrierDestAccess = opSet[i].Resources[j].Accesses;
-
-                                if (node.layout != opSet[i].Resources[j].DesiredLayout)
-                                {
-                                    //Generate a layout transition
-                                    tr_op.layoutOp = true;
-                                    tr_op.Resources[0].transitionSourceLayout = node.layout;
-                                    tr_op.Resources[0].transitionDestLayout = opSet[i].Resources[j].DesiredLayout;
-                                }
-
-                                if (node.ownerQueue != opSet[i].QueueKind)
-                                {
-                                    //Insert a queue transition op
-                                    tr_op.transitionOp = true;
-                                    tr_op.transitionDestQueueKind = opSet[i].QueueKind;
-                                    tr_op.QueueKind = node.ownerQueue;
-                                    tr_op.ownerChangeSemaphoreIdx = semaphoreSet.Count;
-                                    //Emit this into both queues
-                                    switch (node.ownerQueue)
-                                    {
-                                        case CommandQueueKind.Compute:
-                                            compQ0.Enqueue(tr_op);
-                                            break;
-                                        case CommandQueueKind.Graphics:
-                                            graphQ0.Enqueue(tr_op);
-                                            break;
-                                        case CommandQueueKind.Transfer:
-                                            transQ0.Enqueue(tr_op);
-                                            break;
-                                        default:
-                                            throw new Exception();
-                                    };
-                                    var waiter_op = new GpuOp(tr_op);
-                                    waiter_op.ownerChangeSemaphoreIdx = semaphoreSet.Count;
-                                    semaphoreSet.Add(new SemaphoreState()
-                                    {
-                                        signaler = tr_op,
-                                        waiter = waiter_op
-                                    });
-                                    switch (opSet[i].QueueKind)
-                                    {
-                                        case CommandQueueKind.Compute:
-                                            compQ0.Enqueue(waiter_op);
-                                            break;
-                                        case CommandQueueKind.Graphics:
-                                            graphQ0.Enqueue(waiter_op);
-                                            break;
-                                        case CommandQueueKind.Transfer:
-                                            transQ0.Enqueue(waiter_op);
-                                            break;
-                                        default:
-                                            throw new Exception();
-                                    };
-                                }
-                                else
-                                {
-                                    switch (opSet[i].QueueKind)
-                                    {
-                                        case CommandQueueKind.Compute:
-                                            compQ0.Enqueue(tr_op);
-                                            break;
-                                        case CommandQueueKind.Graphics:
-                                            graphQ0.Enqueue(tr_op);
-                                            break;
-                                        case CommandQueueKind.Transfer:
-                                            transQ0.Enqueue(tr_op);
-                                            break;
-                                        default:
-                                            throw new Exception();
-                                    };
-                                }
-
-                                //update the imgViews state
-                                imgViews[resourceName].lastStoreOp = opSet[i];
-                                imgViews[resourceName].lastStoreStage = opSet[i].Resources[j].LastStoreStage;
-                                imgViews[resourceName].lastStoreAccess = opSet[i].Resources[j].Stores;
-                                imgViews[resourceName].layout = opSet[i].Resources[j].DesiredLayout;
-                                imgViews[resourceName].ownerQueue = opSet[i].QueueKind;
-                            }
-                            //If no stores have been performed, there is nothing to transition or barrier
-                        }
-                        else if (GpuBuffers.ContainsKey(resourceName))
-                        {
-                            var node = buffers[resourceName];
-                            if (node.lastStoreOp != null)
-                            {
-                                var tr_op = new GpuOp();
-                                tr_op.Resources = new GpuResourceRequest[]
-                                {
-                                        new GpuResourceRequest()
-                                        {
-                                            Name = resourceName,
-                                        }
-                                };
-
-                                //propogate any necessary layout transitions and barriers
-                                tr_op.barrierOp = true;
-                                tr_op.Resources[0].transitionSourceStage = node.lastStoreStage;
-                                tr_op.Resources[0].transitionDestStage = opSet[i].Resources[j].FirstLoadStage;
-
-                                //Prepare a memory barrier for the last store ops to be ready for the latest load ops 
-                                tr_op.Resources[0].barrierSourceAccess = node.lastStoreAccess;
-                                tr_op.Resources[0].barrierDestAccess = opSet[i].Resources[j].Accesses;
-
-                                if (node.ownerQueue != opSet[i].QueueKind)
-                                {
-                                    //Insert a queue transition op
-                                    tr_op.transitionOp = true;
-                                    tr_op.transitionDestQueueKind = opSet[i].QueueKind;
-                                    tr_op.QueueKind = node.ownerQueue;
-                                    tr_op.ownerChangeSemaphoreIdx = semaphoreSet.Count;
-                                    //Emit this into both queues
-                                    switch (node.ownerQueue)
-                                    {
-                                        case CommandQueueKind.Compute:
-                                            compQ0.Enqueue(tr_op);
-                                            break;
-                                        case CommandQueueKind.Graphics:
-                                            graphQ0.Enqueue(tr_op);
-                                            break;
-                                        case CommandQueueKind.Transfer:
-                                            transQ0.Enqueue(tr_op);
-                                            break;
-                                        default:
-                                            throw new Exception();
-                                    };
-                                    var waiter_op = new GpuOp(tr_op);
-                                    waiter_op.ownerChangeSemaphoreIdx = semaphoreSet.Count;
-                                    semaphoreSet.Add(new SemaphoreState()
-                                    {
-                                        signaler = tr_op,
-                                        waiter = waiter_op
-                                    });
-                                    switch (opSet[i].QueueKind)
-                                    {
-                                        case CommandQueueKind.Compute:
-                                            compQ0.Enqueue(waiter_op);
-                                            break;
-                                        case CommandQueueKind.Graphics:
-                                            graphQ0.Enqueue(waiter_op);
-                                            break;
-                                        case CommandQueueKind.Transfer:
-                                            transQ0.Enqueue(waiter_op);
-                                            break;
-                                        default:
-                                            throw new Exception();
-                                    };
-                                }
-                                else
-                                {
-                                    switch (opSet[i].QueueKind)
-                                    {
-                                        case CommandQueueKind.Compute:
-                                            compQ0.Enqueue(tr_op);
-                                            break;
-                                        case CommandQueueKind.Graphics:
-                                            graphQ0.Enqueue(tr_op);
-                                            break;
-                                        case CommandQueueKind.Transfer:
-                                            transQ0.Enqueue(tr_op);
-                                            break;
-                                        default:
-                                            throw new Exception();
-                                    };
-                                }
-
-                                //update the buffers state
-                                buffers[resourceName].lastStoreOp = opSet[i];
-                                buffers[resourceName].lastStoreStage = opSet[i].Resources[j].LastStoreStage;
-                                buffers[resourceName].lastStoreAccess = opSet[i].Resources[j].Stores;
-                                buffers[resourceName].ownerQueue = opSet[i].QueueKind;
-                            }
-                        }
-                        else if (GpuBufferViews.ContainsKey(resourceName))
-                        {
-                            var node = bufferViews[resourceName];
-                            if (node.lastStoreOp != null)
-                            {
-                                var tr_op = new GpuOp();
-                                tr_op.Resources = new GpuResourceRequest[]
-                                {
-                                        new GpuResourceRequest()
-                                        {
-                                            Name = resourceName,
-                                        }
-                                };
-
-                                //propogate any necessary layout transitions and barriers
-                                tr_op.barrierOp = true;
-                                tr_op.Resources[0].transitionSourceStage = node.lastStoreStage;
-                                tr_op.Resources[0].transitionDestStage = opSet[i].Resources[j].FirstLoadStage;
-
-                                //Prepare a memory barrier for the last store ops to be ready for the latest load ops 
-                                tr_op.Resources[0].barrierSourceAccess = node.lastStoreAccess;
-                                tr_op.Resources[0].barrierDestAccess = opSet[i].Resources[j].Accesses;
-
-                                if (node.ownerQueue != opSet[i].QueueKind)
-                                {
-                                    //Insert a queue transition op
-                                    tr_op.transitionOp = true;
-                                    tr_op.transitionDestQueueKind = opSet[i].QueueKind;
-                                    tr_op.QueueKind = node.ownerQueue;
-                                    tr_op.ownerChangeSemaphoreIdx = semaphoreSet.Count;
-                                    //Emit this into both queues
-                                    switch (node.ownerQueue)
-                                    {
-                                        case CommandQueueKind.Compute:
-                                            compQ0.Enqueue(tr_op);
-                                            break;
-                                        case CommandQueueKind.Graphics:
-                                            graphQ0.Enqueue(tr_op);
-                                            break;
-                                        case CommandQueueKind.Transfer:
-                                            transQ0.Enqueue(tr_op);
-                                            break;
-                                        default:
-                                            throw new Exception();
-                                    };
-                                    var waiter_op = new GpuOp(tr_op);
-                                    waiter_op.ownerChangeSemaphoreIdx = semaphoreSet.Count;
-                                    semaphoreSet.Add(new SemaphoreState()
-                                    {
-                                        signaler = tr_op,
-                                        waiter = waiter_op
-                                    });
-                                    switch (opSet[i].QueueKind)
-                                    {
-                                        case CommandQueueKind.Compute:
-                                            compQ0.Enqueue(waiter_op);
-                                            break;
-                                        case CommandQueueKind.Graphics:
-                                            graphQ0.Enqueue(waiter_op);
-                                            break;
-                                        case CommandQueueKind.Transfer:
-                                            transQ0.Enqueue(waiter_op);
-                                            break;
-                                        default:
-                                            throw new Exception();
-                                    };
-                                }
-                                else
-                                {
-                                    switch (opSet[i].QueueKind)
-                                    {
-                                        case CommandQueueKind.Compute:
-                                            compQ0.Enqueue(tr_op);
-                                            break;
-                                        case CommandQueueKind.Graphics:
-                                            graphQ0.Enqueue(tr_op);
-                                            break;
-                                        case CommandQueueKind.Transfer:
-                                            transQ0.Enqueue(tr_op);
-                                            break;
-                                        default:
-                                            throw new Exception();
-                                    };
-                                }
-
-                                //update the bufferViews state
-                                bufferViews[resourceName].lastStoreOp = opSet[i];
-                                bufferViews[resourceName].lastStoreStage = opSet[i].Resources[j].LastStoreStage;
-                                bufferViews[resourceName].lastStoreAccess = opSet[i].Resources[j].Stores;
-                                bufferViews[resourceName].ownerQueue = opSet[i].QueueKind;
-                            }
-                        }
-                    }
-
-                    switch (opSet[i].QueueKind)
-                    {
-                        case CommandQueueKind.Compute:
-                            compQ0.Enqueue(opSet[i]);
-                            break;
-                        case CommandQueueKind.Graphics:
-                            graphQ0.Enqueue(opSet[i]);
-                            break;
-                        case CommandQueueKind.Transfer:
-                            transQ0.Enqueue(opSet[i]);
-                            break;
-                        default:
-                            throw new Exception();
-                    };
+                    Q0.AddLast(opSet[i]);
                 }
             }
 
-            while (graphQ0.Count > 0)
+            //Allocate per pass resources
+            foreach (var op in Q0)
             {
-                var op = graphQ0.Dequeue();
-
-                if (op.transitionOp)
-                {
-                    //Generate a semaphore for this if one doesn't already exist
-                    if (SemaphoreCache[GraphicsDevice.CurrentFrameID].Count <= semaphoreCntr)
-                    {
-                        var sem = new GpuSemaphore()
-                        {
-                            Name = $"Semaphore_{GraphicsDevice.CurrentFrameID}_{semaphoreCntr}"
-                        };
-                        sem.Build(DeviceIndex, false, 0);
-                        SemaphoreCache[GraphicsDevice.CurrentFrameID].Add(sem);
-                    }
-                    semaphoreSet[op.ownerChangeSemaphoreIdx].semaphore = SemaphoreCache[GraphicsDevice.CurrentFrameID][semaphoreCntr++];
-                }
-                if (!op.transitionOp && !op.layoutOp && !op.barrierOp)
-                {
-                    if (ComputePasses.ContainsKey(op.PassName))
-                    {
-                        var computePass = ComputePasses[op.PassName];
-                        var descriptorSetup = computePass.DescriptorSetup;
-                        if (!ComputePipelines.ContainsKey(computePass.Name))
-                        {
-                            //build the pipeline layout using the descriptors
-                            var pipelineLayout = CreatePipelineLayout(descriptorSetup, computePass.Name);
-
-                            //allocate the pipeline object
-                            var compPipeline = new ComputePipeline()
-                            {
-                                Name = computePass.Name,
-                                Shader = Shaders[computePass.Shader].Shader,
-                                SpecializationData = Shaders[computePass.Shader].SpecializationData,
-                                PipelineLayout = pipelineLayout,
-                            };
-                            ComputePipelines[compPipeline.Name] = compPipeline;
-                        }
-                    }
-                    if (GraphicsPasses.ContainsKey(op.PassName))
-                    {
-                        var graphicsPass = GraphicsPasses[op.PassName];
-                        var renderLayout = graphicsPass.RenderLayout;
-                        var descriptorSetup = graphicsPass.DescriptorSetup;
-
-                        //Allocate the renderpass object
-                        var rpass = CreateRenderPass(ref renderLayout, graphicsPass.Name);
-
-                        //allocate the framebuffer object
-                        CreateFramebuffer(op.ColorAttachments, op.DepthAttachment, ref renderLayout);
-
-                        if (!GraphicsPipelines.ContainsKey(graphicsPass.Name))
-                        {
-                            //build the pipeline layout
-                            var pipelineLayout = CreatePipelineLayout(descriptorSetup, graphicsPass.Name);
-
-                            //allocate the pipeline object
-                            var gpipe = new GraphicsPipeline();
-                            gpipe.Name = graphicsPass.Name;
-                            gpipe.Topology = graphicsPass.Topology;
-                            gpipe.DepthClamp = graphicsPass.DepthClamp;
-                            gpipe.RasterizerDiscard = graphicsPass.RasterizerDiscard;
-                            gpipe.LineWidth = graphicsPass.LineWidth;
-                            gpipe.CullMode = graphicsPass.CullMode;
-                            gpipe.EnableBlending = graphicsPass.EnableBlending;
-                            gpipe.DepthTest = graphicsPass.DepthTest;
-                            gpipe.RenderPass = rpass;
-                            gpipe.PipelineLayout = pipelineLayout;
-                            gpipe.ViewportX = graphicsPass.ViewportX;
-                            gpipe.ViewportY = graphicsPass.ViewportY;
-                            gpipe.ViewportWidth = graphicsPass.ViewportWidth;
-                            gpipe.ViewportHeight = graphicsPass.ViewportHeight;
-                            gpipe.ViewportMinDepth = graphicsPass.ViewportMinDepth;
-                            gpipe.ViewportMaxDepth = graphicsPass.ViewportMaxDepth;
-                            gpipe.ViewportDynamic = graphicsPass.ViewportDynamic;
-
-                            gpipe.Shaders = new ShaderSource[graphicsPass.Shaders.Length];
-                            gpipe.SpecializationData = new Memory<int>[graphicsPass.Shaders.Length];
-                            for (int i = 0; i < gpipe.Shaders.Length; i++)
-                            {
-                                gpipe.Shaders[i] = Shaders[graphicsPass.Shaders[i]].Shader;
-                                gpipe.SpecializationData[i] = Shaders[graphicsPass.Shaders[i]].SpecializationData;
-                            }
-                            gpipe.Build(DeviceIndex);
-                            GraphicsPipelines[graphicsPass.Name] = gpipe;
-                        }
-                    }
-                }
-                graphQ1.AddLast(op);
-            }
-
-
-            while (compQ0.Count > 0)
-            {
-                var op = compQ0.Dequeue();
-
-                if (op.transitionOp)
-                {
-                    //Generate a semaphore for this if one doesn't already exist
-                    if (SemaphoreCache[GraphicsDevice.CurrentFrameID].Count <= semaphoreCntr)
-                    {
-                        var sem = new GpuSemaphore()
-                        {
-                            Name = $"Semaphore_{GraphicsDevice.CurrentFrameID}_{semaphoreCntr}"
-                        };
-                        sem.Build(DeviceIndex, false, 0);
-                        SemaphoreCache[GraphicsDevice.CurrentFrameID].Add(sem);
-                    }
-                    semaphoreSet[op.ownerChangeSemaphoreIdx].semaphore = SemaphoreCache[GraphicsDevice.CurrentFrameID][semaphoreCntr++];
-                }
-
                 if (ComputePasses.ContainsKey(op.PassName))
                 {
                     var computePass = ComputePasses[op.PassName];
@@ -1232,85 +453,1093 @@ namespace Kokoro.Graphics.Framegraph
                         ComputePipelines[compPipeline.Name] = compPipeline;
                     }
                 }
+                if (GraphicsPasses.ContainsKey(op.PassName))
+                {
+                    var graphicsPass = GraphicsPasses[op.PassName];
+                    var renderLayout = graphicsPass.RenderLayout;
+                    var descriptorSetup = graphicsPass.DescriptorSetup;
 
-                compQ1.AddLast(op);
+                    //Allocate the renderpass object
+                    var rpass = CreateRenderPass(ref renderLayout, graphicsPass.Name);
+
+                    //allocate the framebuffer object
+                    CreateFramebuffer(op.ColorAttachments, op.DepthAttachment, ref renderLayout);
+
+                    if (!GraphicsPipelines.ContainsKey(graphicsPass.Name))
+                    {
+                        //build the pipeline layout
+                        var pipelineLayout = CreatePipelineLayout(descriptorSetup, graphicsPass.Name);
+
+                        //allocate the pipeline object
+                        var gpipe = new GraphicsPipeline();
+                        gpipe.Name = graphicsPass.Name;
+                        gpipe.Topology = graphicsPass.Topology;
+                        gpipe.DepthClamp = graphicsPass.DepthClamp;
+                        gpipe.RasterizerDiscard = graphicsPass.RasterizerDiscard;
+                        gpipe.LineWidth = graphicsPass.LineWidth;
+                        gpipe.CullMode = graphicsPass.CullMode;
+                        gpipe.EnableBlending = graphicsPass.EnableBlending;
+                        gpipe.DepthTest = graphicsPass.DepthTest;
+                        gpipe.RenderPass = rpass;
+                        gpipe.PipelineLayout = pipelineLayout;
+                        gpipe.ViewportX = graphicsPass.ViewportX;
+                        gpipe.ViewportY = graphicsPass.ViewportY;
+                        gpipe.ViewportWidth = graphicsPass.ViewportWidth;
+                        gpipe.ViewportHeight = graphicsPass.ViewportHeight;
+                        gpipe.ViewportMinDepth = graphicsPass.ViewportMinDepth;
+                        gpipe.ViewportMaxDepth = graphicsPass.ViewportMaxDepth;
+                        gpipe.ViewportDynamic = graphicsPass.ViewportDynamic;
+
+                        gpipe.Shaders = new ShaderSource[graphicsPass.Shaders.Length];
+                        gpipe.SpecializationData = new Memory<int>[graphicsPass.Shaders.Length];
+                        for (int i = 0; i < gpipe.Shaders.Length; i++)
+                        {
+                            gpipe.Shaders[i] = Shaders[graphicsPass.Shaders[i]].Shader;
+                            gpipe.SpecializationData[i] = Shaders[graphicsPass.Shaders[i]].SpecializationData;
+                        }
+                        gpipe.Build(DeviceIndex);
+                        GraphicsPipelines[graphicsPass.Name] = gpipe;
+                    }
+                }
             }
 
-            while (transQ0.Count > 0)
+            //Fill the command buffers
+            bool renderPassBound = false;
+            var g_cmd = new CommandBuffer()
             {
-                var op = transQ0.Dequeue();
+                OneTimeSubmit = true,
+                Name = $"Graphics_{GraphicsDevice.CurrentFrameID}"
+            };
+            g_cmd.Build(GraphicsCmdPool[GraphicsDevice.CurrentFrameID]);
+            g_cmd.BeginRecording();
 
-                if (op.transitionOp)
+            var c_cmd = new CommandBuffer()
+            {
+                OneTimeSubmit = true,
+                Name = $"Compute_{GraphicsDevice.CurrentFrameID}"
+            };
+            c_cmd.Build(AsyncComputeCmdPool[GraphicsDevice.CurrentFrameID]);
+            c_cmd.BeginRecording();
+
+            var t_cmd = new CommandBuffer()
+            {
+                OneTimeSubmit = true,
+                Name = $"Transfer_{GraphicsDevice.CurrentFrameID}"
+            };
+            t_cmd.Build(TransferCmdPool[GraphicsDevice.CurrentFrameID]);
+            t_cmd.BeginRecording();
+
+            var waitingSems = new List<GpuSemaphore>();
+
+            var node = Q0.First;
+            do
+            {
+                var op = node.Value;
+                CommandBuffer tgt_cmdbuf = null;
+                switch (op.QueueKind)
                 {
-                    //Generate a semaphore for this if one doesn't already exist
-                    if (SemaphoreCache[GraphicsDevice.CurrentFrameID].Count <= semaphoreCntr)
-                    {
-                        var sem = new GpuSemaphore()
-                        {
-                            Name = $"Semaphore_{GraphicsDevice.CurrentFrameID}_{semaphoreCntr}"
-                        };
-                        sem.Build(DeviceIndex, false, 0);
-                        SemaphoreCache[GraphicsDevice.CurrentFrameID].Add(sem);
-                    }
-                    semaphoreSet[op.ownerChangeSemaphoreIdx].semaphore = SemaphoreCache[GraphicsDevice.CurrentFrameID][semaphoreCntr++];
+                    case CommandQueueKind.Compute:
+                        tgt_cmdbuf = c_cmd;
+                        break;
+                    case CommandQueueKind.Graphics:
+                        tgt_cmdbuf = g_cmd;
+                        break;
+                    case CommandQueueKind.Transfer:
+                        tgt_cmdbuf = t_cmd;
+                        break;
                 }
 
-                transQ1.AddLast(op);
+                //Check if any resources need barriers, ownership changes
+                if (GraphicsPasses.ContainsKey(op.PassName))
+                {
+                    var pass = GraphicsPasses[op.PassName];
+                    if (pass.Resources != null)
+                        for (int i = 0; i < pass.Resources.Length; i++)
+                        {
+                            if (GpuBuffers.ContainsKey(op.Resources[i]))
+                            {
+                                var resc = GpuBuffers[op.Resources[i]];
+                                var bar = new BufferMemoryBarrier()
+                                {
+                                    Accesses = resc.CurrentAccesses,
+                                    Buffer = resc,
+                                    Stores = pass.Resources[i].StartAccesses,
+                                    Offset = 0,
+                                    Size = resc.Size,
+                                    DstFamily = op.QueueKind,
+                                    SrcFamily = resc.OwningQueue
+                                };
+                                if (op.QueueKind != resc.OwningQueue && resc.OwningQueue != CommandQueueKind.Ignored)
+                                {
+                                    //Split command buffer and setup semaphore
+                                    switch (resc.OwningQueue)
+                                    {
+                                        case CommandQueueKind.Compute:
+                                            {
+                                                c_cmd.Barrier(resc.CurrentUsageStage, pass.Resources[i].StartStage, new BufferMemoryBarrier[] { bar }, null);
+                                                c_cmd.EndRecording();
+                                                var c_comp_cmd = new CompiledCommandBuffer
+                                                {
+                                                    CmdBuffer = c_cmd,
+                                                    SrcStage = resc.CurrentUsageStage,
+                                                    DstStage = pass.Resources[i].StartStage,
+                                                    signalling = new GpuSemaphore[] { AllocateSemaphore(SemaphoreCounter.ToString()) },
+                                                    waiting = waitingSems.ToArray()
+                                                };
+                                                l_acompCmds.Add(c_comp_cmd);
+                                                waitingSems.Clear();
+                                                waitingSems.Add(c_comp_cmd.signalling[0]);
+                                                c_cmd = new CommandBuffer()
+                                                {
+                                                    OneTimeSubmit = true,
+                                                    Name = $"Compute_{GraphicsDevice.CurrentFrameID}"
+                                                };
+                                                c_cmd.Build(AsyncComputeCmdPool[GraphicsDevice.CurrentFrameID]);
+                                                c_cmd.BeginRecording();
+                                            }
+                                            break;
+                                        case CommandQueueKind.Graphics:
+                                            {
+                                                g_cmd.Barrier(resc.CurrentUsageStage, pass.Resources[i].StartStage, new BufferMemoryBarrier[] { bar }, null);
+                                                if (renderPassBound)
+                                                {
+                                                    g_cmd.EndRenderPass();
+                                                    renderPassBound = false;
+                                                }
+                                                g_cmd.EndRecording();
+                                                if (l_graphCmds.Count == 0) waitingSems.Add(GraphicsDevice.ImageAvailableSemaphore[GraphicsDevice.PrevFrameID]);
+                                                var c_comp_cmd = new CompiledCommandBuffer
+                                                {
+                                                    CmdBuffer = g_cmd,
+                                                    SrcStage = resc.CurrentUsageStage,
+                                                    DstStage = pass.Resources[i].StartStage,
+                                                    signalling = new GpuSemaphore[] { AllocateSemaphore(SemaphoreCounter.ToString()) },
+                                                    waiting = waitingSems.ToArray()
+                                                };
+                                                l_graphCmds.Add(c_comp_cmd);
+                                                waitingSems.Clear();
+                                                waitingSems.Add(c_comp_cmd.signalling[0]);
+                                                g_cmd = new CommandBuffer()
+                                                {
+                                                    OneTimeSubmit = true,
+                                                    Name = $"Graphics_{GraphicsDevice.CurrentFrameID}"
+                                                };
+                                                g_cmd.Build(GraphicsCmdPool[GraphicsDevice.CurrentFrameID]);
+                                                g_cmd.BeginRecording();
+                                            }
+                                            break;
+                                        case CommandQueueKind.Transfer:
+                                            {
+                                                t_cmd.Barrier(resc.CurrentUsageStage, pass.Resources[i].StartStage, new BufferMemoryBarrier[] { bar }, null);
+                                                t_cmd.EndRecording();
+                                                var c_comp_cmd = new CompiledCommandBuffer
+                                                {
+                                                    CmdBuffer = t_cmd,
+                                                    SrcStage = resc.CurrentUsageStage,
+                                                    DstStage = pass.Resources[i].StartStage,
+                                                    signalling = new GpuSemaphore[] { AllocateSemaphore(SemaphoreCounter.ToString()) },
+                                                    waiting = waitingSems.ToArray()
+                                                };
+                                                l_transCmds.Add(c_comp_cmd);
+                                                waitingSems.Clear();
+                                                waitingSems.Add(c_comp_cmd.signalling[0]);
+                                                t_cmd = new CommandBuffer()
+                                                {
+                                                    OneTimeSubmit = true,
+                                                    Name = $"Transfer_{GraphicsDevice.CurrentFrameID}"
+                                                };
+                                                t_cmd.Build(TransferCmdPool[GraphicsDevice.CurrentFrameID]);
+                                                t_cmd.BeginRecording();
+                                            }
+                                            break;
+                                    }
+                                }
+                                tgt_cmdbuf.Barrier(resc.CurrentUsageStage, pass.Resources[i].StartStage, new BufferMemoryBarrier[] { bar }, null);
+                                resc.CurrentUsageStage = pass.Resources[i].FinalStage;
+                                resc.CurrentAccesses = pass.Resources[i].FinalAccesses;
+                                resc.OwningQueue = op.QueueKind;
+                            }
+                            else if (GpuBufferViews.ContainsKey(op.Resources[i]))
+                            {
+                                var resc = GpuBufferViews[op.Resources[i]];
+                                var bar = new BufferMemoryBarrier()
+                                {
+                                    Accesses = resc.CurrentAccesses,
+                                    Buffer = resc.parent,
+                                    Stores = pass.Resources[i].StartAccesses,
+                                    Offset = 0,
+                                    Size = resc.Size,
+                                    DstFamily = op.QueueKind,
+                                    SrcFamily = resc.OwningQueue
+                                };
+                                if (op.QueueKind != resc.OwningQueue && resc.OwningQueue != CommandQueueKind.Ignored)
+                                {
+                                    //Split command buffer and setup semaphore
+                                    switch (resc.OwningQueue)
+                                    {
+                                        case CommandQueueKind.Compute:
+                                            {
+                                                c_cmd.Barrier(resc.CurrentUsageStage, pass.Resources[i].StartStage, new BufferMemoryBarrier[] { bar }, null);
+                                                c_cmd.EndRecording();
+                                                var c_comp_cmd = new CompiledCommandBuffer
+                                                {
+                                                    CmdBuffer = c_cmd,
+                                                    SrcStage = resc.CurrentUsageStage,
+                                                    DstStage = pass.Resources[i].StartStage,
+                                                    signalling = new GpuSemaphore[] { AllocateSemaphore(SemaphoreCounter.ToString()) },
+                                                    waiting = waitingSems.ToArray()
+                                                };
+                                                l_acompCmds.Add(c_comp_cmd);
+                                                waitingSems.Clear();
+                                                waitingSems.Add(c_comp_cmd.signalling[0]);
+                                                c_cmd = new CommandBuffer()
+                                                {
+                                                    OneTimeSubmit = true,
+                                                    Name = $"Compute_{GraphicsDevice.CurrentFrameID}"
+                                                };
+                                                c_cmd.Build(AsyncComputeCmdPool[GraphicsDevice.CurrentFrameID]);
+                                                c_cmd.BeginRecording();
+                                            }
+                                            break;
+                                        case CommandQueueKind.Graphics:
+                                            {
+                                                g_cmd.Barrier(resc.CurrentUsageStage, pass.Resources[i].StartStage, new BufferMemoryBarrier[] { bar }, null);
+                                                if (renderPassBound)
+                                                {
+                                                    g_cmd.EndRenderPass();
+                                                    renderPassBound = false;
+                                                }
+                                                g_cmd.EndRecording();
+                                                if (l_graphCmds.Count == 0) waitingSems.Add(GraphicsDevice.ImageAvailableSemaphore[GraphicsDevice.PrevFrameID]);
+                                                var c_comp_cmd = new CompiledCommandBuffer
+                                                {
+                                                    CmdBuffer = g_cmd,
+                                                    SrcStage = resc.CurrentUsageStage,
+                                                    DstStage = pass.Resources[i].StartStage,
+                                                    signalling = new GpuSemaphore[] { AllocateSemaphore(SemaphoreCounter.ToString()) },
+                                                    waiting = waitingSems.ToArray()
+                                                };
+                                                l_graphCmds.Add(c_comp_cmd);
+                                                waitingSems.Clear();
+                                                waitingSems.Add(c_comp_cmd.signalling[0]);
+                                                g_cmd = new CommandBuffer()
+                                                {
+                                                    OneTimeSubmit = true,
+                                                    Name = $"Graphics_{GraphicsDevice.CurrentFrameID}"
+                                                };
+                                                g_cmd.Build(GraphicsCmdPool[GraphicsDevice.CurrentFrameID]);
+                                                g_cmd.BeginRecording();
+                                            }
+                                            break;
+                                        case CommandQueueKind.Transfer:
+                                            {
+                                                t_cmd.Barrier(resc.CurrentUsageStage, pass.Resources[i].StartStage, new BufferMemoryBarrier[] { bar }, null);
+                                                t_cmd.EndRecording();
+                                                var c_comp_cmd = new CompiledCommandBuffer
+                                                {
+                                                    CmdBuffer = t_cmd,
+                                                    SrcStage = resc.CurrentUsageStage,
+                                                    DstStage = pass.Resources[i].StartStage,
+                                                    signalling = new GpuSemaphore[] { AllocateSemaphore(SemaphoreCounter.ToString()) },
+                                                    waiting = waitingSems.ToArray()
+                                                };
+                                                l_transCmds.Add(c_comp_cmd);
+                                                waitingSems.Clear();
+                                                waitingSems.Add(c_comp_cmd.signalling[0]);
+                                                t_cmd = new CommandBuffer()
+                                                {
+                                                    OneTimeSubmit = true,
+                                                    Name = $"Transfer_{GraphicsDevice.CurrentFrameID}"
+                                                };
+                                                t_cmd.Build(TransferCmdPool[GraphicsDevice.CurrentFrameID]);
+                                                t_cmd.BeginRecording();
+                                            }
+                                            break;
+                                    }
+                                }
+                                tgt_cmdbuf.Barrier(resc.CurrentUsageStage, pass.Resources[i].StartStage, new BufferMemoryBarrier[] { bar }, null);
+                                resc.CurrentUsageStage = pass.Resources[i].FinalStage;
+                                resc.CurrentAccesses = pass.Resources[i].FinalAccesses;
+                                resc.OwningQueue = op.QueueKind;
+                            }
+                            else if (ImageViews.ContainsKey(op.Resources[i]))
+                            {
+                                var resc_data = (ImageViewUsageEntry)pass.Resources[i];
+                                var resc = ImageViews[op.Resources[i]];
+                                var bar = new ImageMemoryBarrier()
+                                {
+                                    Accesses = resc.CurrentAccesses,
+                                    Image = resc.parent,
+                                    Stores = pass.Resources[i].StartAccesses,
+                                    BaseArrayLayer = resc_data.BaseArrayLayer,
+                                    BaseMipLevel = resc_data.BaseMipLevel,
+                                    LayerCount = resc_data.LayerCount,
+                                    LevelCount = resc_data.LevelCount,
+                                    DstFamily = op.QueueKind,
+                                    SrcFamily = resc.OwningQueue,
+                                    NewLayout = resc_data.StartLayout,
+                                    OldLayout = resc.CurrentLayout,
+                                };
+                                if (op.QueueKind != resc.OwningQueue && resc.OwningQueue != CommandQueueKind.Ignored)
+                                {
+                                    //Split command buffer and setup semaphore
+                                    switch (resc.OwningQueue)
+                                    {
+                                        case CommandQueueKind.Compute:
+                                            {
+                                                c_cmd.Barrier(resc.CurrentUsageStage, pass.Resources[i].StartStage, null, new ImageMemoryBarrier[] { bar });
+                                                c_cmd.EndRecording();
+                                                var c_comp_cmd = new CompiledCommandBuffer
+                                                {
+                                                    CmdBuffer = c_cmd,
+                                                    SrcStage = resc.CurrentUsageStage,
+                                                    DstStage = pass.Resources[i].StartStage,
+                                                    signalling = new GpuSemaphore[] { AllocateSemaphore(SemaphoreCounter.ToString()) },
+                                                    waiting = waitingSems.ToArray()
+                                                };
+                                                l_acompCmds.Add(c_comp_cmd);
+                                                waitingSems.Clear();
+                                                waitingSems.Add(c_comp_cmd.signalling[0]);
+                                                c_cmd = new CommandBuffer()
+                                                {
+                                                    OneTimeSubmit = true,
+                                                    Name = $"Compute_{GraphicsDevice.CurrentFrameID}"
+                                                };
+                                                c_cmd.Build(AsyncComputeCmdPool[GraphicsDevice.CurrentFrameID]);
+                                                c_cmd.BeginRecording();
+                                            }
+                                            break;
+                                        case CommandQueueKind.Graphics:
+                                            {
+                                                g_cmd.Barrier(resc.CurrentUsageStage, pass.Resources[i].StartStage, null, new ImageMemoryBarrier[] { bar });
+                                                if (renderPassBound)
+                                                {
+                                                    g_cmd.EndRenderPass();
+                                                    renderPassBound = false;
+                                                }
+                                                g_cmd.EndRecording();
+                                                if (l_graphCmds.Count == 0) waitingSems.Add(GraphicsDevice.ImageAvailableSemaphore[GraphicsDevice.PrevFrameID]);
+                                                var c_comp_cmd = new CompiledCommandBuffer
+                                                {
+                                                    CmdBuffer = g_cmd,
+                                                    SrcStage = resc.CurrentUsageStage,
+                                                    DstStage = pass.Resources[i].StartStage,
+                                                    signalling = new GpuSemaphore[] { AllocateSemaphore(SemaphoreCounter.ToString()) },
+                                                    waiting = waitingSems.ToArray()
+                                                };
+                                                l_graphCmds.Add(c_comp_cmd);
+                                                waitingSems.Clear();
+                                                waitingSems.Add(c_comp_cmd.signalling[0]);
+                                                g_cmd = new CommandBuffer()
+                                                {
+                                                    OneTimeSubmit = true,
+                                                    Name = $"Graphics_{GraphicsDevice.CurrentFrameID}"
+                                                };
+                                                g_cmd.Build(GraphicsCmdPool[GraphicsDevice.CurrentFrameID]);
+                                                g_cmd.BeginRecording();
+                                            }
+                                            break;
+                                        case CommandQueueKind.Transfer:
+                                            {
+                                                t_cmd.Barrier(resc.CurrentUsageStage, pass.Resources[i].StartStage, null, new ImageMemoryBarrier[] { bar });
+                                                t_cmd.EndRecording();
+                                                var c_comp_cmd = new CompiledCommandBuffer
+                                                {
+                                                    CmdBuffer = t_cmd,
+                                                    SrcStage = resc.CurrentUsageStage,
+                                                    DstStage = pass.Resources[i].StartStage,
+                                                    signalling = new GpuSemaphore[] { AllocateSemaphore(SemaphoreCounter.ToString()) },
+                                                    waiting = waitingSems.ToArray()
+                                                };
+                                                l_transCmds.Add(c_comp_cmd);
+                                                waitingSems.Clear();
+                                                waitingSems.Add(c_comp_cmd.signalling[0]);
+                                                t_cmd = new CommandBuffer()
+                                                {
+                                                    OneTimeSubmit = true,
+                                                    Name = $"Transfer_{GraphicsDevice.CurrentFrameID}"
+                                                };
+                                                t_cmd.Build(TransferCmdPool[GraphicsDevice.CurrentFrameID]);
+                                                t_cmd.BeginRecording();
+                                            }
+                                            break;
+                                    }
+                                }
+                                tgt_cmdbuf.Barrier(resc.CurrentUsageStage, pass.Resources[i].StartStage, null, new ImageMemoryBarrier[] { bar });
+                                resc.CurrentUsageStage = pass.Resources[i].FinalStage;
+                                resc.CurrentAccesses = pass.Resources[i].FinalAccesses;
+                                resc.CurrentLayout = resc_data.FinalLayout;
+                                resc.OwningQueue = op.QueueKind;
+                            }
+                        }
+
+                    if (op.ColorAttachments != null)
+                        for (int i = 0; i < op.ColorAttachments.Length; i++)
+                        {
+                            if (ImageViews.ContainsKey(op.ColorAttachments[i]))
+                            {
+                                var resc_data = pass.RenderLayout.Color[i];
+                                var resc = ImageViews[op.ColorAttachments[i]];
+                                var bar = new ImageMemoryBarrier()
+                                {
+                                    Accesses = resc.CurrentAccesses,
+                                    Image = resc.parent,
+                                    Stores = AccessFlags.ColorAttachmentWrite,
+                                    BaseArrayLayer = resc_data.BaseArrayLayer,
+                                    BaseMipLevel = resc_data.BaseMipLevel,
+                                    LayerCount = resc_data.LayerCount,
+                                    LevelCount = resc_data.LevelCount,
+                                    DstFamily = op.QueueKind,
+                                    SrcFamily = resc.OwningQueue,
+                                    NewLayout = resc_data.DesiredLayout,
+                                    OldLayout = resc.CurrentLayout,
+                                };
+                                if (op.QueueKind != resc.OwningQueue && resc.OwningQueue != CommandQueueKind.Ignored)
+                                {
+                                    //Split command buffer and setup semaphore
+                                    switch (resc.OwningQueue)
+                                    {
+                                        case CommandQueueKind.Compute:
+                                            {
+                                                c_cmd.Barrier(resc.CurrentUsageStage, PipelineStage.ColorAttachOut, null, new ImageMemoryBarrier[] { bar });
+                                                c_cmd.EndRecording();
+                                                var c_comp_cmd = new CompiledCommandBuffer
+                                                {
+                                                    CmdBuffer = c_cmd,
+                                                    SrcStage = resc.CurrentUsageStage,
+                                                    DstStage = PipelineStage.ColorAttachOut,
+                                                    signalling = new GpuSemaphore[] { AllocateSemaphore(SemaphoreCounter.ToString()) },
+                                                    waiting = waitingSems.ToArray()
+                                                };
+                                                l_acompCmds.Add(c_comp_cmd);
+                                                waitingSems.Clear();
+                                                waitingSems.Add(c_comp_cmd.signalling[0]);
+                                                c_cmd = new CommandBuffer()
+                                                {
+                                                    OneTimeSubmit = true,
+                                                    Name = $"Compute_{GraphicsDevice.CurrentFrameID}"
+                                                };
+                                                c_cmd.Build(AsyncComputeCmdPool[GraphicsDevice.CurrentFrameID]);
+                                                c_cmd.BeginRecording();
+                                            }
+                                            break;
+                                        case CommandQueueKind.Graphics:
+                                            {
+                                                g_cmd.Barrier(resc.CurrentUsageStage, PipelineStage.ColorAttachOut, null, new ImageMemoryBarrier[] { bar });
+                                                if (renderPassBound)
+                                                {
+                                                    g_cmd.EndRenderPass();
+                                                    renderPassBound = false;
+                                                }
+                                                g_cmd.EndRecording();
+                                                if (l_graphCmds.Count == 0) waitingSems.Add(GraphicsDevice.ImageAvailableSemaphore[GraphicsDevice.PrevFrameID]);
+                                                var c_comp_cmd = new CompiledCommandBuffer
+                                                {
+                                                    CmdBuffer = g_cmd,
+                                                    SrcStage = resc.CurrentUsageStage,
+                                                    DstStage = PipelineStage.ColorAttachOut,
+                                                    signalling = new GpuSemaphore[] { AllocateSemaphore(SemaphoreCounter.ToString()) },
+                                                    waiting = waitingSems.ToArray()
+                                                };
+                                                l_graphCmds.Add(c_comp_cmd);
+                                                waitingSems.Clear();
+                                                waitingSems.Add(c_comp_cmd.signalling[0]);
+                                                g_cmd = new CommandBuffer()
+                                                {
+                                                    OneTimeSubmit = true,
+                                                    Name = $"Graphics_{GraphicsDevice.CurrentFrameID}"
+                                                };
+                                                g_cmd.Build(GraphicsCmdPool[GraphicsDevice.CurrentFrameID]);
+                                                g_cmd.BeginRecording();
+                                            }
+                                            break;
+                                        case CommandQueueKind.Transfer:
+                                            {
+                                                t_cmd.Barrier(resc.CurrentUsageStage, PipelineStage.ColorAttachOut, null, new ImageMemoryBarrier[] { bar });
+                                                t_cmd.EndRecording();
+                                                var c_comp_cmd = new CompiledCommandBuffer
+                                                {
+                                                    CmdBuffer = t_cmd,
+                                                    SrcStage = resc.CurrentUsageStage,
+                                                    DstStage = PipelineStage.ColorAttachOut,
+                                                    signalling = new GpuSemaphore[] { AllocateSemaphore(SemaphoreCounter.ToString()) },
+                                                    waiting = waitingSems.ToArray()
+                                                };
+                                                l_transCmds.Add(c_comp_cmd);
+                                                waitingSems.Clear();
+                                                waitingSems.Add(c_comp_cmd.signalling[0]);
+                                                t_cmd = new CommandBuffer()
+                                                {
+                                                    OneTimeSubmit = true,
+                                                    Name = $"Transfer_{GraphicsDevice.CurrentFrameID}"
+                                                };
+                                                t_cmd.Build(TransferCmdPool[GraphicsDevice.CurrentFrameID]);
+                                                t_cmd.BeginRecording();
+                                            }
+                                            break;
+                                    }
+                                }
+                                tgt_cmdbuf.Barrier(resc.CurrentUsageStage, PipelineStage.ColorAttachOut, null, new ImageMemoryBarrier[] { bar });
+                                resc.CurrentUsageStage = PipelineStage.ColorAttachOut;
+                                resc.CurrentAccesses = AccessFlags.ColorAttachmentWrite;
+                                resc.CurrentLayout = resc_data.DesiredLayout;
+                                resc.OwningQueue = op.QueueKind;
+                            }
+                        }
+
+                    if (!string.IsNullOrEmpty(op.DepthAttachment))
+                        if (ImageViews.ContainsKey(op.DepthAttachment))
+                        {
+                            var resc_data = pass.RenderLayout.Depth;
+                            var resc = ImageViews[op.DepthAttachment];
+                            var bar = new ImageMemoryBarrier()
+                            {
+                                Accesses = resc.CurrentAccesses,
+                                Image = resc.parent,
+                                Stores = AccessFlags.ColorAttachmentWrite,
+                                BaseArrayLayer = resc_data.BaseArrayLayer,
+                                BaseMipLevel = resc_data.BaseMipLevel,
+                                LayerCount = resc_data.LayerCount,
+                                LevelCount = resc_data.LevelCount,
+                                DstFamily = op.QueueKind,
+                                SrcFamily = resc.OwningQueue,
+                                NewLayout = resc_data.DesiredLayout,
+                                OldLayout = resc.CurrentLayout,
+                            };
+                            if (op.QueueKind != resc.OwningQueue && resc.OwningQueue != CommandQueueKind.Ignored)
+                            {
+                                //Split command buffer and setup semaphore
+                                switch (resc.OwningQueue)
+                                {
+                                    case CommandQueueKind.Compute:
+                                        {
+                                            c_cmd.Barrier(resc.CurrentUsageStage, PipelineStage.ColorAttachOut, null, new ImageMemoryBarrier[] { bar });
+                                            c_cmd.EndRecording();
+                                            var c_comp_cmd = new CompiledCommandBuffer
+                                            {
+                                                CmdBuffer = c_cmd,
+                                                SrcStage = resc.CurrentUsageStage,
+                                                DstStage = PipelineStage.ColorAttachOut,
+                                                signalling = new GpuSemaphore[] { AllocateSemaphore(SemaphoreCounter.ToString()) },
+                                                waiting = waitingSems.ToArray()
+                                            };
+                                            l_acompCmds.Add(c_comp_cmd);
+                                            waitingSems.Clear();
+                                            waitingSems.Add(c_comp_cmd.signalling[0]);
+                                            c_cmd = new CommandBuffer()
+                                            {
+                                                OneTimeSubmit = true,
+                                                Name = $"Compute_{GraphicsDevice.CurrentFrameID}"
+                                            };
+                                            c_cmd.Build(AsyncComputeCmdPool[GraphicsDevice.CurrentFrameID]);
+                                            c_cmd.BeginRecording();
+                                        }
+                                        break;
+                                    case CommandQueueKind.Graphics:
+                                        {
+                                            g_cmd.Barrier(resc.CurrentUsageStage, PipelineStage.ColorAttachOut, null, new ImageMemoryBarrier[] { bar });
+                                            if (renderPassBound)
+                                            {
+                                                g_cmd.EndRenderPass();
+                                                renderPassBound = false;
+                                            }
+                                            g_cmd.EndRecording();
+                                            if (l_graphCmds.Count == 0) waitingSems.Add(GraphicsDevice.ImageAvailableSemaphore[GraphicsDevice.PrevFrameID]);
+                                            var c_comp_cmd = new CompiledCommandBuffer
+                                            {
+                                                CmdBuffer = g_cmd,
+                                                SrcStage = resc.CurrentUsageStage,
+                                                DstStage = PipelineStage.ColorAttachOut,
+                                                signalling = new GpuSemaphore[] { AllocateSemaphore(SemaphoreCounter.ToString()) },
+                                                waiting = waitingSems.ToArray()
+                                            };
+                                            l_graphCmds.Add(c_comp_cmd);
+                                            waitingSems.Clear();
+                                            waitingSems.Add(c_comp_cmd.signalling[0]);
+                                            g_cmd = new CommandBuffer()
+                                            {
+                                                OneTimeSubmit = true,
+                                                Name = $"Graphics_{GraphicsDevice.CurrentFrameID}"
+                                            };
+                                            g_cmd.Build(GraphicsCmdPool[GraphicsDevice.CurrentFrameID]);
+                                            g_cmd.BeginRecording();
+                                        }
+                                        break;
+                                    case CommandQueueKind.Transfer:
+                                        {
+                                            t_cmd.Barrier(resc.CurrentUsageStage, PipelineStage.ColorAttachOut, null, new ImageMemoryBarrier[] { bar });
+                                            t_cmd.EndRecording();
+                                            var c_comp_cmd = new CompiledCommandBuffer
+                                            {
+                                                CmdBuffer = t_cmd,
+                                                SrcStage = resc.CurrentUsageStage,
+                                                DstStage = PipelineStage.ColorAttachOut,
+                                                signalling = new GpuSemaphore[] { AllocateSemaphore(SemaphoreCounter.ToString()) },
+                                                waiting = waitingSems.ToArray()
+                                            };
+                                            l_transCmds.Add(c_comp_cmd);
+                                            waitingSems.Clear();
+                                            waitingSems.Add(c_comp_cmd.signalling[0]);
+                                            t_cmd = new CommandBuffer()
+                                            {
+                                                OneTimeSubmit = true,
+                                                Name = $"Transfer_{GraphicsDevice.CurrentFrameID}"
+                                            };
+                                            t_cmd.Build(TransferCmdPool[GraphicsDevice.CurrentFrameID]);
+                                            t_cmd.BeginRecording();
+                                        }
+                                        break;
+                                }
+                            }
+                            tgt_cmdbuf.Barrier(resc.CurrentUsageStage, PipelineStage.ColorAttachOut, null, new ImageMemoryBarrier[] { bar });
+                            resc.CurrentUsageStage = PipelineStage.ColorAttachOut;
+                            resc.CurrentAccesses = AccessFlags.ColorAttachmentWrite;
+                            resc.CurrentLayout = resc_data.DesiredLayout;
+                            resc.OwningQueue = op.QueueKind;
+                        }
+
+                    //Process the command
+                    g_cmd.SetDescriptors(PipelineLayouts[op.PassName], globalDescriptorSet, DescriptorBindPoint.Graphics, 0);
+                    g_cmd.SetPipeline(GraphicsPipelines[op.PassName], Framebuffers[GetFramebufferName(op.ColorAttachments, op.DepthAttachment)], 0);
+                    renderPassBound = true;
+                    switch (op.Cmd)
+                    {
+                        case GpuCmd.Draw:
+                            {
+                                g_cmd.Draw(op.VertexCount, op.InstanceCount, op.FirstIndex, op.BaseInstance);
+                            }
+                            break;
+                        case GpuCmd.DrawIndexed:
+                            {
+                                g_cmd.DrawIndexed(GpuBuffers[op.IndexBuffer],
+                                                  op.IndexBufferOffset,
+                                                  op.IndexType,
+                                                  op.IndexCount,
+                                                  op.InstanceCount,
+                                                  op.FirstIndex,
+                                                  (int)op.BaseVertex,
+                                                  op.BaseInstance);
+                            }
+                            break;
+                    }
+                }
+                else if (ComputePasses.ContainsKey(op.PassName))
+                {
+                    var pass = ComputePasses[op.PassName];
+                    if (pass.Resources != null)
+                        for (int i = 0; i < pass.Resources.Length; i++)
+                        {
+                            if (GpuBuffers.ContainsKey(op.Resources[i]))
+                            {
+                                var resc = GpuBuffers[op.Resources[i]];
+                                var bar = new BufferMemoryBarrier()
+                                {
+                                    Accesses = resc.CurrentAccesses,
+                                    Buffer = resc,
+                                    Stores = pass.Resources[i].StartAccesses,
+                                    Offset = 0,
+                                    Size = resc.Size,
+                                    DstFamily = op.QueueKind,
+                                    SrcFamily = resc.OwningQueue
+                                };
+                                if (op.QueueKind != resc.OwningQueue && resc.OwningQueue != CommandQueueKind.Ignored)
+                                {
+                                    //Split command buffer and setup semaphore
+                                    switch (resc.OwningQueue)
+                                    {
+                                        case CommandQueueKind.Compute:
+                                            {
+                                                c_cmd.Barrier(resc.CurrentUsageStage, pass.Resources[i].StartStage, new BufferMemoryBarrier[] { bar }, null);
+                                                c_cmd.EndRecording();
+                                                var c_comp_cmd = new CompiledCommandBuffer
+                                                {
+                                                    CmdBuffer = c_cmd,
+                                                    SrcStage = resc.CurrentUsageStage,
+                                                    DstStage = pass.Resources[i].StartStage,
+                                                    signalling = new GpuSemaphore[] { AllocateSemaphore(SemaphoreCounter.ToString()) },
+                                                    waiting = waitingSems.ToArray()
+                                                };
+                                                l_acompCmds.Add(c_comp_cmd);
+                                                waitingSems.Clear();
+                                                waitingSems.Add(c_comp_cmd.signalling[0]);
+                                                c_cmd = new CommandBuffer()
+                                                {
+                                                    OneTimeSubmit = true,
+                                                    Name = $"Compute_{GraphicsDevice.CurrentFrameID}"
+                                                };
+                                                c_cmd.Build(AsyncComputeCmdPool[GraphicsDevice.CurrentFrameID]);
+                                                c_cmd.BeginRecording();
+                                            }
+                                            break;
+                                        case CommandQueueKind.Graphics:
+                                            {
+                                                g_cmd.Barrier(resc.CurrentUsageStage, pass.Resources[i].StartStage, new BufferMemoryBarrier[] { bar }, null);
+                                                if (renderPassBound)
+                                                {
+                                                    g_cmd.EndRenderPass();
+                                                    renderPassBound = false;
+                                                }
+                                                g_cmd.EndRecording();
+                                                if (l_graphCmds.Count == 0) waitingSems.Add(GraphicsDevice.ImageAvailableSemaphore[GraphicsDevice.PrevFrameID]);
+                                                var c_comp_cmd = new CompiledCommandBuffer
+                                                {
+                                                    CmdBuffer = g_cmd,
+                                                    SrcStage = resc.CurrentUsageStage,
+                                                    DstStage = pass.Resources[i].StartStage,
+                                                    signalling = new GpuSemaphore[] { AllocateSemaphore(SemaphoreCounter.ToString()) },
+                                                    waiting = waitingSems.ToArray()
+                                                };
+                                                l_graphCmds.Add(c_comp_cmd);
+                                                waitingSems.Clear();
+                                                waitingSems.Add(c_comp_cmd.signalling[0]);
+                                                g_cmd = new CommandBuffer()
+                                                {
+                                                    OneTimeSubmit = true,
+                                                    Name = $"Graphics_{GraphicsDevice.CurrentFrameID}"
+                                                };
+                                                g_cmd.Build(GraphicsCmdPool[GraphicsDevice.CurrentFrameID]);
+                                                g_cmd.BeginRecording();
+                                            }
+                                            break;
+                                        case CommandQueueKind.Transfer:
+                                            {
+                                                t_cmd.Barrier(resc.CurrentUsageStage, pass.Resources[i].StartStage, new BufferMemoryBarrier[] { bar }, null);
+                                                t_cmd.EndRecording();
+                                                var c_comp_cmd = new CompiledCommandBuffer
+                                                {
+                                                    CmdBuffer = t_cmd,
+                                                    SrcStage = resc.CurrentUsageStage,
+                                                    DstStage = pass.Resources[i].StartStage,
+                                                    signalling = new GpuSemaphore[] { AllocateSemaphore(SemaphoreCounter.ToString()) },
+                                                    waiting = waitingSems.ToArray()
+                                                };
+                                                l_transCmds.Add(c_comp_cmd);
+                                                waitingSems.Clear();
+                                                waitingSems.Add(c_comp_cmd.signalling[0]);
+                                                t_cmd = new CommandBuffer()
+                                                {
+                                                    OneTimeSubmit = true,
+                                                    Name = $"Transfer_{GraphicsDevice.CurrentFrameID}"
+                                                };
+                                                t_cmd.Build(TransferCmdPool[GraphicsDevice.CurrentFrameID]);
+                                                t_cmd.BeginRecording();
+                                            }
+                                            break;
+                                    }
+                                }
+                                tgt_cmdbuf.Barrier(resc.CurrentUsageStage, pass.Resources[i].StartStage, new BufferMemoryBarrier[] { bar }, null);
+                                resc.CurrentUsageStage = pass.Resources[i].FinalStage;
+                                resc.CurrentAccesses = pass.Resources[i].FinalAccesses;
+                                resc.OwningQueue = op.QueueKind;
+                            }
+                            else if (GpuBufferViews.ContainsKey(op.Resources[i]))
+                            {
+                                var resc = GpuBufferViews[op.Resources[i]];
+                                var bar = new BufferMemoryBarrier()
+                                {
+                                    Accesses = resc.CurrentAccesses,
+                                    Buffer = resc.parent,
+                                    Stores = pass.Resources[i].StartAccesses,
+                                    Offset = 0,
+                                    Size = resc.Size,
+                                    DstFamily = op.QueueKind,
+                                    SrcFamily = resc.OwningQueue
+                                };
+                                if (op.QueueKind != resc.OwningQueue && resc.OwningQueue != CommandQueueKind.Ignored)
+                                {
+                                    //Split command buffer and setup semaphore
+                                    switch (resc.OwningQueue)
+                                    {
+                                        case CommandQueueKind.Compute:
+                                            {
+                                                c_cmd.Barrier(resc.CurrentUsageStage, pass.Resources[i].StartStage, new BufferMemoryBarrier[] { bar }, null);
+                                                c_cmd.EndRecording();
+                                                var c_comp_cmd = new CompiledCommandBuffer
+                                                {
+                                                    CmdBuffer = c_cmd,
+                                                    SrcStage = resc.CurrentUsageStage,
+                                                    DstStage = pass.Resources[i].StartStage,
+                                                    signalling = new GpuSemaphore[] { AllocateSemaphore(SemaphoreCounter.ToString()) },
+                                                    waiting = waitingSems.ToArray()
+                                                };
+                                                l_acompCmds.Add(c_comp_cmd);
+                                                waitingSems.Clear();
+                                                waitingSems.Add(c_comp_cmd.signalling[0]);
+                                                c_cmd = new CommandBuffer()
+                                                {
+                                                    OneTimeSubmit = true,
+                                                    Name = $"Compute_{GraphicsDevice.CurrentFrameID}"
+                                                };
+                                                c_cmd.Build(AsyncComputeCmdPool[GraphicsDevice.CurrentFrameID]);
+                                                c_cmd.BeginRecording();
+                                            }
+                                            break;
+                                        case CommandQueueKind.Graphics:
+                                            {
+                                                g_cmd.Barrier(resc.CurrentUsageStage, pass.Resources[i].StartStage, new BufferMemoryBarrier[] { bar }, null);
+                                                if (renderPassBound)
+                                                {
+                                                    g_cmd.EndRenderPass();
+                                                    renderPassBound = false;
+                                                }
+                                                g_cmd.EndRecording();
+                                                if (l_graphCmds.Count == 0) waitingSems.Add(GraphicsDevice.ImageAvailableSemaphore[GraphicsDevice.PrevFrameID]);
+                                                var c_comp_cmd = new CompiledCommandBuffer
+                                                {
+                                                    CmdBuffer = g_cmd,
+                                                    SrcStage = resc.CurrentUsageStage,
+                                                    DstStage = pass.Resources[i].StartStage,
+                                                    signalling = new GpuSemaphore[] { AllocateSemaphore(SemaphoreCounter.ToString()) },
+                                                    waiting = waitingSems.ToArray()
+                                                };
+                                                l_graphCmds.Add(c_comp_cmd);
+                                                waitingSems.Clear();
+                                                waitingSems.Add(c_comp_cmd.signalling[0]);
+                                                g_cmd = new CommandBuffer()
+                                                {
+                                                    OneTimeSubmit = true,
+                                                    Name = $"Graphics_{GraphicsDevice.CurrentFrameID}"
+                                                };
+                                                g_cmd.Build(GraphicsCmdPool[GraphicsDevice.CurrentFrameID]);
+                                                g_cmd.BeginRecording();
+                                            }
+                                            break;
+                                        case CommandQueueKind.Transfer:
+                                            {
+                                                t_cmd.Barrier(resc.CurrentUsageStage, pass.Resources[i].StartStage, new BufferMemoryBarrier[] { bar }, null);
+                                                t_cmd.EndRecording();
+                                                var c_comp_cmd = new CompiledCommandBuffer
+                                                {
+                                                    CmdBuffer = t_cmd,
+                                                    SrcStage = resc.CurrentUsageStage,
+                                                    DstStage = pass.Resources[i].StartStage,
+                                                    signalling = new GpuSemaphore[] { AllocateSemaphore(SemaphoreCounter.ToString()) },
+                                                    waiting = waitingSems.ToArray()
+                                                };
+                                                l_transCmds.Add(c_comp_cmd);
+                                                waitingSems.Clear();
+                                                waitingSems.Add(c_comp_cmd.signalling[0]);
+                                                t_cmd = new CommandBuffer()
+                                                {
+                                                    OneTimeSubmit = true,
+                                                    Name = $"Transfer_{GraphicsDevice.CurrentFrameID}"
+                                                };
+                                                t_cmd.Build(TransferCmdPool[GraphicsDevice.CurrentFrameID]);
+                                                t_cmd.BeginRecording();
+                                            }
+                                            break;
+                                    }
+                                }
+                                tgt_cmdbuf.Barrier(resc.CurrentUsageStage, pass.Resources[i].StartStage, new BufferMemoryBarrier[] { bar }, null);
+                                resc.CurrentUsageStage = pass.Resources[i].FinalStage;
+                                resc.CurrentAccesses = pass.Resources[i].FinalAccesses;
+                                resc.OwningQueue = op.QueueKind;
+                            }
+                            else if (ImageViews.ContainsKey(op.Resources[i]))
+                            {
+                                var resc_data = (ImageViewUsageEntry)pass.Resources[i];
+                                var resc = ImageViews[op.Resources[i]];
+                                var bar = new ImageMemoryBarrier()
+                                {
+                                    Accesses = resc.CurrentAccesses,
+                                    Image = resc.parent,
+                                    Stores = pass.Resources[i].StartAccesses,
+                                    BaseArrayLayer = resc_data.BaseArrayLayer,
+                                    BaseMipLevel = resc_data.BaseMipLevel,
+                                    LayerCount = resc_data.LayerCount,
+                                    LevelCount = resc_data.LevelCount,
+                                    DstFamily = op.QueueKind,
+                                    SrcFamily = resc.OwningQueue,
+                                    NewLayout = resc_data.StartLayout,
+                                    OldLayout = resc.CurrentLayout,
+                                };
+                                if (op.QueueKind != resc.OwningQueue && resc.OwningQueue != CommandQueueKind.Ignored)
+                                {
+                                    //Split command buffer and setup semaphore
+                                    switch (resc.OwningQueue)
+                                    {
+                                        case CommandQueueKind.Compute:
+                                            {
+                                                c_cmd.Barrier(resc.CurrentUsageStage, pass.Resources[i].StartStage, null, new ImageMemoryBarrier[] { bar });
+                                                c_cmd.EndRecording();
+                                                var c_comp_cmd = new CompiledCommandBuffer
+                                                {
+                                                    CmdBuffer = c_cmd,
+                                                    SrcStage = resc.CurrentUsageStage,
+                                                    DstStage = pass.Resources[i].StartStage,
+                                                    signalling = new GpuSemaphore[] { AllocateSemaphore(SemaphoreCounter.ToString()) },
+                                                    waiting = waitingSems.ToArray()
+                                                };
+                                                l_acompCmds.Add(c_comp_cmd);
+                                                waitingSems.Clear();
+                                                waitingSems.Add(c_comp_cmd.signalling[0]);
+                                                c_cmd = new CommandBuffer()
+                                                {
+                                                    OneTimeSubmit = true,
+                                                    Name = $"Compute_{GraphicsDevice.CurrentFrameID}"
+                                                };
+                                                c_cmd.Build(AsyncComputeCmdPool[GraphicsDevice.CurrentFrameID]);
+                                                c_cmd.BeginRecording();
+                                            }
+                                            break;
+                                        case CommandQueueKind.Graphics:
+                                            {
+                                                g_cmd.Barrier(resc.CurrentUsageStage, pass.Resources[i].StartStage, null, new ImageMemoryBarrier[] { bar });
+                                                if (renderPassBound)
+                                                {
+                                                    g_cmd.EndRenderPass();
+                                                    renderPassBound = false;
+                                                }
+                                                g_cmd.EndRecording();
+                                                if (l_graphCmds.Count == 0) waitingSems.Add(GraphicsDevice.ImageAvailableSemaphore[GraphicsDevice.PrevFrameID]);
+                                                var c_comp_cmd = new CompiledCommandBuffer
+                                                {
+                                                    CmdBuffer = g_cmd,
+                                                    SrcStage = resc.CurrentUsageStage,
+                                                    DstStage = pass.Resources[i].StartStage,
+                                                    signalling = new GpuSemaphore[] { AllocateSemaphore(SemaphoreCounter.ToString()) },
+                                                    waiting = waitingSems.ToArray()
+                                                };
+                                                l_graphCmds.Add(c_comp_cmd);
+                                                waitingSems.Clear();
+                                                waitingSems.Add(c_comp_cmd.signalling[0]);
+                                                g_cmd = new CommandBuffer()
+                                                {
+                                                    OneTimeSubmit = true,
+                                                    Name = $"Graphics_{GraphicsDevice.CurrentFrameID}"
+                                                };
+                                                g_cmd.Build(GraphicsCmdPool[GraphicsDevice.CurrentFrameID]);
+                                                g_cmd.BeginRecording();
+                                            }
+                                            break;
+                                        case CommandQueueKind.Transfer:
+                                            {
+                                                t_cmd.Barrier(resc.CurrentUsageStage, pass.Resources[i].StartStage, null, new ImageMemoryBarrier[] { bar });
+                                                t_cmd.EndRecording();
+                                                var c_comp_cmd = new CompiledCommandBuffer
+                                                {
+                                                    CmdBuffer = t_cmd,
+                                                    SrcStage = resc.CurrentUsageStage,
+                                                    DstStage = pass.Resources[i].StartStage,
+                                                    signalling = new GpuSemaphore[] { AllocateSemaphore(SemaphoreCounter.ToString()) },
+                                                    waiting = waitingSems.ToArray()
+                                                };
+                                                l_transCmds.Add(c_comp_cmd);
+                                                waitingSems.Clear();
+                                                waitingSems.Add(c_comp_cmd.signalling[0]);
+                                                t_cmd = new CommandBuffer()
+                                                {
+                                                    OneTimeSubmit = true,
+                                                    Name = $"Transfer_{GraphicsDevice.CurrentFrameID}"
+                                                };
+                                                t_cmd.Build(TransferCmdPool[GraphicsDevice.CurrentFrameID]);
+                                                t_cmd.BeginRecording();
+                                            }
+                                            break;
+                                    }
+                                }
+                                tgt_cmdbuf.Barrier(resc.CurrentUsageStage, pass.Resources[i].StartStage, null, new ImageMemoryBarrier[] { bar });
+                                resc.CurrentUsageStage = pass.Resources[i].FinalStage;
+                                resc.CurrentAccesses = pass.Resources[i].FinalAccesses;
+                                resc.CurrentLayout = resc_data.FinalLayout;
+                                resc.OwningQueue = op.QueueKind;
+                            }
+                        }
+
+                    //Process the command
+                }
+                else if (BufferTransferPasses.ContainsKey(op.PassName))
+                {
+                    var pass = BufferTransferPasses[op.PassName];
+
+                }
+                else if (ImageTransferPasses.ContainsKey(op.PassName))
+                {
+                    var pass = ImageTransferPasses[op.PassName];
+
+                }
+
+                node = node.Next;
+            }
+            while (node != null);
+            if (g_cmd.IsRecording)
+            {
+                if (renderPassBound) g_cmd.EndRenderPass();
+                g_cmd.EndRecording();
+                if (l_graphCmds.Count == 0) waitingSems.Add(GraphicsDevice.ImageAvailableSemaphore[GraphicsDevice.PrevFrameID]);
+                l_graphCmds.Add(new CompiledCommandBuffer()
+                {
+                    CmdBuffer = g_cmd,
+                    waiting = waitingSems.ToArray(),
+                    SrcStage = PipelineStage.Bottom,
+                    DstStage = PipelineStage.Top,
+                });
+            }
+            if (c_cmd.IsRecording)
+            {
+                c_cmd.EndRecording();
+                l_acompCmds.Add(new CompiledCommandBuffer()
+                {
+                    CmdBuffer = c_cmd,
+                    waiting = waitingSems.ToArray(),
+                    SrcStage = PipelineStage.Bottom,
+                    DstStage = PipelineStage.Top,
+                });
+            }
+            if (t_cmd.IsRecording)
+            {
+                t_cmd.EndRecording();
+                l_transCmds.Add(new CompiledCommandBuffer()
+                {
+                    CmdBuffer = t_cmd,
+                    waiting = waitingSems.ToArray(),
+                    SrcStage = PipelineStage.Bottom,
+                    DstStage = PipelineStage.Top,
+                });
             }
 
-            if (SemaphoreCache[GraphicsDevice.CurrentFrameID].Count <= semaphoreCntr)
-            {
-                var sem = new GpuSemaphore()
-                {
-                    Name = $"Semaphore_FinalGraphicsSync"
-                };
-                sem.Build(DeviceIndex, false, 0);
-                SemaphoreCache[GraphicsDevice.CurrentFrameID].Add(sem);
-            }
-            finalGfxSem = SemaphoreCache[GraphicsDevice.CurrentFrameID][semaphoreCntr++];
+            finalGfxSem = AllocateSemaphore("FinalGFX");
 
             if (graphCmds[GraphicsDevice.CurrentFrameID].Length != 0)
             {
-                if (transitionBuffer[GraphicsDevice.CurrentFrameID] != null) transitionBuffer[GraphicsDevice.CurrentFrameID].Dispose();
                 for (int i = 0; i < graphCmds[GraphicsDevice.CurrentFrameID].Length; i++)
                     graphCmds[GraphicsDevice.CurrentFrameID][i].CmdBuffer.Dispose();
-                GraphicsCmdPool[GraphicsDevice.CurrentFrameID].Reset();
+                if (transitionBuffer[GraphicsDevice.CurrentFrameID] != null) transitionBuffer[GraphicsDevice.CurrentFrameID].Dispose();
             }
             if (compCmds[GraphicsDevice.CurrentFrameID].Length != 0)
             {
                 for (int i = 0; i < compCmds[GraphicsDevice.CurrentFrameID].Length; i++)
                     compCmds[GraphicsDevice.CurrentFrameID][i].CmdBuffer.Dispose();
-                AsyncComputeCmdPool[GraphicsDevice.CurrentFrameID].Reset();
             }
             if (transCmds[GraphicsDevice.CurrentFrameID].Length != 0)
             {
                 for (int i = 0; i < transCmds[GraphicsDevice.CurrentFrameID].Length; i++)
                     transCmds[GraphicsDevice.CurrentFrameID][i].CmdBuffer.Dispose();
-                TransferCmdPool[GraphicsDevice.CurrentFrameID].Reset();
             }
 
             //Process state into semaphores and command buffers
-            graphCmds[GraphicsDevice.CurrentFrameID] = GenerateCommands(graphQ1, GraphicsCmdPool[GraphicsDevice.CurrentFrameID], semaphoreSet);
-            compCmds[GraphicsDevice.CurrentFrameID] = GenerateCommands(compQ1, AsyncComputeCmdPool[GraphicsDevice.CurrentFrameID], semaphoreSet);
-            transCmds[GraphicsDevice.CurrentFrameID] = GenerateCommands(transQ1, TransferCmdPool[GraphicsDevice.CurrentFrameID], semaphoreSet);
-
+            graphCmds[GraphicsDevice.CurrentFrameID] = l_graphCmds.ToArray();
+            compCmds[GraphicsDevice.CurrentFrameID] = l_acompCmds.ToArray();
+            transCmds[GraphicsDevice.CurrentFrameID] = l_transCmds.ToArray();
 
             int maxlen = System.Math.Max(graphCmds[GraphicsDevice.CurrentFrameID].Length, System.Math.Max(compCmds[GraphicsDevice.CurrentFrameID].Length, transCmds[GraphicsDevice.CurrentFrameID].Length));
             for (int i = 0; i < maxlen; i++)
             {
-                if (i < graphCmds[GraphicsDevice.CurrentFrameID].Length - 2)
+                if (i < graphCmds[GraphicsDevice.CurrentFrameID].Length - 2 && !graphCmds[GraphicsDevice.CurrentFrameID][i].CmdBuffer.IsEmpty)
                     GraphicsDevice.SubmitCommandBuffer(graphCmds[GraphicsDevice.CurrentFrameID][i].CmdBuffer, graphCmds[GraphicsDevice.CurrentFrameID][i].waiting, graphCmds[GraphicsDevice.CurrentFrameID][i].signalling, null);
 
-                if (i < compCmds[GraphicsDevice.CurrentFrameID].Length)
+                if (i < compCmds[GraphicsDevice.CurrentFrameID].Length && !compCmds[GraphicsDevice.CurrentFrameID][i].CmdBuffer.IsEmpty)
                     GraphicsDevice.SubmitCommandBuffer(compCmds[GraphicsDevice.CurrentFrameID][i].CmdBuffer, compCmds[GraphicsDevice.CurrentFrameID][i].waiting, compCmds[GraphicsDevice.CurrentFrameID][i].signalling, null);
 
-                if (i < transCmds[GraphicsDevice.CurrentFrameID].Length)
+                if (i < transCmds[GraphicsDevice.CurrentFrameID].Length && !transCmds[GraphicsDevice.CurrentFrameID][i].CmdBuffer.IsEmpty)
                     GraphicsDevice.SubmitCommandBuffer(transCmds[GraphicsDevice.CurrentFrameID][i].CmdBuffer, transCmds[GraphicsDevice.CurrentFrameID][i].waiting, transCmds[GraphicsDevice.CurrentFrameID][i].signalling, null);
             }
 
-            transitionBuffer[GraphicsDevice.CurrentFrameID] = new CommandBuffer();
-            transitionBuffer[GraphicsDevice.CurrentFrameID].Name = "transitionBuffer";
-            transitionBuffer[GraphicsDevice.CurrentFrameID].OneTimeSubmit = true;
+            transitionBuffer[GraphicsDevice.CurrentFrameID] = new CommandBuffer
+            {
+                Name = "transitionBuffer",
+                OneTimeSubmit = true
+            };
             transitionBuffer[GraphicsDevice.CurrentFrameID].Build(GraphicsCmdPool[GraphicsDevice.CurrentFrameID]);
             transitionBuffer[GraphicsDevice.CurrentFrameID].BeginRecording();
             transitionBuffer[GraphicsDevice.CurrentFrameID].Barrier(PipelineStage.ColorAttachOut, PipelineStage.ColorAttachOut, null, new ImageMemoryBarrier[]
@@ -1331,11 +1560,15 @@ namespace Kokoro.Graphics.Framegraph
                 }
             });
             transitionBuffer[GraphicsDevice.CurrentFrameID].EndRecording();
+            GraphicsDevice.DefaultFramebuffer[GraphicsDevice.CurrentFrameID].ColorAttachments[0].CurrentLayout = ImageLayout.PresentSrc;
+            GraphicsDevice.DefaultFramebuffer[GraphicsDevice.CurrentFrameID].ColorAttachments[0].CurrentAccesses = AccessFlags.ColorAttachmentWrite;
+            GraphicsDevice.DefaultFramebuffer[GraphicsDevice.CurrentFrameID].ColorAttachments[0].CurrentUsageStage = PipelineStage.ColorAttachOut;
 
-            GraphicsDevice.SubmitCommandBuffer(graphCmds[GraphicsDevice.CurrentFrameID][graphCmds[GraphicsDevice.CurrentFrameID].Length - 1].CmdBuffer, graphCmds[GraphicsDevice.CurrentFrameID][graphCmds[GraphicsDevice.CurrentFrameID].Length - 1].waiting, new GpuSemaphore[] { finalGfxSem }, null);
+            if (!graphCmds[GraphicsDevice.CurrentFrameID][graphCmds[GraphicsDevice.CurrentFrameID].Length - 1].CmdBuffer.IsEmpty)
+                GraphicsDevice.SubmitCommandBuffer(graphCmds[GraphicsDevice.CurrentFrameID][graphCmds[GraphicsDevice.CurrentFrameID].Length - 1].CmdBuffer, graphCmds[GraphicsDevice.CurrentFrameID][graphCmds[GraphicsDevice.CurrentFrameID].Length - 1].waiting, new GpuSemaphore[] { finalGfxSem }, null);
 
             //Submit the last graphics command with an additional sync + fence for the frame
-            GraphicsDevice.SubmitGraphicsCommandBuffer(transitionBuffer[GraphicsDevice.CurrentFrameID], finalGfxSem);
+            GraphicsDevice.SubmitCommandBuffer(transitionBuffer[GraphicsDevice.CurrentFrameID], new GpuSemaphore[] { finalGfxSem }, new GpuSemaphore[] { GraphicsDevice.FrameFinishedSemaphore[GraphicsDevice.CurrentFrameID] }, GraphicsDevice.InflightFences[GraphicsDevice.CurrentFrameID]);
 
             buildLock.Release();
         }

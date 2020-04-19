@@ -41,8 +41,13 @@ namespace Kokoro.Graphics.Framegraph
 
     public class ImageViewUsageEntry : ResourceUsageEntry
     {
+        public uint BaseArrayLayer { get; set; }
+        public uint BaseMipLevel { get; set; }
+        public uint LayerCount { get; set; } = 1;
+        public uint LevelCount { get; set; } = 1;
         public ImageLayout StartLayout { get; set; }
         public ImageLayout FinalLayout { get; set; }
+        public Sampler ImmutableSampler { get; set; }
         public ImageViewUsageEntry()
         {
             Kind = ResourceKind.ImageView;
