@@ -124,7 +124,7 @@ namespace Kokoro.Graphics
                 p[off++] = 0;
 
                 GlobalParameters.EndBufferUpdate();
-                //GlobalParameters.Update();
+                GlobalParameters.Update();
             }
         }
 

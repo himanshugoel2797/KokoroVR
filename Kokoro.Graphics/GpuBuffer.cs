@@ -13,9 +13,9 @@ namespace Kokoro.Graphics
         public ulong Size { get; set; }
         public BufferUsage Usage { get; set; }
         public MemoryUsage MemoryUsage { get; set; }
-        public AccessFlags CurrentAccesses { get; set; }
-        public PipelineStage CurrentUsageStage { get; set; }
-        public CommandQueueKind OwningQueue { get; set; }
+        public AccessFlags CurrentAccesses { get; set; } = AccessFlags.None;
+        public PipelineStage CurrentUsageStage { get; set; } = PipelineStage.Top;
+        public CommandQueueKind OwningQueue { get; set; } = CommandQueueKind.Ignored;
         public bool Mapped { get; set; }
 
         internal IntPtr hndl { get; private set; }
@@ -41,7 +41,7 @@ namespace Kokoro.Graphics
                             flags = 0,
                             size = Size,
                             usage = (VkBufferUsageFlags)Usage,
-                            sharingMode = VkSharingMode.SharingModeConcurrent,
+                            sharingMode = VkSharingMode.SharingModeExclusive,
                             pQueueFamilyIndices = queueFamInds,
                             queueFamilyIndexCount = (uint)devInfo.QueueFamilyIndices.Length,
                         };

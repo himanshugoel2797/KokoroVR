@@ -84,6 +84,8 @@ namespace Kokoro.Graphics.Framegraph
         CompiledCommandBuffer[][] graphCmds;
         CompiledCommandBuffer[][] compCmds;
         CompiledCommandBuffer[][] transCmds;
+        Fence[] compFences;
+        Fence[] transFences;
 
         CommandBuffer[] transitionBuffer;
 
@@ -125,12 +127,28 @@ namespace Kokoro.Graphics.Framegraph
             graphCmds = new CompiledCommandBuffer[GraphicsDevice.MaxFramesInFlight][];
             compCmds = new CompiledCommandBuffer[GraphicsDevice.MaxFramesInFlight][];
             transCmds = new CompiledCommandBuffer[GraphicsDevice.MaxFramesInFlight][];
+            compFences = new Fence[GraphicsDevice.MaxFramesInFlight];
+            transFences = new Fence[GraphicsDevice.MaxFramesInFlight];
             transitionBuffer = new CommandBuffer[GraphicsDevice.MaxFramesInFlight];
             for (int i = 0; i < GraphicsDevice.MaxFramesInFlight; i++)
             {
                 graphCmds[i] = new CompiledCommandBuffer[0];
                 compCmds[i] = new CompiledCommandBuffer[0];
                 transCmds[i] = new CompiledCommandBuffer[0];
+
+                compFences[i] = new Fence()
+                {
+                    Name = $"Compute_fence_{i}",
+                    CreateSignaled = true
+                };
+                compFences[i].Build(deviceIndex);
+
+                transFences[i] = new Fence()
+                {
+                    Name = $"Transfer_fence_{i}",
+                    CreateSignaled = true
+                };
+                transFences[i].Build(deviceIndex);
 
                 SemaphoreCache[i] = new List<GpuSemaphore>(1024);
                 for (int j = 0; j < 1024; j++)
@@ -529,23 +547,29 @@ namespace Kokoro.Graphics.Framegraph
             t_cmd.Build(TransferCmdPool[GraphicsDevice.CurrentFrameID]);
             t_cmd.BeginRecording();
 
-            var waitingSems = new List<GpuSemaphore>();
+            var g_waitingSems = new List<GpuSemaphore>();
+            var c_waitingSems = new List<GpuSemaphore>();
+            var t_waitingSems = new List<GpuSemaphore>();
 
             var node = Q0.First;
             do
             {
                 var op = node.Value;
                 CommandBuffer tgt_cmdbuf = null;
+                List<GpuSemaphore> waitingSems = null;
                 switch (op.QueueKind)
                 {
                     case CommandQueueKind.Compute:
                         tgt_cmdbuf = c_cmd;
+                        waitingSems = c_waitingSems;
                         break;
                     case CommandQueueKind.Graphics:
                         tgt_cmdbuf = g_cmd;
+                        waitingSems = g_waitingSems;
                         break;
                     case CommandQueueKind.Transfer:
                         tgt_cmdbuf = t_cmd;
+                        waitingSems = t_waitingSems;
                         break;
                 }
 
@@ -567,7 +591,7 @@ namespace Kokoro.Graphics.Framegraph
                                     Offset = 0,
                                     Size = resc.Size,
                                     DstFamily = op.QueueKind,
-                                    SrcFamily = resc.OwningQueue
+                                    SrcFamily = resc.OwningQueue == CommandQueueKind.Ignored ? op.QueueKind : resc.OwningQueue,
                                 };
                                 if (op.QueueKind != resc.OwningQueue && resc.OwningQueue != CommandQueueKind.Ignored)
                                 {
@@ -584,10 +608,10 @@ namespace Kokoro.Graphics.Framegraph
                                                     SrcStage = resc.CurrentUsageStage,
                                                     DstStage = pass.Resources[i].StartStage,
                                                     signalling = new GpuSemaphore[] { AllocateSemaphore(SemaphoreCounter.ToString()) },
-                                                    waiting = waitingSems.ToArray()
+                                                    waiting = c_waitingSems.ToArray()
                                                 };
                                                 l_acompCmds.Add(c_comp_cmd);
-                                                waitingSems.Clear();
+                                                c_waitingSems.Clear();
                                                 waitingSems.Add(c_comp_cmd.signalling[0]);
                                                 c_cmd = new CommandBuffer()
                                                 {
@@ -607,17 +631,17 @@ namespace Kokoro.Graphics.Framegraph
                                                     renderPassBound = false;
                                                 }
                                                 g_cmd.EndRecording();
-                                                if (l_graphCmds.Count == 0) waitingSems.Add(GraphicsDevice.ImageAvailableSemaphore[GraphicsDevice.PrevFrameID]);
+                                                if (l_graphCmds.Count == 0) g_waitingSems.Add(GraphicsDevice.ImageAvailableSemaphore[GraphicsDevice.PrevFrameID]);
                                                 var c_comp_cmd = new CompiledCommandBuffer
                                                 {
                                                     CmdBuffer = g_cmd,
                                                     SrcStage = resc.CurrentUsageStage,
                                                     DstStage = pass.Resources[i].StartStage,
                                                     signalling = new GpuSemaphore[] { AllocateSemaphore(SemaphoreCounter.ToString()) },
-                                                    waiting = waitingSems.ToArray()
+                                                    waiting = g_waitingSems.ToArray()
                                                 };
                                                 l_graphCmds.Add(c_comp_cmd);
-                                                waitingSems.Clear();
+                                                g_waitingSems.Clear();
                                                 waitingSems.Add(c_comp_cmd.signalling[0]);
                                                 g_cmd = new CommandBuffer()
                                                 {
@@ -638,10 +662,10 @@ namespace Kokoro.Graphics.Framegraph
                                                     SrcStage = resc.CurrentUsageStage,
                                                     DstStage = pass.Resources[i].StartStage,
                                                     signalling = new GpuSemaphore[] { AllocateSemaphore(SemaphoreCounter.ToString()) },
-                                                    waiting = waitingSems.ToArray()
+                                                    waiting = t_waitingSems.ToArray()
                                                 };
                                                 l_transCmds.Add(c_comp_cmd);
-                                                waitingSems.Clear();
+                                                t_waitingSems.Clear();
                                                 waitingSems.Add(c_comp_cmd.signalling[0]);
                                                 t_cmd = new CommandBuffer()
                                                 {
@@ -670,7 +694,7 @@ namespace Kokoro.Graphics.Framegraph
                                     Offset = 0,
                                     Size = resc.Size,
                                     DstFamily = op.QueueKind,
-                                    SrcFamily = resc.OwningQueue
+                                    SrcFamily = resc.OwningQueue == CommandQueueKind.Ignored ? op.QueueKind : resc.OwningQueue,
                                 };
                                 if (op.QueueKind != resc.OwningQueue && resc.OwningQueue != CommandQueueKind.Ignored)
                                 {
@@ -687,10 +711,10 @@ namespace Kokoro.Graphics.Framegraph
                                                     SrcStage = resc.CurrentUsageStage,
                                                     DstStage = pass.Resources[i].StartStage,
                                                     signalling = new GpuSemaphore[] { AllocateSemaphore(SemaphoreCounter.ToString()) },
-                                                    waiting = waitingSems.ToArray()
+                                                    waiting = c_waitingSems.ToArray()
                                                 };
                                                 l_acompCmds.Add(c_comp_cmd);
-                                                waitingSems.Clear();
+                                                c_waitingSems.Clear();
                                                 waitingSems.Add(c_comp_cmd.signalling[0]);
                                                 c_cmd = new CommandBuffer()
                                                 {
@@ -710,17 +734,17 @@ namespace Kokoro.Graphics.Framegraph
                                                     renderPassBound = false;
                                                 }
                                                 g_cmd.EndRecording();
-                                                if (l_graphCmds.Count == 0) waitingSems.Add(GraphicsDevice.ImageAvailableSemaphore[GraphicsDevice.PrevFrameID]);
+                                                if (l_graphCmds.Count == 0) g_waitingSems.Add(GraphicsDevice.ImageAvailableSemaphore[GraphicsDevice.PrevFrameID]);
                                                 var c_comp_cmd = new CompiledCommandBuffer
                                                 {
                                                     CmdBuffer = g_cmd,
                                                     SrcStage = resc.CurrentUsageStage,
                                                     DstStage = pass.Resources[i].StartStage,
                                                     signalling = new GpuSemaphore[] { AllocateSemaphore(SemaphoreCounter.ToString()) },
-                                                    waiting = waitingSems.ToArray()
+                                                    waiting = g_waitingSems.ToArray()
                                                 };
                                                 l_graphCmds.Add(c_comp_cmd);
-                                                waitingSems.Clear();
+                                                g_waitingSems.Clear();
                                                 waitingSems.Add(c_comp_cmd.signalling[0]);
                                                 g_cmd = new CommandBuffer()
                                                 {
@@ -741,10 +765,10 @@ namespace Kokoro.Graphics.Framegraph
                                                     SrcStage = resc.CurrentUsageStage,
                                                     DstStage = pass.Resources[i].StartStage,
                                                     signalling = new GpuSemaphore[] { AllocateSemaphore(SemaphoreCounter.ToString()) },
-                                                    waiting = waitingSems.ToArray()
+                                                    waiting = t_waitingSems.ToArray()
                                                 };
                                                 l_transCmds.Add(c_comp_cmd);
-                                                waitingSems.Clear();
+                                                t_waitingSems.Clear();
                                                 waitingSems.Add(c_comp_cmd.signalling[0]);
                                                 t_cmd = new CommandBuffer()
                                                 {
@@ -776,7 +800,7 @@ namespace Kokoro.Graphics.Framegraph
                                     LayerCount = resc_data.LayerCount,
                                     LevelCount = resc_data.LevelCount,
                                     DstFamily = op.QueueKind,
-                                    SrcFamily = resc.OwningQueue,
+                                    SrcFamily = resc.OwningQueue == CommandQueueKind.Ignored ? op.QueueKind : resc.OwningQueue,
                                     NewLayout = resc_data.StartLayout,
                                     OldLayout = resc.CurrentLayout,
                                 };
@@ -795,10 +819,10 @@ namespace Kokoro.Graphics.Framegraph
                                                     SrcStage = resc.CurrentUsageStage,
                                                     DstStage = pass.Resources[i].StartStage,
                                                     signalling = new GpuSemaphore[] { AllocateSemaphore(SemaphoreCounter.ToString()) },
-                                                    waiting = waitingSems.ToArray()
+                                                    waiting = c_waitingSems.ToArray()
                                                 };
                                                 l_acompCmds.Add(c_comp_cmd);
-                                                waitingSems.Clear();
+                                                c_waitingSems.Clear();
                                                 waitingSems.Add(c_comp_cmd.signalling[0]);
                                                 c_cmd = new CommandBuffer()
                                                 {
@@ -818,17 +842,17 @@ namespace Kokoro.Graphics.Framegraph
                                                     renderPassBound = false;
                                                 }
                                                 g_cmd.EndRecording();
-                                                if (l_graphCmds.Count == 0) waitingSems.Add(GraphicsDevice.ImageAvailableSemaphore[GraphicsDevice.PrevFrameID]);
+                                                if (l_graphCmds.Count == 0) g_waitingSems.Add(GraphicsDevice.ImageAvailableSemaphore[GraphicsDevice.PrevFrameID]);
                                                 var c_comp_cmd = new CompiledCommandBuffer
                                                 {
                                                     CmdBuffer = g_cmd,
                                                     SrcStage = resc.CurrentUsageStage,
                                                     DstStage = pass.Resources[i].StartStage,
                                                     signalling = new GpuSemaphore[] { AllocateSemaphore(SemaphoreCounter.ToString()) },
-                                                    waiting = waitingSems.ToArray()
+                                                    waiting = g_waitingSems.ToArray()
                                                 };
                                                 l_graphCmds.Add(c_comp_cmd);
-                                                waitingSems.Clear();
+                                                g_waitingSems.Clear();
                                                 waitingSems.Add(c_comp_cmd.signalling[0]);
                                                 g_cmd = new CommandBuffer()
                                                 {
@@ -849,10 +873,10 @@ namespace Kokoro.Graphics.Framegraph
                                                     SrcStage = resc.CurrentUsageStage,
                                                     DstStage = pass.Resources[i].StartStage,
                                                     signalling = new GpuSemaphore[] { AllocateSemaphore(SemaphoreCounter.ToString()) },
-                                                    waiting = waitingSems.ToArray()
+                                                    waiting = t_waitingSems.ToArray()
                                                 };
                                                 l_transCmds.Add(c_comp_cmd);
-                                                waitingSems.Clear();
+                                                t_waitingSems.Clear();
                                                 waitingSems.Add(c_comp_cmd.signalling[0]);
                                                 t_cmd = new CommandBuffer()
                                                 {
@@ -890,7 +914,7 @@ namespace Kokoro.Graphics.Framegraph
                                     LayerCount = resc_data.LayerCount,
                                     LevelCount = resc_data.LevelCount,
                                     DstFamily = op.QueueKind,
-                                    SrcFamily = resc.OwningQueue,
+                                    SrcFamily = resc.OwningQueue == CommandQueueKind.Ignored ? op.QueueKind : resc.OwningQueue,
                                     NewLayout = resc_data.DesiredLayout,
                                     OldLayout = resc.CurrentLayout,
                                 };
@@ -909,10 +933,10 @@ namespace Kokoro.Graphics.Framegraph
                                                     SrcStage = resc.CurrentUsageStage,
                                                     DstStage = PipelineStage.ColorAttachOut,
                                                     signalling = new GpuSemaphore[] { AllocateSemaphore(SemaphoreCounter.ToString()) },
-                                                    waiting = waitingSems.ToArray()
+                                                    waiting = c_waitingSems.ToArray()
                                                 };
                                                 l_acompCmds.Add(c_comp_cmd);
-                                                waitingSems.Clear();
+                                                c_waitingSems.Clear();
                                                 waitingSems.Add(c_comp_cmd.signalling[0]);
                                                 c_cmd = new CommandBuffer()
                                                 {
@@ -932,17 +956,17 @@ namespace Kokoro.Graphics.Framegraph
                                                     renderPassBound = false;
                                                 }
                                                 g_cmd.EndRecording();
-                                                if (l_graphCmds.Count == 0) waitingSems.Add(GraphicsDevice.ImageAvailableSemaphore[GraphicsDevice.PrevFrameID]);
+                                                if (l_graphCmds.Count == 0) g_waitingSems.Add(GraphicsDevice.ImageAvailableSemaphore[GraphicsDevice.PrevFrameID]);
                                                 var c_comp_cmd = new CompiledCommandBuffer
                                                 {
                                                     CmdBuffer = g_cmd,
                                                     SrcStage = resc.CurrentUsageStage,
                                                     DstStage = PipelineStage.ColorAttachOut,
                                                     signalling = new GpuSemaphore[] { AllocateSemaphore(SemaphoreCounter.ToString()) },
-                                                    waiting = waitingSems.ToArray()
+                                                    waiting = g_waitingSems.ToArray()
                                                 };
                                                 l_graphCmds.Add(c_comp_cmd);
-                                                waitingSems.Clear();
+                                                g_waitingSems.Clear();
                                                 waitingSems.Add(c_comp_cmd.signalling[0]);
                                                 g_cmd = new CommandBuffer()
                                                 {
@@ -963,10 +987,10 @@ namespace Kokoro.Graphics.Framegraph
                                                     SrcStage = resc.CurrentUsageStage,
                                                     DstStage = PipelineStage.ColorAttachOut,
                                                     signalling = new GpuSemaphore[] { AllocateSemaphore(SemaphoreCounter.ToString()) },
-                                                    waiting = waitingSems.ToArray()
+                                                    waiting = t_waitingSems.ToArray()
                                                 };
                                                 l_transCmds.Add(c_comp_cmd);
-                                                waitingSems.Clear();
+                                                t_waitingSems.Clear();
                                                 waitingSems.Add(c_comp_cmd.signalling[0]);
                                                 t_cmd = new CommandBuffer()
                                                 {
@@ -1002,7 +1026,7 @@ namespace Kokoro.Graphics.Framegraph
                                 LayerCount = resc_data.LayerCount,
                                 LevelCount = resc_data.LevelCount,
                                 DstFamily = op.QueueKind,
-                                SrcFamily = resc.OwningQueue,
+                                SrcFamily = resc.OwningQueue == CommandQueueKind.Ignored ? op.QueueKind : resc.OwningQueue,
                                 NewLayout = resc_data.DesiredLayout,
                                 OldLayout = resc.CurrentLayout,
                             };
@@ -1021,10 +1045,10 @@ namespace Kokoro.Graphics.Framegraph
                                                 SrcStage = resc.CurrentUsageStage,
                                                 DstStage = PipelineStage.ColorAttachOut,
                                                 signalling = new GpuSemaphore[] { AllocateSemaphore(SemaphoreCounter.ToString()) },
-                                                waiting = waitingSems.ToArray()
+                                                waiting = c_waitingSems.ToArray()
                                             };
                                             l_acompCmds.Add(c_comp_cmd);
-                                            waitingSems.Clear();
+                                            c_waitingSems.Clear();
                                             waitingSems.Add(c_comp_cmd.signalling[0]);
                                             c_cmd = new CommandBuffer()
                                             {
@@ -1044,17 +1068,17 @@ namespace Kokoro.Graphics.Framegraph
                                                 renderPassBound = false;
                                             }
                                             g_cmd.EndRecording();
-                                            if (l_graphCmds.Count == 0) waitingSems.Add(GraphicsDevice.ImageAvailableSemaphore[GraphicsDevice.PrevFrameID]);
+                                            if (l_graphCmds.Count == 0) g_waitingSems.Add(GraphicsDevice.ImageAvailableSemaphore[GraphicsDevice.PrevFrameID]);
                                             var c_comp_cmd = new CompiledCommandBuffer
                                             {
                                                 CmdBuffer = g_cmd,
                                                 SrcStage = resc.CurrentUsageStage,
                                                 DstStage = PipelineStage.ColorAttachOut,
                                                 signalling = new GpuSemaphore[] { AllocateSemaphore(SemaphoreCounter.ToString()) },
-                                                waiting = waitingSems.ToArray()
+                                                waiting = g_waitingSems.ToArray()
                                             };
                                             l_graphCmds.Add(c_comp_cmd);
-                                            waitingSems.Clear();
+                                            g_waitingSems.Clear();
                                             waitingSems.Add(c_comp_cmd.signalling[0]);
                                             g_cmd = new CommandBuffer()
                                             {
@@ -1075,10 +1099,10 @@ namespace Kokoro.Graphics.Framegraph
                                                 SrcStage = resc.CurrentUsageStage,
                                                 DstStage = PipelineStage.ColorAttachOut,
                                                 signalling = new GpuSemaphore[] { AllocateSemaphore(SemaphoreCounter.ToString()) },
-                                                waiting = waitingSems.ToArray()
+                                                waiting = t_waitingSems.ToArray()
                                             };
                                             l_transCmds.Add(c_comp_cmd);
-                                            waitingSems.Clear();
+                                            t_waitingSems.Clear();
                                             waitingSems.Add(c_comp_cmd.signalling[0]);
                                             t_cmd = new CommandBuffer()
                                             {
@@ -1140,7 +1164,7 @@ namespace Kokoro.Graphics.Framegraph
                                     Offset = 0,
                                     Size = resc.Size,
                                     DstFamily = op.QueueKind,
-                                    SrcFamily = resc.OwningQueue
+                                    SrcFamily = resc.OwningQueue == CommandQueueKind.Ignored ? op.QueueKind : resc.OwningQueue,
                                 };
                                 if (op.QueueKind != resc.OwningQueue && resc.OwningQueue != CommandQueueKind.Ignored)
                                 {
@@ -1157,10 +1181,10 @@ namespace Kokoro.Graphics.Framegraph
                                                     SrcStage = resc.CurrentUsageStage,
                                                     DstStage = pass.Resources[i].StartStage,
                                                     signalling = new GpuSemaphore[] { AllocateSemaphore(SemaphoreCounter.ToString()) },
-                                                    waiting = waitingSems.ToArray()
+                                                    waiting = c_waitingSems.ToArray()
                                                 };
                                                 l_acompCmds.Add(c_comp_cmd);
-                                                waitingSems.Clear();
+                                                c_waitingSems.Clear();
                                                 waitingSems.Add(c_comp_cmd.signalling[0]);
                                                 c_cmd = new CommandBuffer()
                                                 {
@@ -1180,17 +1204,17 @@ namespace Kokoro.Graphics.Framegraph
                                                     renderPassBound = false;
                                                 }
                                                 g_cmd.EndRecording();
-                                                if (l_graphCmds.Count == 0) waitingSems.Add(GraphicsDevice.ImageAvailableSemaphore[GraphicsDevice.PrevFrameID]);
+                                                if (l_graphCmds.Count == 0) g_waitingSems.Add(GraphicsDevice.ImageAvailableSemaphore[GraphicsDevice.PrevFrameID]);
                                                 var c_comp_cmd = new CompiledCommandBuffer
                                                 {
                                                     CmdBuffer = g_cmd,
                                                     SrcStage = resc.CurrentUsageStage,
                                                     DstStage = pass.Resources[i].StartStage,
                                                     signalling = new GpuSemaphore[] { AllocateSemaphore(SemaphoreCounter.ToString()) },
-                                                    waiting = waitingSems.ToArray()
+                                                    waiting = g_waitingSems.ToArray()
                                                 };
                                                 l_graphCmds.Add(c_comp_cmd);
-                                                waitingSems.Clear();
+                                                g_waitingSems.Clear();
                                                 waitingSems.Add(c_comp_cmd.signalling[0]);
                                                 g_cmd = new CommandBuffer()
                                                 {
@@ -1211,10 +1235,10 @@ namespace Kokoro.Graphics.Framegraph
                                                     SrcStage = resc.CurrentUsageStage,
                                                     DstStage = pass.Resources[i].StartStage,
                                                     signalling = new GpuSemaphore[] { AllocateSemaphore(SemaphoreCounter.ToString()) },
-                                                    waiting = waitingSems.ToArray()
+                                                    waiting = t_waitingSems.ToArray()
                                                 };
                                                 l_transCmds.Add(c_comp_cmd);
-                                                waitingSems.Clear();
+                                                t_waitingSems.Clear();
                                                 waitingSems.Add(c_comp_cmd.signalling[0]);
                                                 t_cmd = new CommandBuffer()
                                                 {
@@ -1243,7 +1267,7 @@ namespace Kokoro.Graphics.Framegraph
                                     Offset = 0,
                                     Size = resc.Size,
                                     DstFamily = op.QueueKind,
-                                    SrcFamily = resc.OwningQueue
+                                    SrcFamily = resc.OwningQueue == CommandQueueKind.Ignored ? op.QueueKind : resc.OwningQueue,
                                 };
                                 if (op.QueueKind != resc.OwningQueue && resc.OwningQueue != CommandQueueKind.Ignored)
                                 {
@@ -1260,10 +1284,10 @@ namespace Kokoro.Graphics.Framegraph
                                                     SrcStage = resc.CurrentUsageStage,
                                                     DstStage = pass.Resources[i].StartStage,
                                                     signalling = new GpuSemaphore[] { AllocateSemaphore(SemaphoreCounter.ToString()) },
-                                                    waiting = waitingSems.ToArray()
+                                                    waiting = c_waitingSems.ToArray()
                                                 };
                                                 l_acompCmds.Add(c_comp_cmd);
-                                                waitingSems.Clear();
+                                                c_waitingSems.Clear();
                                                 waitingSems.Add(c_comp_cmd.signalling[0]);
                                                 c_cmd = new CommandBuffer()
                                                 {
@@ -1283,17 +1307,17 @@ namespace Kokoro.Graphics.Framegraph
                                                     renderPassBound = false;
                                                 }
                                                 g_cmd.EndRecording();
-                                                if (l_graphCmds.Count == 0) waitingSems.Add(GraphicsDevice.ImageAvailableSemaphore[GraphicsDevice.PrevFrameID]);
+                                                if (l_graphCmds.Count == 0) g_waitingSems.Add(GraphicsDevice.ImageAvailableSemaphore[GraphicsDevice.PrevFrameID]);
                                                 var c_comp_cmd = new CompiledCommandBuffer
                                                 {
                                                     CmdBuffer = g_cmd,
                                                     SrcStage = resc.CurrentUsageStage,
                                                     DstStage = pass.Resources[i].StartStage,
                                                     signalling = new GpuSemaphore[] { AllocateSemaphore(SemaphoreCounter.ToString()) },
-                                                    waiting = waitingSems.ToArray()
+                                                    waiting = g_waitingSems.ToArray()
                                                 };
                                                 l_graphCmds.Add(c_comp_cmd);
-                                                waitingSems.Clear();
+                                                g_waitingSems.Clear();
                                                 waitingSems.Add(c_comp_cmd.signalling[0]);
                                                 g_cmd = new CommandBuffer()
                                                 {
@@ -1314,10 +1338,10 @@ namespace Kokoro.Graphics.Framegraph
                                                     SrcStage = resc.CurrentUsageStage,
                                                     DstStage = pass.Resources[i].StartStage,
                                                     signalling = new GpuSemaphore[] { AllocateSemaphore(SemaphoreCounter.ToString()) },
-                                                    waiting = waitingSems.ToArray()
+                                                    waiting = t_waitingSems.ToArray()
                                                 };
                                                 l_transCmds.Add(c_comp_cmd);
-                                                waitingSems.Clear();
+                                                t_waitingSems.Clear();
                                                 waitingSems.Add(c_comp_cmd.signalling[0]);
                                                 t_cmd = new CommandBuffer()
                                                 {
@@ -1349,7 +1373,7 @@ namespace Kokoro.Graphics.Framegraph
                                     LayerCount = resc_data.LayerCount,
                                     LevelCount = resc_data.LevelCount,
                                     DstFamily = op.QueueKind,
-                                    SrcFamily = resc.OwningQueue,
+                                    SrcFamily = resc.OwningQueue == CommandQueueKind.Ignored ? op.QueueKind : resc.OwningQueue,
                                     NewLayout = resc_data.StartLayout,
                                     OldLayout = resc.CurrentLayout,
                                 };
@@ -1368,10 +1392,10 @@ namespace Kokoro.Graphics.Framegraph
                                                     SrcStage = resc.CurrentUsageStage,
                                                     DstStage = pass.Resources[i].StartStage,
                                                     signalling = new GpuSemaphore[] { AllocateSemaphore(SemaphoreCounter.ToString()) },
-                                                    waiting = waitingSems.ToArray()
+                                                    waiting = c_waitingSems.ToArray()
                                                 };
                                                 l_acompCmds.Add(c_comp_cmd);
-                                                waitingSems.Clear();
+                                                c_waitingSems.Clear();
                                                 waitingSems.Add(c_comp_cmd.signalling[0]);
                                                 c_cmd = new CommandBuffer()
                                                 {
@@ -1391,17 +1415,17 @@ namespace Kokoro.Graphics.Framegraph
                                                     renderPassBound = false;
                                                 }
                                                 g_cmd.EndRecording();
-                                                if (l_graphCmds.Count == 0) waitingSems.Add(GraphicsDevice.ImageAvailableSemaphore[GraphicsDevice.PrevFrameID]);
+                                                if (l_graphCmds.Count == 0) g_waitingSems.Add(GraphicsDevice.ImageAvailableSemaphore[GraphicsDevice.PrevFrameID]);
                                                 var c_comp_cmd = new CompiledCommandBuffer
                                                 {
                                                     CmdBuffer = g_cmd,
                                                     SrcStage = resc.CurrentUsageStage,
                                                     DstStage = pass.Resources[i].StartStage,
                                                     signalling = new GpuSemaphore[] { AllocateSemaphore(SemaphoreCounter.ToString()) },
-                                                    waiting = waitingSems.ToArray()
+                                                    waiting = g_waitingSems.ToArray()
                                                 };
                                                 l_graphCmds.Add(c_comp_cmd);
-                                                waitingSems.Clear();
+                                                g_waitingSems.Clear();
                                                 waitingSems.Add(c_comp_cmd.signalling[0]);
                                                 g_cmd = new CommandBuffer()
                                                 {
@@ -1422,10 +1446,10 @@ namespace Kokoro.Graphics.Framegraph
                                                     SrcStage = resc.CurrentUsageStage,
                                                     DstStage = pass.Resources[i].StartStage,
                                                     signalling = new GpuSemaphore[] { AllocateSemaphore(SemaphoreCounter.ToString()) },
-                                                    waiting = waitingSems.ToArray()
+                                                    waiting = t_waitingSems.ToArray()
                                                 };
                                                 l_transCmds.Add(c_comp_cmd);
-                                                waitingSems.Clear();
+                                                t_waitingSems.Clear();
                                                 waitingSems.Add(c_comp_cmd.signalling[0]);
                                                 t_cmd = new CommandBuffer()
                                                 {
@@ -1451,7 +1475,215 @@ namespace Kokoro.Graphics.Framegraph
                 else if (BufferTransferPasses.ContainsKey(op.PassName))
                 {
                     var pass = BufferTransferPasses[op.PassName];
+                    if (GpuBuffers.ContainsKey(pass.Source))
+                    {
+                        var resc = GpuBuffers[pass.Source];
+                        var bar = new BufferMemoryBarrier()
+                        {
+                            Accesses = resc.CurrentAccesses,
+                            Buffer = resc,
+                            Stores = AccessFlags.TransferWrite,
+                            Offset = 0,
+                            Size = resc.Size,
+                            DstFamily = op.QueueKind,
+                            SrcFamily = resc.OwningQueue == CommandQueueKind.Ignored ? op.QueueKind : resc.OwningQueue,
+                        };
+                        if (op.QueueKind != resc.OwningQueue && resc.OwningQueue != CommandQueueKind.Ignored)
+                        {
+                            //Split command buffer and setup semaphore
+                            switch (resc.OwningQueue)
+                            {
+                                case CommandQueueKind.Compute:
+                                    {
+                                        c_cmd.Barrier(resc.CurrentUsageStage, PipelineStage.Transfer, new BufferMemoryBarrier[] { bar }, null);
+                                        c_cmd.EndRecording();
+                                        var c_comp_cmd = new CompiledCommandBuffer
+                                        {
+                                            CmdBuffer = c_cmd,
+                                            SrcStage = resc.CurrentUsageStage,
+                                            DstStage = PipelineStage.Transfer,
+                                            signalling = new GpuSemaphore[] { AllocateSemaphore(SemaphoreCounter.ToString()) },
+                                            waiting = c_waitingSems.ToArray()
+                                        };
+                                        l_acompCmds.Add(c_comp_cmd);
+                                        c_waitingSems.Clear();
+                                        waitingSems.Add(c_comp_cmd.signalling[0]);
+                                        c_cmd = new CommandBuffer()
+                                        {
+                                            OneTimeSubmit = true,
+                                            Name = $"Compute_{GraphicsDevice.CurrentFrameID}"
+                                        };
+                                        c_cmd.Build(AsyncComputeCmdPool[GraphicsDevice.CurrentFrameID]);
+                                        c_cmd.BeginRecording();
+                                    }
+                                    break;
+                                case CommandQueueKind.Graphics:
+                                    {
+                                        g_cmd.Barrier(resc.CurrentUsageStage, PipelineStage.Transfer, new BufferMemoryBarrier[] { bar }, null);
+                                        if (renderPassBound)
+                                        {
+                                            g_cmd.EndRenderPass();
+                                            renderPassBound = false;
+                                        }
+                                        g_cmd.EndRecording();
+                                        if (l_graphCmds.Count == 0) g_waitingSems.Add(GraphicsDevice.ImageAvailableSemaphore[GraphicsDevice.PrevFrameID]);
+                                        var c_comp_cmd = new CompiledCommandBuffer
+                                        {
+                                            CmdBuffer = g_cmd,
+                                            SrcStage = resc.CurrentUsageStage,
+                                            DstStage = PipelineStage.Transfer,
+                                            signalling = new GpuSemaphore[] { AllocateSemaphore(SemaphoreCounter.ToString()) },
+                                            waiting = g_waitingSems.ToArray()
+                                        };
+                                        l_graphCmds.Add(c_comp_cmd);
+                                        g_waitingSems.Clear();
+                                        waitingSems.Add(c_comp_cmd.signalling[0]);
+                                        g_cmd = new CommandBuffer()
+                                        {
+                                            OneTimeSubmit = true,
+                                            Name = $"Graphics_{GraphicsDevice.CurrentFrameID}"
+                                        };
+                                        g_cmd.Build(GraphicsCmdPool[GraphicsDevice.CurrentFrameID]);
+                                        g_cmd.BeginRecording();
+                                    }
+                                    break;
+                                case CommandQueueKind.Transfer:
+                                    {
+                                        t_cmd.Barrier(resc.CurrentUsageStage, PipelineStage.Transfer, new BufferMemoryBarrier[] { bar }, null);
+                                        t_cmd.EndRecording();
+                                        var c_comp_cmd = new CompiledCommandBuffer
+                                        {
+                                            CmdBuffer = t_cmd,
+                                            SrcStage = resc.CurrentUsageStage,
+                                            DstStage = PipelineStage.Transfer,
+                                            signalling = new GpuSemaphore[] { AllocateSemaphore(SemaphoreCounter.ToString()) },
+                                            waiting = t_waitingSems.ToArray()
+                                        };
+                                        l_transCmds.Add(c_comp_cmd);
+                                        t_waitingSems.Clear();
+                                        waitingSems.Add(c_comp_cmd.signalling[0]);
+                                        t_cmd = new CommandBuffer()
+                                        {
+                                            OneTimeSubmit = true,
+                                            Name = $"Transfer_{GraphicsDevice.CurrentFrameID}"
+                                        };
+                                        t_cmd.Build(TransferCmdPool[GraphicsDevice.CurrentFrameID]);
+                                        t_cmd.BeginRecording();
+                                    }
+                                    break;
+                            }
+                        }
+                        tgt_cmdbuf.Barrier(resc.CurrentUsageStage, PipelineStage.Transfer, new BufferMemoryBarrier[] { bar }, null);
+                        resc.CurrentUsageStage = PipelineStage.Transfer;
+                        resc.CurrentAccesses = AccessFlags.TransferWrite;
+                        resc.OwningQueue = op.QueueKind;
+                    }
 
+                    if (GpuBuffers.ContainsKey(pass.Destination))
+                    {
+                        var resc = GpuBuffers[pass.Destination];
+                        var bar = new BufferMemoryBarrier()
+                        {
+                            Accesses = resc.CurrentAccesses,
+                            Buffer = resc,
+                            Stores = AccessFlags.TransferWrite,
+                            Offset = 0,
+                            Size = resc.Size,
+                            DstFamily = op.QueueKind,
+                            SrcFamily = resc.OwningQueue == CommandQueueKind.Ignored ? op.QueueKind : resc.OwningQueue,
+                        };
+                        if (op.QueueKind != resc.OwningQueue && resc.OwningQueue != CommandQueueKind.Ignored)
+                        {
+                            //Split command buffer and setup semaphore
+                            switch (resc.OwningQueue)
+                            {
+                                case CommandQueueKind.Compute:
+                                    {
+                                        c_cmd.Barrier(resc.CurrentUsageStage, PipelineStage.Transfer, new BufferMemoryBarrier[] { bar }, null);
+                                        c_cmd.EndRecording();
+                                        var c_comp_cmd = new CompiledCommandBuffer
+                                        {
+                                            CmdBuffer = c_cmd,
+                                            SrcStage = resc.CurrentUsageStage,
+                                            DstStage = PipelineStage.Transfer,
+                                            signalling = new GpuSemaphore[] { AllocateSemaphore(SemaphoreCounter.ToString()) },
+                                            waiting = c_waitingSems.ToArray()
+                                        };
+                                        l_acompCmds.Add(c_comp_cmd);
+                                        c_waitingSems.Clear();
+                                        waitingSems.Add(c_comp_cmd.signalling[0]);
+                                        c_cmd = new CommandBuffer()
+                                        {
+                                            OneTimeSubmit = true,
+                                            Name = $"Compute_{GraphicsDevice.CurrentFrameID}"
+                                        };
+                                        c_cmd.Build(AsyncComputeCmdPool[GraphicsDevice.CurrentFrameID]);
+                                        c_cmd.BeginRecording();
+                                    }
+                                    break;
+                                case CommandQueueKind.Graphics:
+                                    {
+                                        g_cmd.Barrier(resc.CurrentUsageStage, PipelineStage.Transfer, new BufferMemoryBarrier[] { bar }, null);
+                                        if (renderPassBound)
+                                        {
+                                            g_cmd.EndRenderPass();
+                                            renderPassBound = false;
+                                        }
+                                        g_cmd.EndRecording();
+                                        if (l_graphCmds.Count == 0) g_waitingSems.Add(GraphicsDevice.ImageAvailableSemaphore[GraphicsDevice.PrevFrameID]);
+                                        var c_comp_cmd = new CompiledCommandBuffer
+                                        {
+                                            CmdBuffer = g_cmd,
+                                            SrcStage = resc.CurrentUsageStage,
+                                            DstStage = PipelineStage.Transfer,
+                                            signalling = new GpuSemaphore[] { AllocateSemaphore(SemaphoreCounter.ToString()) },
+                                            waiting = g_waitingSems.ToArray()
+                                        };
+                                        l_graphCmds.Add(c_comp_cmd);
+                                        g_waitingSems.Clear();
+                                        waitingSems.Add(c_comp_cmd.signalling[0]);
+                                        g_cmd = new CommandBuffer()
+                                        {
+                                            OneTimeSubmit = true,
+                                            Name = $"Graphics_{GraphicsDevice.CurrentFrameID}"
+                                        };
+                                        g_cmd.Build(GraphicsCmdPool[GraphicsDevice.CurrentFrameID]);
+                                        g_cmd.BeginRecording();
+                                    }
+                                    break;
+                                case CommandQueueKind.Transfer:
+                                    {
+                                        t_cmd.Barrier(resc.CurrentUsageStage, PipelineStage.Transfer, new BufferMemoryBarrier[] { bar }, null);
+                                        t_cmd.EndRecording();
+                                        var c_comp_cmd = new CompiledCommandBuffer
+                                        {
+                                            CmdBuffer = t_cmd,
+                                            SrcStage = resc.CurrentUsageStage,
+                                            DstStage = PipelineStage.Transfer,
+                                            signalling = new GpuSemaphore[] { AllocateSemaphore(SemaphoreCounter.ToString()) },
+                                            waiting = t_waitingSems.ToArray()
+                                        };
+                                        l_transCmds.Add(c_comp_cmd);
+                                        t_waitingSems.Clear();
+                                        waitingSems.Add(c_comp_cmd.signalling[0]);
+                                        t_cmd = new CommandBuffer()
+                                        {
+                                            OneTimeSubmit = true,
+                                            Name = $"Transfer_{GraphicsDevice.CurrentFrameID}"
+                                        };
+                                        t_cmd.Build(TransferCmdPool[GraphicsDevice.CurrentFrameID]);
+                                        t_cmd.BeginRecording();
+                                    }
+                                    break;
+                            }
+                        }
+                        tgt_cmdbuf.Barrier(resc.CurrentUsageStage, PipelineStage.Transfer, new BufferMemoryBarrier[] { bar }, null);
+                        resc.CurrentUsageStage = PipelineStage.Transfer;
+                        resc.CurrentAccesses = AccessFlags.TransferWrite;
+                        resc.OwningQueue = op.QueueKind;
+                    }
+
+                    tgt_cmdbuf.Stage(GpuBuffers[pass.Source], pass.SourceOffset, GpuBuffers[pass.Destination], pass.DestinationOffset, pass.Size);
                 }
                 else if (ImageTransferPasses.ContainsKey(op.PassName))
                 {
@@ -1466,11 +1698,11 @@ namespace Kokoro.Graphics.Framegraph
             {
                 if (renderPassBound) g_cmd.EndRenderPass();
                 g_cmd.EndRecording();
-                if (l_graphCmds.Count == 0) waitingSems.Add(GraphicsDevice.ImageAvailableSemaphore[GraphicsDevice.PrevFrameID]);
+                if (l_graphCmds.Count == 0) g_waitingSems.Add(GraphicsDevice.ImageAvailableSemaphore[GraphicsDevice.PrevFrameID]);
                 l_graphCmds.Add(new CompiledCommandBuffer()
                 {
                     CmdBuffer = g_cmd,
-                    waiting = waitingSems.ToArray(),
+                    waiting = g_waitingSems.ToArray(),
                     SrcStage = PipelineStage.Bottom,
                     DstStage = PipelineStage.Top,
                 });
@@ -1481,7 +1713,7 @@ namespace Kokoro.Graphics.Framegraph
                 l_acompCmds.Add(new CompiledCommandBuffer()
                 {
                     CmdBuffer = c_cmd,
-                    waiting = waitingSems.ToArray(),
+                    waiting = c_waitingSems.ToArray(),
                     SrcStage = PipelineStage.Bottom,
                     DstStage = PipelineStage.Top,
                 });
@@ -1492,7 +1724,7 @@ namespace Kokoro.Graphics.Framegraph
                 l_transCmds.Add(new CompiledCommandBuffer()
                 {
                     CmdBuffer = t_cmd,
-                    waiting = waitingSems.ToArray(),
+                    waiting = t_waitingSems.ToArray(),
                     SrcStage = PipelineStage.Bottom,
                     DstStage = PipelineStage.Top,
                 });
@@ -1506,6 +1738,13 @@ namespace Kokoro.Graphics.Framegraph
                     graphCmds[GraphicsDevice.CurrentFrameID][i].CmdBuffer.Dispose();
                 if (transitionBuffer[GraphicsDevice.CurrentFrameID] != null) transitionBuffer[GraphicsDevice.CurrentFrameID].Dispose();
             }
+
+            compFences[GraphicsDevice.CurrentFrameID].Wait();
+            compFences[GraphicsDevice.CurrentFrameID].Reset();
+
+            transFences[GraphicsDevice.CurrentFrameID].Wait();
+            transFences[GraphicsDevice.CurrentFrameID].Reset();
+
             if (compCmds[GraphicsDevice.CurrentFrameID].Length != 0)
             {
                 for (int i = 0; i < compCmds[GraphicsDevice.CurrentFrameID].Length; i++)
@@ -1528,10 +1767,10 @@ namespace Kokoro.Graphics.Framegraph
                 if (i < graphCmds[GraphicsDevice.CurrentFrameID].Length - 2 && !graphCmds[GraphicsDevice.CurrentFrameID][i].CmdBuffer.IsEmpty)
                     GraphicsDevice.SubmitCommandBuffer(graphCmds[GraphicsDevice.CurrentFrameID][i].CmdBuffer, graphCmds[GraphicsDevice.CurrentFrameID][i].waiting, graphCmds[GraphicsDevice.CurrentFrameID][i].signalling, null);
 
-                if (i < compCmds[GraphicsDevice.CurrentFrameID].Length && !compCmds[GraphicsDevice.CurrentFrameID][i].CmdBuffer.IsEmpty)
+                if (i < compCmds[GraphicsDevice.CurrentFrameID].Length - 1 && !compCmds[GraphicsDevice.CurrentFrameID][i].CmdBuffer.IsEmpty)
                     GraphicsDevice.SubmitCommandBuffer(compCmds[GraphicsDevice.CurrentFrameID][i].CmdBuffer, compCmds[GraphicsDevice.CurrentFrameID][i].waiting, compCmds[GraphicsDevice.CurrentFrameID][i].signalling, null);
 
-                if (i < transCmds[GraphicsDevice.CurrentFrameID].Length && !transCmds[GraphicsDevice.CurrentFrameID][i].CmdBuffer.IsEmpty)
+                if (i < transCmds[GraphicsDevice.CurrentFrameID].Length - 1 && !transCmds[GraphicsDevice.CurrentFrameID][i].CmdBuffer.IsEmpty)
                     GraphicsDevice.SubmitCommandBuffer(transCmds[GraphicsDevice.CurrentFrameID][i].CmdBuffer, transCmds[GraphicsDevice.CurrentFrameID][i].waiting, transCmds[GraphicsDevice.CurrentFrameID][i].signalling, null);
             }
 
@@ -1564,8 +1803,39 @@ namespace Kokoro.Graphics.Framegraph
             GraphicsDevice.DefaultFramebuffer[GraphicsDevice.CurrentFrameID].ColorAttachments[0].CurrentAccesses = AccessFlags.ColorAttachmentWrite;
             GraphicsDevice.DefaultFramebuffer[GraphicsDevice.CurrentFrameID].ColorAttachments[0].CurrentUsageStage = PipelineStage.ColorAttachOut;
 
-            if (!graphCmds[GraphicsDevice.CurrentFrameID][graphCmds[GraphicsDevice.CurrentFrameID].Length - 1].CmdBuffer.IsEmpty)
-                GraphicsDevice.SubmitCommandBuffer(graphCmds[GraphicsDevice.CurrentFrameID][graphCmds[GraphicsDevice.CurrentFrameID].Length - 1].CmdBuffer, graphCmds[GraphicsDevice.CurrentFrameID][graphCmds[GraphicsDevice.CurrentFrameID].Length - 1].waiting, new GpuSemaphore[] { finalGfxSem }, null);
+            {
+                int i = compCmds[GraphicsDevice.CurrentFrameID].Length - 1;
+                if (i >= 0 && !compCmds[GraphicsDevice.CurrentFrameID][i].CmdBuffer.IsEmpty)
+                    GraphicsDevice.SubmitCommandBuffer(compCmds[GraphicsDevice.CurrentFrameID][i].CmdBuffer, compCmds[GraphicsDevice.CurrentFrameID][i].waiting, compCmds[GraphicsDevice.CurrentFrameID][i].signalling, compFences[GraphicsDevice.CurrentFrameID]);
+                else
+                {
+                    compFences[GraphicsDevice.CurrentFrameID].Dispose();
+                    compFences[GraphicsDevice.CurrentFrameID] = new Fence()
+                    {
+                        Name = compFences[GraphicsDevice.CurrentFrameID].Name,
+                        CreateSignaled = true,
+                    };
+                    compFences[GraphicsDevice.CurrentFrameID].Build(DeviceIndex);
+                }
+
+                i = transCmds[GraphicsDevice.CurrentFrameID].Length - 1;
+                if (i >= 0 && !transCmds[GraphicsDevice.CurrentFrameID][i].CmdBuffer.IsEmpty)
+                    GraphicsDevice.SubmitCommandBuffer(transCmds[GraphicsDevice.CurrentFrameID][i].CmdBuffer, transCmds[GraphicsDevice.CurrentFrameID][i].waiting, transCmds[GraphicsDevice.CurrentFrameID][i].signalling, transFences[GraphicsDevice.CurrentFrameID]);
+                else
+                {
+                    transFences[GraphicsDevice.CurrentFrameID].Dispose();
+                    transFences[GraphicsDevice.CurrentFrameID] = new Fence()
+                    {
+                        Name = transFences[GraphicsDevice.CurrentFrameID].Name,
+                        CreateSignaled = true,
+                    };
+                    transFences[GraphicsDevice.CurrentFrameID].Build(DeviceIndex);
+                }
+
+                i = graphCmds[GraphicsDevice.CurrentFrameID].Length - 1;
+                if (!graphCmds[GraphicsDevice.CurrentFrameID][i].CmdBuffer.IsEmpty)
+                    GraphicsDevice.SubmitCommandBuffer(graphCmds[GraphicsDevice.CurrentFrameID][i].CmdBuffer, graphCmds[GraphicsDevice.CurrentFrameID][i].waiting, new GpuSemaphore[] { finalGfxSem }, null);
+            }
 
             //Submit the last graphics command with an additional sync + fence for the frame
             GraphicsDevice.SubmitCommandBuffer(transitionBuffer[GraphicsDevice.CurrentFrameID], new GpuSemaphore[] { finalGfxSem }, new GpuSemaphore[] { GraphicsDevice.FrameFinishedSemaphore[GraphicsDevice.CurrentFrameID] }, GraphicsDevice.InflightFences[GraphicsDevice.CurrentFrameID]);

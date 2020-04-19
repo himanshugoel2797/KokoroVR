@@ -24,7 +24,7 @@ namespace Kokoro.Graphics
         public ImageLayout CurrentLayout { get; set; }
         public AccessFlags CurrentAccesses { get; set; } = AccessFlags.None;
         public PipelineStage CurrentUsageStage { get; set; } = PipelineStage.Top;
-        public CommandQueueKind OwningQueue { get; set; }
+        public CommandQueueKind OwningQueue { get; set; } = CommandQueueKind.Ignored;
 
         internal IntPtr hndl { get; private set; }
         internal IntPtr imgAlloc { get; private set; }
