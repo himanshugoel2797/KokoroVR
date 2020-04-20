@@ -8,6 +8,13 @@ using static VulkanSharp.Raw.Vk;
 
 namespace Kokoro.Graphics
 {
+    public enum FillMode
+    {
+        Fill = VkPolygonMode.PolygonModeFill,
+        Line = VkPolygonMode.PolygonModeLine,
+        Point = VkPolygonMode.PolygonModePoint
+    }
+
     public class GraphicsPipeline
     {
         public string Name { get; set; }
@@ -19,6 +26,7 @@ namespace Kokoro.Graphics
         public CullMode CullMode { get; set; } = CullMode.None;
         public bool EnableBlending { get; set; }
         public DepthTest DepthTest { get; set; } = DepthTest.Greater;
+        public FillMode Fill { get; set; } = FillMode.Fill;
         public bool DepthWrite { get; set; } = false;
         public RenderPass RenderPass { get; set; }
         public PipelineLayout PipelineLayout { get; set; }
@@ -133,7 +141,7 @@ namespace Kokoro.Graphics
                         sType = VkStructureType.StructureTypePipelineRasterizationStateCreateInfo,
                         depthClampEnable = DepthClamp,
                         rasterizerDiscardEnable = RasterizerDiscard,
-                        polygonMode = VkPolygonMode.PolygonModeLine,
+                        polygonMode = (VkPolygonMode)Fill,
                         lineWidth = LineWidth,
                         cullMode = (VkCullModeFlags)CullMode,
                         frontFace = VkFrontFace.FrontFaceCounterClockwise,   //OpenGL default

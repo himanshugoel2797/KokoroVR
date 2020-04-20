@@ -11,7 +11,7 @@ namespace KokoroVR2.Test
     class Program
     {
         static SpecializedShader vertS, fragS;
-        static TerrainFace face;
+        static TerrainFace[] face;
         static Image[] depthImages;
         static ImageView[] depthImageViews;
         static void Main(string[] args)
@@ -23,21 +23,20 @@ namespace KokoroVR2.Test
             var graph = new FrameGraph(0);
             Engine.RenderGraph = graph;
 
-            /*
-                        vertS = new SpecializedShader()
-                        {
-                            Name = "FST_Vert",
-                            Shader = ShaderSource.Load(ShaderType.VertexShader, "FullScreenTriangle/vertex.glsl"),
-                            SpecializationData = null
-                        };
 
-                        fragS = new SpecializedShader()
-                        {
-                            Name = "UVR_Frag",
-                            Shader = ShaderSource.Load(ShaderType.FragmentShader, "UVRenderer/fragment.glsl"),
-                            SpecializationData = null,
-                        };
-            */
+            vertS = new SpecializedShader()
+            {
+                Name = "FST_Vert",
+                Shader = ShaderSource.Load(ShaderType.VertexShader, "FullScreenTriangle/vertex.glsl"),
+                SpecializationData = null
+            };
+
+            fragS = new SpecializedShader()
+            {
+                Name = "UVR_Frag",
+                Shader = ShaderSource.Load(ShaderType.FragmentShader, "UVRenderer/fragment.glsl"),
+                SpecializationData = null,
+            };
 
             depthImages = new Image[GraphicsDevice.MaxFramesInFlight];
             depthImageViews = new ImageView[GraphicsDevice.MaxFramesInFlight];
@@ -74,7 +73,9 @@ namespace KokoroVR2.Test
                 depthImageViews[i].Build(depthImages[i]);
             }
 
-            face = new TerrainFace("terrain", TerrainFaceIndex.Top, 1);
+            face = new TerrainFace[6];
+            for (int i = 0; i < 6; i++)
+                face[i] = new TerrainFace("terrain_" + i, (TerrainFaceIndex)i, 100);
 
             Engine.OnRebuildGraph += Engine_OnRebuildGraph;
             Engine.OnRender += Engine_OnRender;
@@ -88,7 +89,9 @@ namespace KokoroVR2.Test
             //streamer.InitialUpdate(delta_ms);
             //obj.Render(delta_ms);
             //streamer.FinalUpdate(delta_ms);
-            face.Update();
+
+            for (int i = 0; i < 6; i++)
+                face[i].Update();
         }
 
         private static void Engine_OnRender(double time_ms, double delta_ms)
@@ -96,18 +99,20 @@ namespace KokoroVR2.Test
             //Acquire the frame
             GraphicsDevice.AcquireFrame();
 
-            /*Engine.RenderGraph.QueueOp(new GpuOp()
+            Engine.RenderGraph.QueueOp(new GpuOp()
             {
                 ColorAttachments = new string[] { GraphicsDevice.DefaultFramebuffer[GraphicsDevice.CurrentFrameID].ColorAttachments[0].Name },
-                DepthAttachment = null,
+                DepthAttachment = depthImageViews[GraphicsDevice.CurrentFrameID].Name,
                 PassName = "main_pass",
                 Resources = new string[]{
                         Engine.GlobalParameters.Name
                     },
                 Cmd = GpuCmd.Draw,
                 VertexCount = 3,
-            });*/
-            face.Render(GraphicsDevice.DefaultFramebuffer[GraphicsDevice.CurrentFrameID].ColorAttachments[0].Name, depthImageViews[GraphicsDevice.CurrentFrameID].Name);
+            });
+
+            for (int i = 0; i < 6; i++)
+                face[i].Render(GraphicsDevice.DefaultFramebuffer[GraphicsDevice.CurrentFrameID].ColorAttachments[0].Name, depthImageViews[GraphicsDevice.CurrentFrameID].Name);
 
             Engine.RenderGraph.Build();
 
@@ -124,7 +129,7 @@ namespace KokoroVR2.Test
                 graph.RegisterResource(out_img);
                 graph.RegisterResource(depthImageViews[i]);
             }
-            /*
+
             graph.RegisterShader(vertS);
             graph.RegisterShader(fragS);
 
@@ -135,8 +140,10 @@ namespace KokoroVR2.Test
                 ViewportWidth = GraphicsDevice.Width,
                 ViewportHeight = GraphicsDevice.Height,
                 ViewportDynamic = false,
-                DepthWriteEnable = false,
+                DepthWriteEnable = true,
+                DepthTest = DepthTest.Always,
                 CullMode = CullMode.None,
+                Fill = FillMode.Fill,
                 RenderLayout = new RenderLayout()
                 {
                     Color = new RenderLayoutEntry[]
@@ -151,7 +158,15 @@ namespace KokoroVR2.Test
                             StoreOp = AttachmentStoreOp.Store,
                         },
                     },
-                    Depth = null,
+                    Depth = new RenderLayoutEntry()
+                    {
+                        DesiredLayout = ImageLayout.DepthAttachmentOptimal,
+                        FirstLoadStage = PipelineStage.EarlyFragTests,
+                        Format = ImageFormat.Depth32f,
+                        LastStoreStage = PipelineStage.LateFragTests,
+                        LoadOp = AttachmentLoadOp.DontCare,
+                        StoreOp = AttachmentStoreOp.Store,
+                    },
                 },
                 DescriptorSetup = new DescriptorSetup()
                 {
@@ -173,8 +188,10 @@ namespace KokoroVR2.Test
                     }
                 }
             };
-            graph.RegisterGraphicsPass(gpass);*/
-            face.RebuildGraph();
+            graph.RegisterGraphicsPass(gpass);
+
+            for (int i = 0; i < 6; i++)
+                face[i].RebuildGraph();
             graph.GatherDescriptors();
         }
     }

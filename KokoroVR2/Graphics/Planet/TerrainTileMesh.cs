@@ -14,7 +14,7 @@ namespace KokoroVR2.Graphics.Planet
     }
     public class TerrainTileMesh
     {
-        const int Side = 2049;
+        const int Side = 129;
 
         public static void Create(byte stepLen, TerrainTileEdge sideLoDMask, out uint[] indices)
         {

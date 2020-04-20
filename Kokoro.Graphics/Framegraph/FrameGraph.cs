@@ -547,6 +547,7 @@ namespace Kokoro.Graphics.Framegraph
                             CullMode = graphicsPass.CullMode,
                             EnableBlending = graphicsPass.EnableBlending,
                             DepthTest = graphicsPass.DepthTest,
+                            Fill = graphicsPass.Fill,
                             RenderPass = rpass,
                             PipelineLayout = pipelineLayout,
                             ViewportX = graphicsPass.ViewportX,
@@ -1213,6 +1214,8 @@ namespace Kokoro.Graphics.Framegraph
                             }
                             break;
                     }
+                    g_cmd.EndRenderPass();
+                    renderPassBound = false;
                 }
                 else if (ComputePasses.ContainsKey(op.PassName))
                 {

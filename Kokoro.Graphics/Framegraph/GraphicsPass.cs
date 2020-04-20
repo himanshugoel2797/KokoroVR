@@ -63,6 +63,7 @@ namespace Kokoro.Graphics.Framegraph
         public bool RasterizerDiscard { get; set; } = false;
         public float LineWidth { get; set; } = 1.0f;
         public CullMode CullMode { get; set; } = CullMode.Back;
+        public FillMode Fill { get; set; } = FillMode.Fill;
 
         public bool EnableBlending { get; set; } = false;
 

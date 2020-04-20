@@ -1,3 +1,4 @@
+using System.Runtime.InteropServices;
 using System;
 using Kokoro.Math;
 using Kokoro.Graphics;
@@ -18,89 +19,163 @@ namespace KokoroVR2.Graphics.Planet
 
     public class TerrainFace : UniquelyNamedObject
     {
-        StreamableBuffer indexBuffer;
-        StreamableBuffer paramBuffer;
-        SpecializedShader vertexShader;
-        SpecializedShader fragmentShader;
-        uint indexCount;
+        static StreamableBuffer indexBuffer;
+        static StreamableBuffer paramBuffer;
+        static SpecializedShader vertexShader;
+        static SpecializedShader fragmentShader;
+        static uint indexCount;
+        static int cntr = 0;
+
+        readonly IntPtr pushConstants;
+        readonly uint pushConstantsLen;
+        readonly int cur_cntr;
+        Vector3 normal;
+
+        private static void Initialize(string name)
+        {
+            if (cntr == 0)
+            {
+                TerrainTileMesh.Create(2, TerrainTileEdge.None, out var indices);
+                indexBuffer = new StreamableBuffer(name + "_indices", (ulong)indices.Length * sizeof(uint), BufferUsage.Index);
+                paramBuffer = new StreamableBuffer(name + "_params", 4096, BufferUsage.Uniform);
+                indexCount = (uint)indices.Length;
+
+                unsafe
+                {
+                    var i_ptr = (uint*)indexBuffer.BeginBufferUpdate();
+                    for (int i = 0; i < indices.Length; i++)
+                        i_ptr[i] = indices[i];
+                    indexBuffer.EndBufferUpdate();
+                }
+
+                vertexShader = new SpecializedShader()
+                {
+                    Name = name + "_Vert",
+                    Shader = ShaderSource.Load(ShaderType.VertexShader, "PlanetTerrain/vertex.glsl"),
+                    SpecializationData = null
+                };
+
+                fragmentShader = new SpecializedShader()
+                {
+                    Name = name + "_Frag",
+                    Shader = ShaderSource.Load(ShaderType.FragmentShader, "UVRenderer/fragment.glsl"),
+                    SpecializationData = null,
+                };
+            }
+        }
 
         public TerrainFace(string name, TerrainFaceIndex faceIndex, float radius) : base(name)
         {
-            TerrainTileMesh.Create(2, TerrainTileEdge.None, out var indices);
-            indexBuffer = new StreamableBuffer(name + "_indices", (ulong)indices.Length * sizeof(uint), BufferUsage.Index);
-            paramBuffer = new StreamableBuffer(name + "_params", 4096, BufferUsage.Uniform);
+            Initialize("TerrainFace");
+            cur_cntr = cntr++;
+            uint v0 = 0, v1 = 0, v2 = 0;
 
-            indexCount = (uint)indices.Length;
+            switch (faceIndex)
+            {
+                case TerrainFaceIndex.Top:
+                    normal = new Vector3(0, 1, 0);
+                    v0 = 0;
+                    v1 = 2;
+                    v2 = 1;
+                    break;
+                case TerrainFaceIndex.Bottom:
+                    normal = new Vector3(0, -1, 0);
+                    v0 = 0;
+                    v1 = 2;
+                    v2 = 1;
+                    break;
+                case TerrainFaceIndex.Left:
+                    normal = new Vector3(1, 0, 0);
+                    v0 = 1;
+                    v1 = 2;
+                    v2 = 0;
+                    break;
+                case TerrainFaceIndex.Right:
+                    normal = new Vector3(-1, 0, 0);
+                    v0 = 1;
+                    v1 = 2;
+                    v2 = 0;
+                    break;
+                case TerrainFaceIndex.Front:
+                    normal = new Vector3(0, 0, 1);
+                    v0 = 0;
+                    v1 = 1;
+                    v2 = 2;
+                    break;
+                case TerrainFaceIndex.Back:
+                    normal = new Vector3(0, 0, -1);
+                    v0 = 0;
+                    v1 = 1;
+                    v2 = 2;
+                    break;
+            }
 
             unsafe
             {
-                var i_ptr = (uint*)indexBuffer.BeginBufferUpdate();
-                for (int i = 0; i < indices.Length; i++)
-                    i_ptr[i] = indices[i];
-                indexBuffer.EndBufferUpdate();
+                pushConstantsLen = 4 * 4 + 4 * 4;
+                pushConstants = Marshal.AllocHGlobal((int)pushConstantsLen);
+                float* f_ptr = (float*)pushConstants;
+                uint* ui_ptr = (uint*)f_ptr;
+                f_ptr[0] = normal.X;
+                f_ptr[1] = normal.Y;
+                f_ptr[2] = normal.Z;
+                f_ptr[3] = 0.0f;
+                ui_ptr[4] = v0;
+                ui_ptr[5] = v1;
+                ui_ptr[6] = v2;
+                f_ptr[7] = radius;
             }
-
-            vertexShader = new SpecializedShader()
-            {
-                Name = Name + "_Vert",
-                Shader = ShaderSource.Load(ShaderType.VertexShader, "PlanetTerrain/vertex.glsl"),
-                SpecializationData = null
-            };
-
-            fragmentShader = new SpecializedShader()
-            {
-                Name = Name + "_Frag",
-                Shader = ShaderSource.Load(ShaderType.FragmentShader, "UVRenderer/fragment.glsl"),
-                SpecializationData = null,
-            };
         }
 
         public void RebuildGraph()
         {
-            indexBuffer.RebuildGraph();
-            paramBuffer.RebuildGraph();
-
-            Engine.RenderGraph.RegisterShader(vertexShader);
-            Engine.RenderGraph.RegisterShader(fragmentShader);
-
-            Engine.RenderGraph.RegisterGraphicsPass(new GraphicsPass(Name + "_pass")
+            if (cur_cntr == 0)
             {
-                Shaders = new string[] { vertexShader.Name, fragmentShader.Name },
-                ViewportWidth = Engine.Width,
-                ViewportHeight = Engine.Height,
-                ViewportDynamic = false,
-                DepthWriteEnable = true,
-                DepthTest = DepthTest.Greater,
-                CullMode = CullMode.Back,
-                ViewportMinDepth = 0,
-                ViewportMaxDepth = 1,
-                RenderLayout = new RenderLayout()
+                indexBuffer.RebuildGraph();
+                paramBuffer.RebuildGraph();
+
+                Engine.RenderGraph.RegisterShader(vertexShader);
+                Engine.RenderGraph.RegisterShader(fragmentShader);
+
+                Engine.RenderGraph.RegisterGraphicsPass(new GraphicsPass("TerrainFace_pass")
                 {
-                    Color = new RenderLayoutEntry[]
+                    Shaders = new string[] { vertexShader.Name, fragmentShader.Name },
+                    ViewportWidth = Engine.Width,
+                    ViewportHeight = Engine.Height,
+                    ViewportDynamic = false,
+                    DepthWriteEnable = true,
+                    DepthTest = DepthTest.Greater,
+                    CullMode = CullMode.None,
+                    Fill = FillMode.Line,
+                    ViewportMinDepth = 0,
+                    ViewportMaxDepth = 1,
+                    RenderLayout = new RenderLayout()
                     {
+                        Color = new RenderLayoutEntry[]
+                        {
                         new RenderLayoutEntry()
                         {
                             DesiredLayout = ImageLayout.ColorAttachmentOptimal,
                             FirstLoadStage = PipelineStage.ColorAttachOut,
                             Format = GraphicsDevice.DefaultFramebuffer[GraphicsDevice.CurrentFrameID].ColorAttachments[0].Format,
                             LastStoreStage = PipelineStage.ColorAttachOut,
-                            LoadOp = AttachmentLoadOp.Clear,
+                            LoadOp = AttachmentLoadOp.Load,
+                            StoreOp = AttachmentStoreOp.Store,
+                        },
+                        },
+                        Depth = new RenderLayoutEntry()
+                        {
+                            DesiredLayout = ImageLayout.DepthAttachmentOptimal,
+                            FirstLoadStage = PipelineStage.EarlyFragTests,
+                            Format = ImageFormat.Depth32f,
+                            LastStoreStage = PipelineStage.LateFragTests,
+                            LoadOp = AttachmentLoadOp.Load,
                             StoreOp = AttachmentStoreOp.Store,
                         },
                     },
-                    Depth = new RenderLayoutEntry()
+                    DescriptorSetup = new DescriptorSetup()
                     {
-                        DesiredLayout = ImageLayout.DepthAttachmentOptimal,
-                        FirstLoadStage = PipelineStage.EarlyFragTests,
-                        Format = ImageFormat.Depth32f,
-                        LastStoreStage = PipelineStage.ColorAttachOut,
-                        LoadOp = AttachmentLoadOp.Clear,
-                        StoreOp = AttachmentStoreOp.Store,
-                    },
-                },
-                DescriptorSetup = new DescriptorSetup()
-                {
-                    Descriptors = new DescriptorConfig[]{
+                        Descriptors = new DescriptorConfig[]{
                         new DescriptorConfig(){
                             Count = 1,
                             Index = 0,
@@ -112,9 +187,15 @@ namespace KokoroVR2.Graphics.Planet
                             DescriptorType = DescriptorType.UniformBuffer
                         },
                     },
-                    PushConstants = null,
-                },
-                Resources = new ResourceUsageEntry[]{
+                        PushConstants = new PushConstantConfig[]{
+                        new PushConstantConfig(){
+                            Offset = 0,
+                            Size = 4 * 4 * 2,
+                            Stages = ShaderType.All
+                        },
+                    },
+                    },
+                    Resources = new ResourceUsageEntry[]{
                     new BufferUsageEntry(){
                         StartStage = PipelineStage.VertShader,
                         StartAccesses = AccessFlags.ShaderRead,
@@ -128,7 +209,8 @@ namespace KokoroVR2.Graphics.Planet
                         FinalAccesses = AccessFlags.None,
                     },
                 }
-            });
+                });
+            }
         }
 
         public void Update()
@@ -137,13 +219,16 @@ namespace KokoroVR2.Graphics.Planet
 
         public void Render(string targetImage, string depthTarget)
         {
-            indexBuffer.Update();
-            paramBuffer.Update();
+            if (cur_cntr == 0)
+            {
+                indexBuffer.Update();
+                paramBuffer.Update();
+            }
             Engine.RenderGraph.QueueOp(new GpuOp()
             {
                 ColorAttachments = new string[] { targetImage },
                 DepthAttachment = depthTarget,
-                PassName = Name + "_pass",
+                PassName = "TerrainFace_pass",
                 Resources = new string[]{
                         Engine.GlobalParameters.Name,
                         paramBuffer.Name,
@@ -152,6 +237,8 @@ namespace KokoroVR2.Graphics.Planet
                 IndexCount = indexCount,
                 IndexBuffer = indexBuffer.Name,
                 IndexType = IndexType.U32,
+                PushConstantsLen = pushConstantsLen,
+                PushConstants = pushConstants,
             });
         }
     }

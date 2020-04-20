@@ -8,6 +8,15 @@
 #define PI 3.141592653589793
 #define EYECOUNT 1
 
+layout(std430, push_constant) uniform PushConstants {
+  vec4 normal;
+  uint idx0;
+  uint idx1;
+  uint idx2;
+  float radius;
+}
+constants;
+
 layout(location = 0) out vec2 uv;
 
 layout(set = 0, binding = 0, std140) uniform GlobalDrawParams {
@@ -34,8 +43,17 @@ tileInfo;
 
 void main() {
   // gl_VertexIndex
-  vec2 vpos = vec2((gl_VertexIndex >> 16) & 0xffff, gl_VertexIndex & 0xffff);
-  vec4 vert = vec4(vpos.x, 0, vpos.y, 1);
+  vec2 vpos = vec2((gl_VertexIndex >> 16) & 0xffff, gl_VertexIndex & 0xffff) -
+              128.0f * 0.5f;
+  vpos /= 128.0f;
+  vpos *= 200.0f;
+  vec4 vert = vec4(0, 0, 0, 1);
+  vert[constants.idx0] += vpos.x;
+  vert[constants.idx1] += vpos.y;
+  vert.xyz += constants.normal.xyz * constants.radius;
+
+  vert.xyz = normalize(vert.xyz) * constants.radius;
+
   gl_Position = globalParams.vp * vert;
-  uv = vert.xz / 2049.0f;
+  uv = vec2(1); // vert.xz / 2049.0f;
 }
