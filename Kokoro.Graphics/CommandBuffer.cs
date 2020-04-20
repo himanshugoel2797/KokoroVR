@@ -222,6 +222,20 @@ namespace Kokoro.Graphics
             else
                 throw new Exception("Command buffer not built.");
         }
+
+        public void PushConstants(PipelineLayout layout, ShaderType stage, IntPtr constants, uint constantLen)
+        {
+            if (locked)
+            {
+                if (layout != null)
+                {
+                    vkCmdPushConstants(hndl, layout.hndl, (VkShaderStageFlags)stage, 0, constantLen, constants);
+                    IsEmpty = false;
+                }
+            }
+            else
+                throw new Exception("Command buffer not built.");
+        }
         #endregion
 
         #region Staging

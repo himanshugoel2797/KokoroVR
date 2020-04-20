@@ -34,6 +34,8 @@ namespace Kokoro.Graphics.Framegraph
         public IndexType IndexType { get; set; }
         public uint IndexCount { get; set; }
         public uint FirstIndex { get; set; }
+        public IntPtr PushConstants { get; set; }
+        public uint PushConstantsLen { get; set; }
 
         internal CommandQueueKind QueueKind;
 
@@ -66,6 +68,7 @@ namespace Kokoro.Graphics.Framegraph
         ConcurrentDictionary<string, ImageView> ImageViews;
         ConcurrentDictionary<string, GpuBuffer> GpuBuffers;
         ConcurrentDictionary<string, GpuBufferView> GpuBufferViews;
+        ConcurrentDictionary<string, Sampler> Samplers;
 
         ConcurrentQueue<GpuOp[]> Ops;
 
@@ -111,6 +114,7 @@ namespace Kokoro.Graphics.Framegraph
             ImageViews = new ConcurrentDictionary<string, ImageView>(Environment.ProcessorCount, 1024);
             GpuBuffers = new ConcurrentDictionary<string, GpuBuffer>(Environment.ProcessorCount, 1024);
             GpuBufferViews = new ConcurrentDictionary<string, GpuBufferView>(Environment.ProcessorCount, 1024);
+            Samplers = new ConcurrentDictionary<string, Sampler>(Environment.ProcessorCount, 1024);
 
             RenderPasses = new Dictionary<RenderLayout, RenderPass>();
             Framebuffers = new Dictionary<string, Framebuffer>();
@@ -212,6 +216,11 @@ namespace Kokoro.Graphics.Framegraph
         public void RegisterResource(ImageView imageView)
         {
             ImageViews.AddOrUpdate(imageView.Name, imageView, (a, b) => imageView);
+        }
+
+        public void RegisterResource(Sampler sampler)
+        {
+            Samplers.AddOrUpdate(sampler.Name, sampler, (a, b) => sampler);
         }
 
         public void RegisterResource(GpuBuffer gpuBuffer)
@@ -528,27 +537,29 @@ namespace Kokoro.Graphics.Framegraph
                         var pipelineLayout = CreatePipelineLayout(descriptorSetup, graphicsPass.Name);
 
                         //allocate the pipeline object
-                        var gpipe = new GraphicsPipeline();
-                        gpipe.Name = graphicsPass.Name;
-                        gpipe.Topology = graphicsPass.Topology;
-                        gpipe.DepthClamp = graphicsPass.DepthClamp;
-                        gpipe.RasterizerDiscard = graphicsPass.RasterizerDiscard;
-                        gpipe.LineWidth = graphicsPass.LineWidth;
-                        gpipe.CullMode = graphicsPass.CullMode;
-                        gpipe.EnableBlending = graphicsPass.EnableBlending;
-                        gpipe.DepthTest = graphicsPass.DepthTest;
-                        gpipe.RenderPass = rpass;
-                        gpipe.PipelineLayout = pipelineLayout;
-                        gpipe.ViewportX = graphicsPass.ViewportX;
-                        gpipe.ViewportY = graphicsPass.ViewportY;
-                        gpipe.ViewportWidth = graphicsPass.ViewportWidth;
-                        gpipe.ViewportHeight = graphicsPass.ViewportHeight;
-                        gpipe.ViewportMinDepth = graphicsPass.ViewportMinDepth;
-                        gpipe.ViewportMaxDepth = graphicsPass.ViewportMaxDepth;
-                        gpipe.ViewportDynamic = graphicsPass.ViewportDynamic;
+                        var gpipe = new GraphicsPipeline
+                        {
+                            Name = graphicsPass.Name,
+                            Topology = graphicsPass.Topology,
+                            DepthClamp = graphicsPass.DepthClamp,
+                            RasterizerDiscard = graphicsPass.RasterizerDiscard,
+                            LineWidth = graphicsPass.LineWidth,
+                            CullMode = graphicsPass.CullMode,
+                            EnableBlending = graphicsPass.EnableBlending,
+                            DepthTest = graphicsPass.DepthTest,
+                            RenderPass = rpass,
+                            PipelineLayout = pipelineLayout,
+                            ViewportX = graphicsPass.ViewportX,
+                            ViewportY = graphicsPass.ViewportY,
+                            ViewportWidth = graphicsPass.ViewportWidth,
+                            ViewportHeight = graphicsPass.ViewportHeight,
+                            ViewportMinDepth = graphicsPass.ViewportMinDepth,
+                            ViewportMaxDepth = graphicsPass.ViewportMaxDepth,
+                            ViewportDynamic = graphicsPass.ViewportDynamic,
 
-                        gpipe.Shaders = new ShaderSource[graphicsPass.Shaders.Length];
-                        gpipe.SpecializationData = new Memory<int>[graphicsPass.Shaders.Length];
+                            Shaders = new ShaderSource[graphicsPass.Shaders.Length],
+                            SpecializationData = new Memory<int>[graphicsPass.Shaders.Length]
+                        };
                         for (int i = 0; i < gpipe.Shaders.Length; i++)
                         {
                             gpipe.Shaders[i] = Shaders[graphicsPass.Shaders[i]].Shader;
@@ -1178,6 +1189,8 @@ namespace Kokoro.Graphics.Framegraph
 
                     //Process the command
                     g_cmd.SetDescriptors(PipelineLayouts[op.PassName], globalDescriptorSet, DescriptorBindPoint.Graphics, 0);
+                    if (op.PushConstants != IntPtr.Zero && op.PushConstantsLen != 0)
+                        g_cmd.PushConstants(PipelineLayouts[op.PassName], ShaderType.All, op.PushConstants, op.PushConstantsLen);
                     g_cmd.SetPipeline(GraphicsPipelines[op.PassName], Framebuffers[GetFramebufferName(op.ColorAttachments, op.DepthAttachment)], 0);
                     renderPassBound = true;
                     switch (op.Cmd)
