@@ -409,6 +409,8 @@ namespace Kokoro.Graphics.Framegraph
             var activ_acompCmds = new List<CompiledCommandBuffer>();
             var activ_transCmds = new List<CompiledCommandBuffer>();
 
+            var activ_submissionOrder = new LinkedList<CompiledCommandBuffer>();
+
             //Assign queue ownership and validate passes
             while (Ops.TryDequeue(out var opSet))
             {
@@ -648,6 +650,7 @@ namespace Kokoro.Graphics.Framegraph
                                                     waiting = c_waitingSems.ToArray()
                                                 };
                                                 l_acompCmds.Add(c_comp_cmd);
+                                                activ_submissionOrder.AddLast(c_comp_cmd);
                                                 c_waitingSems.Clear();
                                                 waitingSems.Add(c_comp_cmd.signalling[0]);
                                                 c_cmd = new CommandBuffer()
@@ -678,6 +681,7 @@ namespace Kokoro.Graphics.Framegraph
                                                     waiting = g_waitingSems.ToArray()
                                                 };
                                                 l_graphCmds.Add(c_comp_cmd);
+                                                activ_submissionOrder.AddLast(c_comp_cmd);
                                                 g_waitingSems.Clear();
                                                 waitingSems.Add(c_comp_cmd.signalling[0]);
                                                 g_cmd = new CommandBuffer()
@@ -702,6 +706,7 @@ namespace Kokoro.Graphics.Framegraph
                                                     waiting = t_waitingSems.ToArray()
                                                 };
                                                 l_transCmds.Add(c_comp_cmd);
+                                                activ_submissionOrder.AddLast(c_comp_cmd);
                                                 t_waitingSems.Clear();
                                                 waitingSems.Add(c_comp_cmd.signalling[0]);
                                                 t_cmd = new CommandBuffer()
@@ -751,6 +756,7 @@ namespace Kokoro.Graphics.Framegraph
                                                     waiting = c_waitingSems.ToArray()
                                                 };
                                                 l_acompCmds.Add(c_comp_cmd);
+                                                activ_submissionOrder.AddLast(c_comp_cmd);
                                                 c_waitingSems.Clear();
                                                 waitingSems.Add(c_comp_cmd.signalling[0]);
                                                 c_cmd = new CommandBuffer()
@@ -781,6 +787,7 @@ namespace Kokoro.Graphics.Framegraph
                                                     waiting = g_waitingSems.ToArray()
                                                 };
                                                 l_graphCmds.Add(c_comp_cmd);
+                                                activ_submissionOrder.AddLast(c_comp_cmd);
                                                 g_waitingSems.Clear();
                                                 waitingSems.Add(c_comp_cmd.signalling[0]);
                                                 g_cmd = new CommandBuffer()
@@ -805,6 +812,7 @@ namespace Kokoro.Graphics.Framegraph
                                                     waiting = t_waitingSems.ToArray()
                                                 };
                                                 l_transCmds.Add(c_comp_cmd);
+                                                activ_submissionOrder.AddLast(c_comp_cmd);
                                                 t_waitingSems.Clear();
                                                 waitingSems.Add(c_comp_cmd.signalling[0]);
                                                 t_cmd = new CommandBuffer()
@@ -859,6 +867,7 @@ namespace Kokoro.Graphics.Framegraph
                                                     waiting = c_waitingSems.ToArray()
                                                 };
                                                 l_acompCmds.Add(c_comp_cmd);
+                                                activ_submissionOrder.AddLast(c_comp_cmd);
                                                 c_waitingSems.Clear();
                                                 waitingSems.Add(c_comp_cmd.signalling[0]);
                                                 c_cmd = new CommandBuffer()
@@ -889,6 +898,7 @@ namespace Kokoro.Graphics.Framegraph
                                                     waiting = g_waitingSems.ToArray()
                                                 };
                                                 l_graphCmds.Add(c_comp_cmd);
+                                                activ_submissionOrder.AddLast(c_comp_cmd);
                                                 g_waitingSems.Clear();
                                                 waitingSems.Add(c_comp_cmd.signalling[0]);
                                                 g_cmd = new CommandBuffer()
@@ -913,6 +923,7 @@ namespace Kokoro.Graphics.Framegraph
                                                     waiting = t_waitingSems.ToArray()
                                                 };
                                                 l_transCmds.Add(c_comp_cmd);
+                                                activ_submissionOrder.AddLast(c_comp_cmd);
                                                 t_waitingSems.Clear();
                                                 waitingSems.Add(c_comp_cmd.signalling[0]);
                                                 t_cmd = new CommandBuffer()
@@ -973,6 +984,7 @@ namespace Kokoro.Graphics.Framegraph
                                                     waiting = c_waitingSems.ToArray()
                                                 };
                                                 l_acompCmds.Add(c_comp_cmd);
+                                                activ_submissionOrder.AddLast(c_comp_cmd);
                                                 c_waitingSems.Clear();
                                                 waitingSems.Add(c_comp_cmd.signalling[0]);
                                                 c_cmd = new CommandBuffer()
@@ -1003,6 +1015,7 @@ namespace Kokoro.Graphics.Framegraph
                                                     waiting = g_waitingSems.ToArray()
                                                 };
                                                 l_graphCmds.Add(c_comp_cmd);
+                                                activ_submissionOrder.AddLast(c_comp_cmd);
                                                 g_waitingSems.Clear();
                                                 waitingSems.Add(c_comp_cmd.signalling[0]);
                                                 g_cmd = new CommandBuffer()
@@ -1027,6 +1040,7 @@ namespace Kokoro.Graphics.Framegraph
                                                     waiting = t_waitingSems.ToArray()
                                                 };
                                                 l_transCmds.Add(c_comp_cmd);
+                                                activ_submissionOrder.AddLast(c_comp_cmd);
                                                 t_waitingSems.Clear();
                                                 waitingSems.Add(c_comp_cmd.signalling[0]);
                                                 t_cmd = new CommandBuffer()
@@ -1085,6 +1099,7 @@ namespace Kokoro.Graphics.Framegraph
                                                 waiting = c_waitingSems.ToArray()
                                             };
                                             l_acompCmds.Add(c_comp_cmd);
+                                            activ_submissionOrder.AddLast(c_comp_cmd);
                                             c_waitingSems.Clear();
                                             waitingSems.Add(c_comp_cmd.signalling[0]);
                                             c_cmd = new CommandBuffer()
@@ -1115,6 +1130,7 @@ namespace Kokoro.Graphics.Framegraph
                                                 waiting = g_waitingSems.ToArray()
                                             };
                                             l_graphCmds.Add(c_comp_cmd);
+                                            activ_submissionOrder.AddLast(c_comp_cmd);
                                             g_waitingSems.Clear();
                                             waitingSems.Add(c_comp_cmd.signalling[0]);
                                             g_cmd = new CommandBuffer()
@@ -1139,6 +1155,7 @@ namespace Kokoro.Graphics.Framegraph
                                                 waiting = t_waitingSems.ToArray()
                                             };
                                             l_transCmds.Add(c_comp_cmd);
+                                            activ_submissionOrder.AddLast(c_comp_cmd);
                                             t_waitingSems.Clear();
                                             waitingSems.Add(c_comp_cmd.signalling[0]);
                                             t_cmd = new CommandBuffer()
@@ -1221,6 +1238,7 @@ namespace Kokoro.Graphics.Framegraph
                                                     waiting = c_waitingSems.ToArray()
                                                 };
                                                 l_acompCmds.Add(c_comp_cmd);
+                                                activ_submissionOrder.AddLast(c_comp_cmd);
                                                 c_waitingSems.Clear();
                                                 waitingSems.Add(c_comp_cmd.signalling[0]);
                                                 c_cmd = new CommandBuffer()
@@ -1251,6 +1269,7 @@ namespace Kokoro.Graphics.Framegraph
                                                     waiting = g_waitingSems.ToArray()
                                                 };
                                                 l_graphCmds.Add(c_comp_cmd);
+                                                activ_submissionOrder.AddLast(c_comp_cmd);
                                                 g_waitingSems.Clear();
                                                 waitingSems.Add(c_comp_cmd.signalling[0]);
                                                 g_cmd = new CommandBuffer()
@@ -1275,6 +1294,7 @@ namespace Kokoro.Graphics.Framegraph
                                                     waiting = t_waitingSems.ToArray()
                                                 };
                                                 l_transCmds.Add(c_comp_cmd);
+                                                activ_submissionOrder.AddLast(c_comp_cmd);
                                                 t_waitingSems.Clear();
                                                 waitingSems.Add(c_comp_cmd.signalling[0]);
                                                 t_cmd = new CommandBuffer()
@@ -1324,6 +1344,7 @@ namespace Kokoro.Graphics.Framegraph
                                                     waiting = c_waitingSems.ToArray()
                                                 };
                                                 l_acompCmds.Add(c_comp_cmd);
+                                                activ_submissionOrder.AddLast(c_comp_cmd);
                                                 c_waitingSems.Clear();
                                                 waitingSems.Add(c_comp_cmd.signalling[0]);
                                                 c_cmd = new CommandBuffer()
@@ -1354,6 +1375,7 @@ namespace Kokoro.Graphics.Framegraph
                                                     waiting = g_waitingSems.ToArray()
                                                 };
                                                 l_graphCmds.Add(c_comp_cmd);
+                                                activ_submissionOrder.AddLast(c_comp_cmd);
                                                 g_waitingSems.Clear();
                                                 waitingSems.Add(c_comp_cmd.signalling[0]);
                                                 g_cmd = new CommandBuffer()
@@ -1378,6 +1400,7 @@ namespace Kokoro.Graphics.Framegraph
                                                     waiting = t_waitingSems.ToArray()
                                                 };
                                                 l_transCmds.Add(c_comp_cmd);
+                                                activ_submissionOrder.AddLast(c_comp_cmd);
                                                 t_waitingSems.Clear();
                                                 waitingSems.Add(c_comp_cmd.signalling[0]);
                                                 t_cmd = new CommandBuffer()
@@ -1432,6 +1455,7 @@ namespace Kokoro.Graphics.Framegraph
                                                     waiting = c_waitingSems.ToArray()
                                                 };
                                                 l_acompCmds.Add(c_comp_cmd);
+                                                activ_submissionOrder.AddLast(c_comp_cmd);
                                                 c_waitingSems.Clear();
                                                 waitingSems.Add(c_comp_cmd.signalling[0]);
                                                 c_cmd = new CommandBuffer()
@@ -1462,6 +1486,7 @@ namespace Kokoro.Graphics.Framegraph
                                                     waiting = g_waitingSems.ToArray()
                                                 };
                                                 l_graphCmds.Add(c_comp_cmd);
+                                                activ_submissionOrder.AddLast(c_comp_cmd);
                                                 g_waitingSems.Clear();
                                                 waitingSems.Add(c_comp_cmd.signalling[0]);
                                                 g_cmd = new CommandBuffer()
@@ -1486,6 +1511,7 @@ namespace Kokoro.Graphics.Framegraph
                                                     waiting = t_waitingSems.ToArray()
                                                 };
                                                 l_transCmds.Add(c_comp_cmd);
+                                                activ_submissionOrder.AddLast(c_comp_cmd);
                                                 t_waitingSems.Clear();
                                                 waitingSems.Add(c_comp_cmd.signalling[0]);
                                                 t_cmd = new CommandBuffer()
@@ -1543,6 +1569,7 @@ namespace Kokoro.Graphics.Framegraph
                                             waiting = c_waitingSems.ToArray()
                                         };
                                         l_acompCmds.Add(c_comp_cmd);
+                                        activ_submissionOrder.AddLast(c_comp_cmd);
                                         c_waitingSems.Clear();
                                         waitingSems.Add(c_comp_cmd.signalling[0]);
                                         c_cmd = new CommandBuffer()
@@ -1573,6 +1600,7 @@ namespace Kokoro.Graphics.Framegraph
                                             waiting = g_waitingSems.ToArray()
                                         };
                                         l_graphCmds.Add(c_comp_cmd);
+                                        activ_submissionOrder.AddLast(c_comp_cmd);
                                         g_waitingSems.Clear();
                                         waitingSems.Add(c_comp_cmd.signalling[0]);
                                         g_cmd = new CommandBuffer()
@@ -1597,6 +1625,7 @@ namespace Kokoro.Graphics.Framegraph
                                             waiting = t_waitingSems.ToArray()
                                         };
                                         l_transCmds.Add(c_comp_cmd);
+                                        activ_submissionOrder.AddLast(c_comp_cmd);
                                         t_waitingSems.Clear();
                                         waitingSems.Add(c_comp_cmd.signalling[0]);
                                         t_cmd = new CommandBuffer()
@@ -1647,6 +1676,7 @@ namespace Kokoro.Graphics.Framegraph
                                             waiting = c_waitingSems.ToArray()
                                         };
                                         l_acompCmds.Add(c_comp_cmd);
+                                        activ_submissionOrder.AddLast(c_comp_cmd);
                                         c_waitingSems.Clear();
                                         waitingSems.Add(c_comp_cmd.signalling[0]);
                                         c_cmd = new CommandBuffer()
@@ -1677,6 +1707,7 @@ namespace Kokoro.Graphics.Framegraph
                                             waiting = g_waitingSems.ToArray()
                                         };
                                         l_graphCmds.Add(c_comp_cmd);
+                                        activ_submissionOrder.AddLast(c_comp_cmd);
                                         g_waitingSems.Clear();
                                         waitingSems.Add(c_comp_cmd.signalling[0]);
                                         g_cmd = new CommandBuffer()
@@ -1701,6 +1732,7 @@ namespace Kokoro.Graphics.Framegraph
                                             waiting = t_waitingSems.ToArray()
                                         };
                                         l_transCmds.Add(c_comp_cmd);
+                                        activ_submissionOrder.AddLast(c_comp_cmd);
                                         t_waitingSems.Clear();
                                         waitingSems.Add(c_comp_cmd.signalling[0]);
                                         t_cmd = new CommandBuffer()
@@ -1732,40 +1764,47 @@ namespace Kokoro.Graphics.Framegraph
                 node = node.Next;
             }
             while (node != null);
-            if (g_cmd.IsRecording)
-            {
-                if (renderPassBound) g_cmd.EndRenderPass();
-                g_cmd.EndRecording();
-                if (l_graphCmds.Count == 0) g_waitingSems.Add(GraphicsDevice.ImageAvailableSemaphore[GraphicsDevice.PrevFrameID]);
-                l_graphCmds.Add(new CompiledCommandBuffer()
-                {
-                    CmdBuffer = g_cmd,
-                    waiting = g_waitingSems.ToArray(),
-                    SrcStage = PipelineStage.Bottom,
-                    DstStage = PipelineStage.Top,
-                });
-            }
-            if (c_cmd.IsRecording)
-            {
-                c_cmd.EndRecording();
-                l_acompCmds.Add(new CompiledCommandBuffer()
-                {
-                    CmdBuffer = c_cmd,
-                    waiting = c_waitingSems.ToArray(),
-                    SrcStage = PipelineStage.Bottom,
-                    DstStage = PipelineStage.Top,
-                });
-            }
             if (t_cmd.IsRecording)
             {
                 t_cmd.EndRecording();
-                l_transCmds.Add(new CompiledCommandBuffer()
+                var c_comp_cmd = new CompiledCommandBuffer()
                 {
                     CmdBuffer = t_cmd,
                     waiting = t_waitingSems.ToArray(),
                     SrcStage = PipelineStage.Bottom,
                     DstStage = PipelineStage.Top,
-                });
+                };
+                l_transCmds.Add(c_comp_cmd);
+                activ_submissionOrder.AddLast(c_comp_cmd);
+            }
+            if (c_cmd.IsRecording)
+            {
+                c_cmd.EndRecording();
+                var c_comp_cmd = new CompiledCommandBuffer()
+                {
+                    CmdBuffer = c_cmd,
+                    waiting = c_waitingSems.ToArray(),
+                    SrcStage = PipelineStage.Bottom,
+                    DstStage = PipelineStage.Top,
+                };
+                l_acompCmds.Add(c_comp_cmd);
+                activ_submissionOrder.AddLast(c_comp_cmd);
+            }
+            if (g_cmd.IsRecording)
+            {
+                if (renderPassBound) g_cmd.EndRenderPass();
+                g_cmd.EndRecording();
+                if (l_graphCmds.Count == 0) g_waitingSems.Add(GraphicsDevice.ImageAvailableSemaphore[GraphicsDevice.PrevFrameID]);
+
+                var c_comp_cmd = new CompiledCommandBuffer()
+                {
+                    CmdBuffer = g_cmd,
+                    waiting = g_waitingSems.ToArray(),
+                    SrcStage = PipelineStage.Bottom,
+                    DstStage = PipelineStage.Top,
+                };
+                l_graphCmds.Add(c_comp_cmd);
+                activ_submissionOrder.AddLast(c_comp_cmd);
             }
 
             finalGfxSem = AllocateSemaphore("FinalGFX");
@@ -1801,28 +1840,62 @@ namespace Kokoro.Graphics.Framegraph
 
             for (int i = 0; i < l_graphCmds.Count; i++)
                 if (!l_graphCmds[i].CmdBuffer.IsEmpty)
+                {
                     activ_graphCmds.Add(l_graphCmds[i]);
+                }
 
             for (int i = 0; i < l_acompCmds.Count; i++)
                 if (!l_acompCmds[i].CmdBuffer.IsEmpty)
+                {
                     activ_acompCmds.Add(l_acompCmds[i]);
+                }
 
             for (int i = 0; i < l_transCmds.Count; i++)
                 if (!l_transCmds[i].CmdBuffer.IsEmpty)
+                {
                     activ_transCmds.Add(l_transCmds[i]);
+                }
 
             int maxlen = System.Math.Max(activ_graphCmds.Count - 1, System.Math.Max(activ_acompCmds.Count - 1, activ_transCmds.Count - 1));
-            for (int i = 0; i < maxlen; i++)
+            var cur_submission_cmd = activ_submissionOrder.First;
+            while (cur_submission_cmd.Value.CmdBuffer.IsEmpty)
+                cur_submission_cmd = cur_submission_cmd.Next;
+
+            int g_i = 0, c_i = 0, t_i = 0;
+            do
             {
-                if (i < activ_graphCmds.Count - 1)
-                    GraphicsDevice.SubmitCommandBuffer(activ_graphCmds[i].CmdBuffer, activ_graphCmds[i].waiting, activ_graphCmds[i].signalling, null);
+                bool processed = false;
+                if (g_i < activ_graphCmds.Count && cur_submission_cmd.Value == activ_graphCmds[g_i])
+                {
+                    if (g_i < activ_graphCmds.Count - 1)
+                        GraphicsDevice.SubmitCommandBuffer(activ_graphCmds[g_i].CmdBuffer, activ_graphCmds[g_i].waiting, activ_graphCmds[g_i].signalling, null);
+                    g_i++;
+                    processed = true;
+                }
 
-                if (i < activ_acompCmds.Count - 1)
-                    GraphicsDevice.SubmitCommandBuffer(activ_acompCmds[i].CmdBuffer, activ_acompCmds[i].waiting, activ_acompCmds[i].signalling, null);
+                if (c_i < activ_acompCmds.Count && cur_submission_cmd.Value == activ_acompCmds[c_i])
+                {
+                    if (c_i < activ_acompCmds.Count - 1)
+                        GraphicsDevice.SubmitCommandBuffer(activ_acompCmds[c_i].CmdBuffer, activ_acompCmds[c_i].waiting, activ_acompCmds[c_i].signalling, null);
+                    c_i++;
+                    processed = true;
+                }
 
-                if (i < activ_transCmds.Count - 1)
-                    GraphicsDevice.SubmitCommandBuffer(activ_transCmds[i].CmdBuffer, activ_transCmds[i].waiting, activ_transCmds[i].signalling, null);
-            }
+                if (t_i < activ_transCmds.Count && cur_submission_cmd.Value == activ_transCmds[t_i])
+                {
+                    if (t_i < activ_transCmds.Count - 1)
+                        GraphicsDevice.SubmitCommandBuffer(activ_transCmds[t_i].CmdBuffer, activ_transCmds[t_i].waiting, activ_transCmds[t_i].signalling, null);
+                    t_i++;
+                    processed = true;
+                }
+
+                if (processed)
+                    do
+                    {
+                        cur_submission_cmd = cur_submission_cmd.Next;
+                    }
+                    while (cur_submission_cmd != null && cur_submission_cmd.Value.CmdBuffer.IsEmpty);
+            } while (cur_submission_cmd != null);
 
             transitionBuffer[GraphicsDevice.CurrentFrameID] = new CommandBuffer
             {

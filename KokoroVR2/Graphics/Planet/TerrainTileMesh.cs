@@ -14,14 +14,11 @@ namespace KokoroVR2.Graphics.Planet
     }
     public class TerrainTileMesh
     {
-        const int Side = 129;
+        const int Side = 2049;
 
-        public static void Create(byte stepLen, TerrainTileEdge sideLoDMask, out byte[] verts, out ushort[] indices)
+        public static void Create(byte stepLen, TerrainTileEdge sideLoDMask, out uint[] indices)
         {
-            var vertL = new List<byte>();
-            var indL = new List<ushort>();
-            ushort indCntr = 0;
-            var vertDict = new Dictionary<ushort, ushort>();
+            var indL = new List<uint>();
 
             //sideLoDMask is a bitfield which specifies for which sides to generate LoD transitions
             int lStep = stepLen * ((sideLoDMask & TerrainTileEdge.Left) != 0 ? 2 : 1);
@@ -52,36 +49,12 @@ namespace KokoroVR2.Graphics.Planet
                 if (x0 > Side | y0 > Side | x1 > Side | y1 > Side | x2 > Side | y2 > Side)
                     return;
 
-                ushort v0 = (ushort)(x0 << 8 | y0);
-                ushort v1 = (ushort)(x1 << 8 | y1);
-                ushort v2 = (ushort)(x2 << 8 | y2);
-                if (!vertDict.ContainsKey(v0))
-                {
-                    indL.Add(indCntr);
-                    vertDict[v0] = indCntr++;
-                    vertL.Add((byte)x0);
-                    vertL.Add((byte)y0);
-                }
-                else
-                    indL.Add(vertDict[v0]);
-                if (!vertDict.ContainsKey(v1))
-                {
-                    indL.Add(indCntr);
-                    vertDict[v1] = indCntr++;
-                    vertL.Add((byte)x1);
-                    vertL.Add((byte)y1);
-                }
-                else
-                    indL.Add(vertDict[v1]);
-                if (!vertDict.ContainsKey(v2))
-                {
-                    indL.Add(indCntr);
-                    vertDict[v2] = indCntr++;
-                    vertL.Add((byte)x2);
-                    vertL.Add((byte)y2);
-                }
-                else
-                    indL.Add(vertDict[v2]);
+                var v0 = (uint)(x0 << 16 | y0);
+                var v1 = (uint)(x1 << 16 | y1);
+                var v2 = (uint)(x2 << 16 | y2);
+                indL.Add(v0);
+                indL.Add(v2);
+                indL.Add(v1);
             }
 
             for (int x = 0; x < Side; x += 2 * stepLen)
@@ -153,7 +126,6 @@ namespace KokoroVR2.Graphics.Planet
                     }
                 }
 
-            verts = vertL.ToArray();
             indices = indL.ToArray();
         }
     }

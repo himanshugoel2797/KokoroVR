@@ -19,6 +19,7 @@ namespace Kokoro.Graphics
         public CullMode CullMode { get; set; } = CullMode.None;
         public bool EnableBlending { get; set; }
         public DepthTest DepthTest { get; set; } = DepthTest.Greater;
+        public bool DepthWrite { get; set; } = false;
         public RenderPass RenderPass { get; set; }
         public PipelineLayout PipelineLayout { get; set; }
         public Memory<int>[] SpecializationData { get; set; }
@@ -132,7 +133,7 @@ namespace Kokoro.Graphics
                         sType = VkStructureType.StructureTypePipelineRasterizationStateCreateInfo,
                         depthClampEnable = DepthClamp,
                         rasterizerDiscardEnable = RasterizerDiscard,
-                        polygonMode = VkPolygonMode.PolygonModeFill,
+                        polygonMode = VkPolygonMode.PolygonModeLine,
                         lineWidth = LineWidth,
                         cullMode = (VkCullModeFlags)CullMode,
                         frontFace = VkFrontFace.FrontFaceCounterClockwise,   //OpenGL default
@@ -160,9 +161,9 @@ namespace Kokoro.Graphics
                     var depthStencil = new VkPipelineDepthStencilStateCreateInfo()
                     {
                         sType = VkStructureType.StructureTypePipelineDepthStencilStateCreateInfo,
-                        depthTestEnable = (DepthTest == DepthTest.Always) ? false : true,
+                        depthTestEnable = DepthTest != DepthTest.Always,
                         depthCompareOp = (VkCompareOp)DepthTest,
-                        depthWriteEnable = true,
+                        depthWriteEnable = DepthWrite,
                         maxDepthBounds = ViewportMaxDepth,
                         minDepthBounds = ViewportMinDepth,
                     };

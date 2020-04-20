@@ -148,7 +148,7 @@ namespace Kokoro.Graphics
                     dstArrayElement = idx,
                     descriptorCount = 1,
                     pImageInfo = IntPtr.Zero,
-                    pBufferInfo = IntPtr.Zero,
+                    pBufferInfo = buf.parent.hndl,
                     pTexelBufferView = &p_l,
                     descriptorType = (VkDescriptorType)Layout.Layouts[(int)binding].Type
                 };

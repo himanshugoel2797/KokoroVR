@@ -74,7 +74,7 @@ namespace Kokoro.Graphics
 
         public void Update()
         {
-            if (Streamable)
+            if (Streamable && isDirty)
             {
                 GraphicsContext.RenderGraph.QueueOp(new Framegraph.GpuOp()
                 {

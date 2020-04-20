@@ -9,10 +9,7 @@
 #define EYECOUNT 1
 
 layout(location = 0) in vec2 uv;
-layout(location = 1) in vec4 color;
 
 layout(location = 0) out vec4 outColor;
 
-void main() {
-  outColor = color; // vec4(uv, 1, 1);
-}
+void main() { outColor = vec4(uv, 0.1f, 1); }

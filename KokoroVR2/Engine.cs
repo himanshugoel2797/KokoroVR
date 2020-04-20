@@ -59,6 +59,7 @@ namespace KokoroVR2
         private static void Window_Update(double time_ms, double delta_ms)
         {
             Mouse.Update();
+            Keyboard.Update();
             GraphicsContext.PrevCameraDirection = CurrentPlayer.Direction;
             GraphicsContext.PrevCameraPosition = CurrentPlayer.Position;
             GraphicsContext.PrevCameraUp = CurrentPlayer.Up;

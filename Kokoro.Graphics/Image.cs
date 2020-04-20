@@ -73,7 +73,7 @@ namespace Kokoro.Graphics
                             },
                             samples = VkSampleCountFlags.SampleCount1Bit,
                             tiling = VkImageTiling.ImageTilingOptimal,
-                            sharingMode = VkSharingMode.SharingModeConcurrent,
+                            sharingMode = VkSharingMode.SharingModeExclusive,
                             initialLayout = (VkImageLayout)InitialLayout,
                             pQueueFamilyIndices = queueFamInds,
                             queueFamilyIndexCount = (uint)devInfo.QueueFamilyIndices.Length,

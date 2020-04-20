@@ -67,7 +67,7 @@ namespace Kokoro.Graphics.Framegraph
         public bool EnableBlending { get; set; } = false;
 
         public DepthTest DepthTest { get; set; } = DepthTest.Greater;
-        public bool DepthWriteEnable { get; set; } = true;
+        public bool DepthWriteEnable { get; set; } = false;
         public bool DepthClamp { get; set; } = false;
 
         public bool ViewportDynamic { get; set; } = false;
@@ -75,8 +75,8 @@ namespace Kokoro.Graphics.Framegraph
         public uint ViewportY { get; set; } = 0;
         public uint ViewportWidth { get; set; }
         public uint ViewportHeight { get; set; }
-        public uint ViewportMinDepth { get; set; } = 0;
-        public uint ViewportMaxDepth { get; set; } = 1;
+        public float ViewportMinDepth { get; set; } = 0;
+        public float ViewportMaxDepth { get; set; } = 1;
 
         public GraphicsPass(string name) : base(name) { }
     }

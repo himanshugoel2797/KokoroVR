@@ -17,5 +17,6 @@ namespace Kokoro.Graphics
         R32UInt = VkFormat.FormatR32Uint,
         Rg32f = VkFormat.FormatR32g32Sfloat,
         Rgba32f = VkFormat.FormatR32g32b32a32Sfloat,
+        Rg8UInt = VkFormat.FormatR8g8Uint,
     }
 }

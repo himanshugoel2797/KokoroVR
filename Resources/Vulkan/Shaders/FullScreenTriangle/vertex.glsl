@@ -1,5 +1,4 @@
 layout(location = 0) out vec2 uv;
-layout(location = 1) out vec4 color;
 
 layout(set = 0, binding = 0, std140) uniform GlobalDrawParams {
   mat4 proj;
@@ -25,7 +24,5 @@ void main() {
   float y = -1.0f + float((gl_VertexIndex & 2) << 1);
 
   gl_Position = vec4(x, y, 0.5f, 1.0f);
-
-  color = globalParams.camdir;
   uv = (vec2(x, y) + vec2(1)) * 0.5f;
 }

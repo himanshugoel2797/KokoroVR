@@ -4,15 +4,16 @@ using KokoroVR2.Graphics;
 using Kokoro.Graphics.Framegraph;
 //using KokoroVR2.Graphics.Voxel;
 using System;
+using KokoroVR2.Graphics.Planet;
 
 namespace KokoroVR2.Test
 {
     class Program
     {
-        //static VoxelDictionary dictionary;
-        //static ChunkStreamer streamer;
-        //static ChunkObject obj;
-
+        static SpecializedShader vertS, fragS;
+        static TerrainFace face;
+        static Image[] depthImages;
+        static ImageView[] depthImageViews;
         static void Main(string[] args)
         {
             Engine.AppName = "Test";
@@ -22,28 +23,111 @@ namespace KokoroVR2.Test
             var graph = new FrameGraph(0);
             Engine.RenderGraph = graph;
 
-            var vertS = new SpecializedShader()
-            {
-                Name = "FST_Vert",
-                Shader = ShaderSource.Load(ShaderType.VertexShader, "FullScreenTriangle/vertex.glsl"),
-                SpecializationData = null
-            };
+            /*
+                        vertS = new SpecializedShader()
+                        {
+                            Name = "FST_Vert",
+                            Shader = ShaderSource.Load(ShaderType.VertexShader, "FullScreenTriangle/vertex.glsl"),
+                            SpecializationData = null
+                        };
 
-            var fragS = new SpecializedShader()
-            {
-                Name = "UVR_Frag",
-                Shader = ShaderSource.Load(ShaderType.FragmentShader, "UVRenderer/fragment.glsl"),
-                SpecializationData = null,
-            };
+                        fragS = new SpecializedShader()
+                        {
+                            Name = "UVR_Frag",
+                            Shader = ShaderSource.Load(ShaderType.FragmentShader, "UVRenderer/fragment.glsl"),
+                            SpecializationData = null,
+                        };
+            */
 
-            graph.RegisterShader(vertS);
-            graph.RegisterShader(fragS);
+            depthImages = new Image[GraphicsDevice.MaxFramesInFlight];
+            depthImageViews = new ImageView[GraphicsDevice.MaxFramesInFlight];
+
+            for (int i = 0; i < GraphicsDevice.MaxFramesInFlight; i++)
+            {
+                depthImages[i] = new Image()
+                {
+                    Name = $"depthImage_{i}",
+                    Cubemappable = false,
+                    Width = GraphicsDevice.Width,
+                    Height = GraphicsDevice.Height,
+                    Depth = 1,
+                    Dimensions = 2,
+                    InitialLayout = ImageLayout.Undefined,
+                    Layers = 1,
+                    Levels = 1,
+                    MemoryUsage = MemoryUsage.GpuOnly,
+                    Usage = ImageUsage.DepthAttachment | ImageUsage.Sampled,
+                    Format = ImageFormat.Depth32f,
+                };
+                depthImages[i].Build(0);
+
+                depthImageViews[i] = new ImageView()
+                {
+                    Name = $"depthImageView_{i}",
+                    BaseLayer = 0,
+                    BaseLevel = 0,
+                    Format = ImageFormat.Depth32f,
+                    LayerCount = 1,
+                    LevelCount = 1,
+                    ViewType = ImageViewType.View2D,
+                };
+                depthImageViews[i].Build(depthImages[i]);
+            }
+
+            face = new TerrainFace("terrain", TerrainFaceIndex.Top, 1);
+
+            Engine.OnRebuildGraph += Engine_OnRebuildGraph;
+            Engine.OnRender += Engine_OnRender;
+            Engine.OnUpdate += Engine_OnUpdate;
+            Engine.Start(0);
+        }
+
+        private static void Engine_OnUpdate(double time_ms, double delta_ms)
+        {
+            //dictionary.Update();
+            //streamer.InitialUpdate(delta_ms);
+            //obj.Render(delta_ms);
+            //streamer.FinalUpdate(delta_ms);
+            face.Update();
+        }
+
+        private static void Engine_OnRender(double time_ms, double delta_ms)
+        {
+            //Acquire the frame
+            GraphicsDevice.AcquireFrame();
+
+            /*Engine.RenderGraph.QueueOp(new GpuOp()
+            {
+                ColorAttachments = new string[] { GraphicsDevice.DefaultFramebuffer[GraphicsDevice.CurrentFrameID].ColorAttachments[0].Name },
+                DepthAttachment = null,
+                PassName = "main_pass",
+                Resources = new string[]{
+                        Engine.GlobalParameters.Name
+                    },
+                Cmd = GpuCmd.Draw,
+                VertexCount = 3,
+            });*/
+            face.Render(GraphicsDevice.DefaultFramebuffer[GraphicsDevice.CurrentFrameID].ColorAttachments[0].Name, depthImageViews[GraphicsDevice.CurrentFrameID].Name);
+
+            Engine.RenderGraph.Build();
+
+            GraphicsDevice.PresentFrame();
+        }
+
+        private static void Engine_OnRebuildGraph()
+        {
+            var graph = Engine.RenderGraph;
 
             for (int i = 0; i < GraphicsDevice.MaxFramesInFlight; i++)
             {
                 var out_img = GraphicsDevice.DefaultFramebuffer[i].ColorAttachments[0];
                 graph.RegisterResource(out_img);
+                graph.RegisterResource(depthImageViews[i]);
             }
+            /*
+            graph.RegisterShader(vertS);
+            graph.RegisterShader(fragS);
+
 
             var gpass = new GraphicsPass("main_pass")
             {
@@ -89,49 +173,9 @@ namespace KokoroVR2.Test
                     }
                 }
             };
-            graph.RegisterGraphicsPass(gpass);
+            graph.RegisterGraphicsPass(gpass);*/
+            face.RebuildGraph();
             graph.GatherDescriptors();
-
-            Engine.OnRebuildGraph += Engine_OnRebuildGraph;
-            Engine.OnRender += Engine_OnRender;
-            Engine.OnUpdate += Engine_OnUpdate;
-            Engine.Start(0);
-        }
-
-        private static void Engine_OnUpdate(double time_ms, double delta_ms)
-        {
-            //dictionary.Update();
-            //streamer.InitialUpdate(delta_ms);
-            //obj.Render(delta_ms);
-            //streamer.FinalUpdate(delta_ms);
-        }
-
-        private static void Engine_OnRender(double time_ms, double delta_ms)
-        {
-            //Acquire the frame
-            GraphicsDevice.AcquireFrame();
-
-            Engine.RenderGraph.QueueOp(new GpuOp()
-            {
-                ColorAttachments = new string[] { GraphicsDevice.DefaultFramebuffer[GraphicsDevice.CurrentFrameID].ColorAttachments[0].Name },
-                DepthAttachment = null,
-                PassName = "main_pass",
-                Resources = new string[]{
-                        Engine.GlobalParameters.Name
-                    },
-                Cmd = GpuCmd.Draw,
-                VertexCount = 3,
-            });
-
-            Engine.RenderGraph.Build();
-
-            GraphicsDevice.PresentFrame();
-        }
-
-        private static void Engine_OnRebuildGraph()
-        {
-            //dictionary.GenerateRenderGraph();
-            //streamer.GenerateRenderGraph();
         }
     }
 }
