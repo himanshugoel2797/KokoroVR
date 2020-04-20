@@ -469,6 +469,7 @@ namespace Kokoro.Graphics
                         robustBufferAccess = EnableValidation,
                         shaderInt16 = true,
                         samplerAnisotropy = true,
+                        fillModeNonSolid = true,
                     };
 
                     var devFeats11 = new VkPhysicalDeviceVulkan11Features()
@@ -476,6 +477,7 @@ namespace Kokoro.Graphics
                         sType = VkStructureType.StructureTypePhysicalDeviceVulkan11Features,
                         shaderDrawParameters = true,
                         storageBuffer16BitAccess = true,
+                        uniformAndStorageBuffer16BitAccess = true,
                     };
                     var devFeats11_ptr = devFeats11.Pointer();
 
@@ -549,6 +551,7 @@ namespace Kokoro.Graphics
                         shaderInt8 = true,
                         uniformBufferStandardLayout = true,
                         storageBuffer8BitAccess = true,
+                        uniformAndStorageBuffer8BitAccess = true,
                         descriptorIndexing = true,
                         descriptorBindingSampledImageUpdateAfterBind = true,
                         descriptorBindingStorageBufferUpdateAfterBind = true,

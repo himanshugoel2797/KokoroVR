@@ -34,6 +34,9 @@ namespace Kokoro.Graphics
 
         public void Add(uint bindingIdx, DescriptorType type, uint cnt, ShaderType stage)
         {
+            for (int i = 0; i < layouts.Count; i++)
+                if (layouts[i].BindingIndex == bindingIdx)
+                    return;
             var l = new DescriptorEntry()
             {
                 BindingIndex = bindingIdx,
@@ -47,6 +50,9 @@ namespace Kokoro.Graphics
 
         public void Add(uint bindingIdx, DescriptorType type, uint cnt, ShaderType stage, Sampler[] samplers)
         {
+            for (int i = 0; i < layouts.Count; i++)
+                if (layouts[i].BindingIndex == bindingIdx)
+                    return;
             var l = new DescriptorEntry()
             {
                 BindingIndex = bindingIdx,
