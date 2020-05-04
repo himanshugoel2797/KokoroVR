@@ -7,7 +7,7 @@ namespace KokoroVR2.Graphics.Voxel
     public unsafe class VoxelData : IDisposable
     {
         private IntPtr memArea;
-        public ulong* VisibilityMasks; //Use bit manipulation instructions to speed up meshing
+        public uint* VisibilityMasks; //Use bit manipulation instructions to speed up meshing
         public byte* MaterialData;
         public uint* IndexCache;
         //public Func<VoxelData, int, int, int, byte> GetMaterialData; //Use block compression for materials
@@ -15,15 +15,15 @@ namespace KokoroVR2.Graphics.Voxel
 
         public VoxelData(Vector3 offset)
         {
-            var len = (VoxelConstants.ChunkSideWithNeighbors * VoxelConstants.ChunkSideWithNeighbors * sizeof(ulong))
-                + (6 * VoxelConstants.ChunkSideWithNeighbors * VoxelConstants.ChunkSide * VoxelConstants.ChunkSide * sizeof(uint)) +
-                (VoxelConstants.ChunkSideWithNeighbors * 2 * VoxelConstants.ChunkSideWithNeighbors * VoxelConstants.ChunkSideWithNeighbors);
+            var len = (VoxelConstants.ChunkSideWithNeighbors * VoxelConstants.ChunkSideWithNeighbors * sizeof(uint))
+                + (6 / 2 * VoxelConstants.ChunkSideWithNeighbors * VoxelConstants.ChunkSide * VoxelConstants.ChunkSide * sizeof(uint)) +
+                (VoxelConstants.ChunkSideWithNeighbors * VoxelConstants.ChunkSideWithNeighbors * VoxelConstants.ChunkSideWithNeighbors);
             memArea = Marshal.AllocHGlobal(len);
 
-            VisibilityMasks = (ulong*)memArea;
-            IndexCache = (uint*)memArea + (VoxelConstants.ChunkSideWithNeighbors * VoxelConstants.ChunkSideWithNeighbors * 2);
-            MaterialData = (byte*)memArea + (VoxelConstants.ChunkSideWithNeighbors * VoxelConstants.ChunkSideWithNeighbors * sizeof(ulong))
-            + (6 * VoxelConstants.ChunkSideWithNeighbors * VoxelConstants.ChunkSide * VoxelConstants.ChunkSide * sizeof(uint));
+            VisibilityMasks = (uint*)memArea;
+            IndexCache = (uint*)memArea + (VoxelConstants.ChunkSideWithNeighbors * VoxelConstants.ChunkSideWithNeighbors);
+            MaterialData = (byte*)memArea + (VoxelConstants.ChunkSideWithNeighbors * VoxelConstants.ChunkSideWithNeighbors * sizeof(uint))
+            + (6 / 2 * VoxelConstants.ChunkSideWithNeighbors * VoxelConstants.ChunkSide * VoxelConstants.ChunkSide * sizeof(uint));
 
             //VisibilityMasks = new uint[VoxelConstants.ChunkSideWithNeighbors * VoxelConstants.ChunkSideWithNeighbors];
             //IndexCache = new uint[6 * VoxelConstants.ChunkSide / 2 * VoxelConstants.ChunkSide * VoxelConstants.ChunkSide];

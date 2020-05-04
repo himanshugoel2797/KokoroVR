@@ -2,6 +2,7 @@
 using System;
 using KokoroVR2.Graphics.Voxel;
 using Kokoro.Math;
+using System.IO;
 
 namespace SpaceGamePrototype
 {
@@ -19,19 +20,28 @@ namespace SpaceGamePrototype
             double inds_cnt = 0;
             Random rng = new Random(0);
 
+            string time_samples = "";
+
             unsafe
             {
                 for (int samples = 0; samples < runs; samples++)
                 {
                     for (int i = 0; i < 32; i++)
                         for (int y = 0; y < 32; y++)
-                            vox.VisibilityMasks[y * 32 + i] = ((ulong)rng.Next() << 32) | (ulong)rng.Next() ;//(ulong)(0x5555555555555555 << ((i + y % 2) % 2));  
+                            vox.VisibilityMasks[y * 32 + i] = (uint)rng.Next(); //(ulong)(0x5555555555555555 << ((i + y % 2) % 2));
                     Stopwatch stopwatch = Stopwatch.StartNew();
                     VoxelMesher.MeshChunk(ref vox, out var inds_pos);
+                    stopwatch.Stop();
+
+                    time_samples += $"{samples},{stopwatch.Elapsed.TotalMilliseconds}\n";
+
                     netTime += stopwatch.Elapsed.TotalMilliseconds;
                     inds_cnt += inds_pos;
                 }
             }
+
+            File.WriteAllText("samples.csv", time_samples);
+
             Console.WriteLine($"Net Time: {netTime / runs}ms, {inds_cnt / runs}");
         }
     }
