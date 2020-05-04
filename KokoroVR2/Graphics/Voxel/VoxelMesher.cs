@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
+using System.Runtime.Intrinsics;
 using System.Runtime.Intrinsics.X86;
 using Bmi = System.Runtime.Intrinsics.X86.Bmi1.X64;
 
@@ -8,7 +9,7 @@ namespace KokoroVR2.Graphics.Voxel
 {
     public class VoxelMesher
     {
-        //[MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
+        [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
         private static unsafe uint buildFace(ref VoxelData vox, ulong xy, ulong z, uint face)
         {
             var idx = xy | z;
@@ -34,12 +35,24 @@ namespace KokoroVR2.Graphics.Voxel
                 {
                     uint* inds_p = inds_p_base;
 
-                    var cur_col_p = visMask + VoxelConstants.ChunkSideWithNeighbors;
                     var top_col_p = visMask;
+                    var cur_col_p = visMask + VoxelConstants.ChunkSideWithNeighbors;
                     var btm_col_p = visMask + VoxelConstants.ChunkSideWithNeighbors * 2;
 
+                    Vector256<ulong> fvec;
                     for (ulong y = 1; y < VoxelConstants.ChunkSideWithNeighbors - 1; y++)
                     {
+                        //read the vector into sse registers
+                        //do a full zero test and skip the set if possible
+                        fvec = Avx.LoadAlignedVector256(cur_col_p);
+                        if(Avx.TestZ(fvec, fvec))
+                        {
+                            cur_col_p += VoxelConstants.ChunkSideWithNeighbors;
+                            top_col_p += VoxelConstants.ChunkSideWithNeighbors;
+                            btm_col_p += VoxelConstants.ChunkSideWithNeighbors;
+                            continue;
+                        }
+
                         var left_col = *cur_col_p++;//vox.VisibilityMasks[VoxelData.GetVisibilityIndex(0, y, 0)];
                         var cur_col = *cur_col_p++;// vox.VisibilityMasks[VoxelData.GetVisibilityIndex(1, y, 0)];
                         var cur_col_orig = cur_col;

@@ -1,0 +1,8 @@
+{
+  "profiles": {
+    "KokoroVR2": {
+      "commandName": "Project",
+      "nativeDebugging": true
+    }
+  }
+}

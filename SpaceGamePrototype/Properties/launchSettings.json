@@ -1,0 +1,8 @@
+{
+  "profiles": {
+    "SpaceGamePrototype": {
+      "commandName": "Project",
+      "nativeDebugging": true
+    }
+  }
+}
