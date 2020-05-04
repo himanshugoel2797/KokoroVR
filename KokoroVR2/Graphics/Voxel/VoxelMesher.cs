@@ -8,11 +8,10 @@ namespace KokoroVR2.Graphics.Voxel
 {
     public class VoxelMesher
     {
-        [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
+        //[MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
         private static unsafe uint buildFace(ref VoxelData vox, ulong xy, ulong z, uint face)
         {
             var idx = xy | z;
-            //var idx = (z) << 10 | (y) << 5 | (x);
             var mat = (ulong)vox.MaterialData[idx];//vox.GetMaterialData(vox, x, y, z);
             return (uint)(face | (mat << 16) | idx);
         }
@@ -24,7 +23,7 @@ namespace KokoroVR2.Graphics.Voxel
         const uint leftFace = 4 << 24;
         const uint rightFace = 5 << 24;
 
-        [MethodImpl(MethodImplOptions.AggressiveOptimization)]
+        //[MethodImpl(MethodImplOptions.AggressiveOptimization)]
         public static void MeshChunk(ref VoxelData vox, out int inds_pos)
         {
             unsafe
@@ -35,31 +34,25 @@ namespace KokoroVR2.Graphics.Voxel
                 {
                     uint* inds_p = inds_p_base;
 
-                    var left_col_p = visMask + VoxelConstants.ChunkSideWithNeighbors;
-                    var cur_col_p = left_col_p + 1;
+                    var cur_col_p = visMask + VoxelConstants.ChunkSideWithNeighbors;
                     var top_col_p = visMask;
-                    var right_col_p = cur_col_p;
                     var btm_col_p = visMask + VoxelConstants.ChunkSideWithNeighbors * 2;
-
-                    ulong xy = 1 << 11;
 
                     for (ulong y = 1; y < VoxelConstants.ChunkSideWithNeighbors - 1; y++)
                     {
-                        var left_col = *left_col_p;//vox.VisibilityMasks[VoxelData.GetVisibilityIndex(0, y, 0)];
-                        var cur_col = *cur_col_p;// vox.VisibilityMasks[VoxelData.GetVisibilityIndex(1, y, 0)];
+                        var left_col = *cur_col_p++;//vox.VisibilityMasks[VoxelData.GetVisibilityIndex(0, y, 0)];
+                        var cur_col = *cur_col_p++;// vox.VisibilityMasks[VoxelData.GetVisibilityIndex(1, y, 0)];
                         var cur_col_orig = cur_col;
 
-                        xy+= 1 << 6;
                         for (ulong x = 1; x < VoxelConstants.ChunkSideWithNeighbors - 1; x++)
                         {
                             var top_col = top_col_p[x];//vox.VisibilityMasks[VoxelData.GetVisibilityIndex(x, y - 1, 0)];
-                            var right_col = right_col_p[x];//vox.VisibilityMasks[VoxelData.GetVisibilityIndex(x + 1, y, 0)];
+                            var right_col = *cur_col_p++;//right_col_p[x];//vox.VisibilityMasks[VoxelData.GetVisibilityIndex(x + 1, y, 0)];
                             var btm_col = btm_col_p[x];//vox.VisibilityMasks[VoxelData.GetVisibilityIndex(x, y + 1, 0)];
-                            xy += 1 << 6;
 
                             if (cur_col != 0)
                             {
-                                //var xy = (y << 11) | (x << 6);
+                                var xy = (y << 11) | (x << 6);
                                 var left_vis = Bmi.AndNot(left_col, cur_col); //(left_col ^ cur_col) & cur_col;
                                 var top_vis = Bmi.AndNot(top_col, cur_col);//(top_col ^ cur_col) & cur_col;
                                 var right_vis = Bmi.AndNot(right_col, cur_col);//(right_col ^ cur_col) & cur_col;
@@ -113,18 +106,13 @@ namespace KokoroVR2.Graphics.Voxel
                             cur_col = right_col;
                             cur_col_orig = right_col;
                         }
-                        xy += 1 << 6;
 
-                        left_col_p += VoxelConstants.ChunkSideWithNeighbors;
-                        cur_col_p += VoxelConstants.ChunkSideWithNeighbors;
                         top_col_p += VoxelConstants.ChunkSideWithNeighbors;
-                        right_col_p += VoxelConstants.ChunkSideWithNeighbors;
                         btm_col_p += VoxelConstants.ChunkSideWithNeighbors;
                     }
                     inds_pos = (int)(inds_p - inds_p_base);
                 }
             }
-            //return vox.IndexCache;
         }
     }
 }
