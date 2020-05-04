@@ -9,7 +9,7 @@
             "type": "coreclr",
             "request": "launch",
             "preLaunchTask": "build",
-            "program": "${workspaceFolder}/KokoroVR2.Test/bin/Debug/netcoreapp3.1/KokoroVR2.Test.dll",
+            "program": "${workspaceFolder}/SpaceGamePrototype/bin/Debug/netcoreapp3.1/SpaceGamePrototype.dll",
             "args": [],
             "cwd": "${workspaceFolder}",
             "console": "integratedTerminal",

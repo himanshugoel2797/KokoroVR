@@ -169,9 +169,11 @@ namespace Kokoro.Graphics
                     var depthStencil = new VkPipelineDepthStencilStateCreateInfo()
                     {
                         sType = VkStructureType.StructureTypePipelineDepthStencilStateCreateInfo,
-                        depthTestEnable = DepthTest != DepthTest.Always,
+                        depthTestEnable = true,
                         depthCompareOp = (VkCompareOp)DepthTest,
                         depthWriteEnable = DepthWrite,
+                        depthBoundsTestEnable = false,
+                        stencilTestEnable = false,
                         maxDepthBounds = ViewportMaxDepth,
                         minDepthBounds = ViewportMinDepth,
                     };

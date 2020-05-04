@@ -36,7 +36,7 @@ namespace Kokoro.Graphics
             {
                 Mapped = true,
                 Size = sz,
-                MemoryUsage = MemoryUsage.CpuOnly,
+                MemoryUsage = MemoryUsage.CpuToGpu,
                 Usage = BufferUsage.TransferSrc
             };
             HostBuffer.Build(0);

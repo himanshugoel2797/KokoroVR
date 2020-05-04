@@ -10,10 +10,10 @@ namespace KokoroVR2.Graphics.Planet
     public enum TerrainFaceIndex
     {
         Top = 0,
-        Front = 1,
-        Left = 2,
-        Bottom = 3,
-        Back = 4,
+        Bottom = 1,
+        Front = 2,
+        Back = 3,
+        Left = 4,
         Right = 5,
     }
 
@@ -29,8 +29,10 @@ namespace KokoroVR2.Graphics.Planet
         readonly IntPtr pushConstants;
         readonly uint pushConstantsLen;
         readonly int cur_cntr;
+        readonly TerrainCache cache;
         Vector3 normal;
 
+        public string heightDataBufferName;
         private static void Initialize(string name)
         {
             if (cntr == 0)
@@ -64,10 +66,11 @@ namespace KokoroVR2.Graphics.Planet
             }
         }
 
-        public TerrainFace(string name, TerrainFaceIndex faceIndex, float radius) : base(name)
+        public TerrainFace(string name, TerrainFaceIndex faceIndex, float radius, TerrainCache cache) : base(name)
         {
             Initialize("TerrainFace");
             cur_cntr = cntr++;
+            this.cache = cache;
             uint v0 = 0, v1 = 0, v2 = 0;
 
             switch (faceIndex)
@@ -84,18 +87,6 @@ namespace KokoroVR2.Graphics.Planet
                     v1 = 2;
                     v2 = 1;
                     break;
-                case TerrainFaceIndex.Left:
-                    normal = new Vector3(1, 0, 0);
-                    v0 = 1;
-                    v1 = 2;
-                    v2 = 0;
-                    break;
-                case TerrainFaceIndex.Right:
-                    normal = new Vector3(-1, 0, 0);
-                    v0 = 1;
-                    v1 = 2;
-                    v2 = 0;
-                    break;
                 case TerrainFaceIndex.Front:
                     normal = new Vector3(0, 0, 1);
                     v0 = 0;
@@ -108,11 +99,23 @@ namespace KokoroVR2.Graphics.Planet
                     v1 = 1;
                     v2 = 2;
                     break;
+                case TerrainFaceIndex.Left:
+                    normal = new Vector3(1, 0, 0);
+                    v0 = 1;
+                    v1 = 2;
+                    v2 = 0;
+                    break;
+                case TerrainFaceIndex.Right:
+                    normal = new Vector3(-1, 0, 0);
+                    v0 = 1;
+                    v1 = 2;
+                    v2 = 0;
+                    break;
             }
 
             unsafe
             {
-                pushConstantsLen = 4 * 4 + 4 * 4;
+                pushConstantsLen = 4 * 4 + 4 * 4 + 4;
                 pushConstants = Marshal.AllocHGlobal((int)pushConstantsLen);
                 float* f_ptr = (float*)pushConstants;
                 uint* ui_ptr = (uint*)f_ptr;
@@ -124,6 +127,7 @@ namespace KokoroVR2.Graphics.Planet
                 ui_ptr[5] = v1;
                 ui_ptr[6] = v2;
                 f_ptr[7] = radius;
+                ui_ptr[8] = (uint)faceIndex * 2049 * 2049;
             }
         }
 
@@ -146,7 +150,7 @@ namespace KokoroVR2.Graphics.Planet
                     DepthWriteEnable = true,
                     DepthTest = DepthTest.Greater,
                     CullMode = CullMode.None,
-                    Fill = FillMode.Line,
+                    Fill = FillMode.Fill,
                     ViewportMinDepth = 0,
                     ViewportMaxDepth = 1,
                     RenderLayout = new RenderLayout()
@@ -186,11 +190,17 @@ namespace KokoroVR2.Graphics.Planet
                             Index = 1,
                             DescriptorType = DescriptorType.UniformBuffer
                         },
+                        new DescriptorConfig()
+                        {
+                            Count = 1,
+                            Index = 2,
+                            DescriptorType = DescriptorType.StorageBuffer
+                        }
                     },
                         PushConstants = new PushConstantConfig[]{
                         new PushConstantConfig(){
                             Offset = 0,
-                            Size = 4 * 4 * 2,
+                            Size = pushConstantsLen,
                             Stages = ShaderType.All
                         },
                     },
@@ -208,6 +218,13 @@ namespace KokoroVR2.Graphics.Planet
                         FinalStage = PipelineStage.FragShader,
                         FinalAccesses = AccessFlags.None,
                     },
+                    new BufferUsageEntry()
+                    {
+                        StartStage = PipelineStage.VertShader,
+                        StartAccesses = AccessFlags.ShaderRead,
+                        FinalStage = PipelineStage.VertShader,
+                        FinalAccesses = AccessFlags.None,
+                    }
                 }
                 });
             }
@@ -232,6 +249,7 @@ namespace KokoroVR2.Graphics.Planet
                 Resources = new string[]{
                         Engine.GlobalParameters.Name,
                         paramBuffer.Name,
+                        heightDataBufferName,
                     },
                 Cmd = GpuCmd.DrawIndexed,
                 IndexCount = indexCount,

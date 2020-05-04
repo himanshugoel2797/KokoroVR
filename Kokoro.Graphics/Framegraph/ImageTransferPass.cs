@@ -13,7 +13,7 @@ namespace Kokoro.Graphics.Framegraph
         public uint Width { get; set; }
         public uint Height { get; set; }
         public uint Depth { get; set; }
-        public uint MipLevel { get; set; }
+        public uint BaseMipLevel { get; set; }
         public uint BaseArrayLayer { get; set; }
         public uint LayerCount { get; set; }
 

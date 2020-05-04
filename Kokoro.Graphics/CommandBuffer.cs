@@ -321,7 +321,7 @@ namespace Kokoro.Graphics
                 throw new Exception("Command buffer not built.");
         }
 
-        public void Stage(GpuBuffer src, ulong src_off, Image dst)
+        public void Stage(GpuBuffer src, ulong src_off, Image dst, uint mipLevel, uint baseArrayLayer, uint layerCount, int x, int y, int z, uint w, uint h, uint d)
         {
             if (locked)
             {
@@ -335,24 +335,24 @@ namespace Kokoro.Graphics
                         imageSubresource = new VkImageSubresourceLayers()
                         {
                             aspectMask = VkImageAspectFlags.ImageAspectColorBit,
-                            mipLevel = 0,
-                            baseArrayLayer = 0,
-                            layerCount = 1
+                            mipLevel = mipLevel,
+                            baseArrayLayer = baseArrayLayer,
+                            layerCount = layerCount
                         },
                         imageOffset = new VkOffset3D()
                         {
-                            x = 0,
-                            y = 0,
-                            z = 0
+                            x = x,
+                            y = y,
+                            z = z
                         },
                         imageExtent = new VkExtent3D()
                         {
-                            width = dst.Width,
-                            height = dst.Height,
-                            depth = dst.Depth
+                            width = w,
+                            height = h,
+                            depth = d
                         }
                     };
-                    vkCmdCopyBufferToImage(hndl, src.hndl, dst.hndl, (VkImageLayout)dst.InitialLayout, 1, bufCopy.Pointer());
+                    vkCmdCopyBufferToImage(hndl, src.hndl, dst.hndl, (VkImageLayout)dst.CurrentLayout, 1, bufCopy.Pointer());
                     IsEmpty = false;
                 }
             }

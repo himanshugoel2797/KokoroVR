@@ -4,6 +4,7 @@ layout(std430, push_constant) uniform PushConstants {
   uint idx1;
   uint idx2;
   float radius;
+  uint off;
 }
 constants;
 
@@ -31,19 +32,28 @@ layout(set = 0, binding = 1, std140) uniform TerrainTileInfo {
 }
 tileInfo;
 
+layout(set = 0, binding = 2, std430) buffer HeightField {
+  uint16_t h[];
+} heights;
+
 void main() {
   // gl_VertexIndex
-  vec2 vpos = vec2((gl_VertexIndex >> 16) & 0xffff, gl_VertexIndex & 0xffff) -
-              128.0f * 0.5f;
-  vpos /= 128.0f;
-  vpos *= 200.0f;
+  uvec2 vpos_u = uvec2((gl_VertexIndex >> 16) & 0xffff, gl_VertexIndex & 0xffff);
+  vec2 vpos = vec2(vpos_u) -
+              2048.0f * 0.5f;
+  vpos /= 2048.0f;
+  vpos *= constants.radius * 2;
   vec4 vert = vec4(0, 0, 0, 1);
   vert[constants.idx0] += vpos.x;
   vert[constants.idx1] += vpos.y;
   vert.xyz += constants.normal.xyz * constants.radius;
 
-  vert.xyz = normalize(vert.xyz) * constants.radius;
+  float height_val = heights.h[constants.off + vpos_u.y * 2049 + vpos_u.x] / 4096.0f;
+  vert.xyz = normalize(vert.xyz) * (constants.radius + height_val * 250.0f);
 
-  gl_Position = globalParams.vp * vert;
-  uv = vec2(1); // vert.xz / 2049.0f;
+  vec4 vert_trans = globalParams.vp * vert;
+  vert_trans.z = (vert_trans.z + vert_trans.w) * 0.5f;
+
+  gl_Position = vert_trans;
+  uv = vec2(height_val); // vert.xz / 2049.0f;
 }

@@ -8,5 +8,5 @@ void main(){
 	UV.x = (x + 1.0f) * 0.5f;
 	UV.y = (y + 1.0f) * 0.5f;
 
-	gl_Position = vec4(x, y, 0.5f, 1);
+	gl_Position = vec4(x, y, 0.0f, 1);
 }

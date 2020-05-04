@@ -5,15 +5,19 @@ using Kokoro.Graphics.Framegraph;
 //using KokoroVR2.Graphics.Voxel;
 using System;
 using KokoroVR2.Graphics.Planet;
+using System.IO;
 
 namespace KokoroVR2.Test
 {
     class Program
     {
         static SpecializedShader vertS, fragS;
+        static Planet planet;
         static TerrainFace[] face;
         static Image[] depthImages;
         static ImageView[] depthImageViews;
+        static StreamableBuffer planetBuffers;
+
         static void Main(string[] args)
         {
             Engine.AppName = "Test";
@@ -22,7 +26,6 @@ namespace KokoroVR2.Test
 
             var graph = new FrameGraph(0);
             Engine.RenderGraph = graph;
-
 
             vertS = new SpecializedShader()
             {
@@ -34,13 +37,12 @@ namespace KokoroVR2.Test
             fragS = new SpecializedShader()
             {
                 Name = "UVR_Frag",
-                Shader = ShaderSource.Load(ShaderType.FragmentShader, "UVRenderer/fragment.glsl"),
+                Shader = ShaderSource.Load(ShaderType.FragmentShader, "FullScreenTriangle/clear_frag.glsl"),
                 SpecializationData = null,
             };
 
             depthImages = new Image[GraphicsDevice.MaxFramesInFlight];
             depthImageViews = new ImageView[GraphicsDevice.MaxFramesInFlight];
-
             for (int i = 0; i < GraphicsDevice.MaxFramesInFlight; i++)
             {
                 depthImages[i] = new Image()
@@ -73,9 +75,22 @@ namespace KokoroVR2.Test
                 depthImageViews[i].Build(depthImages[i]);
             }
 
-            face = new TerrainFace[6];
-            for (int i = 0; i < 6; i++)
-                face[i] = new TerrainFace("terrain_" + i, (TerrainFaceIndex)i, 100);
+            planetBuffers = new StreamableBuffer("planetBuffer", 2049 * 2049 * 2 * 6, BufferUsage.Storage);
+            unsafe
+            {
+                var us_ptr = (ushort*)planetBuffers.BeginBufferUpdate();
+                for (int i = 0; i < 6; i++)
+                {
+                    using (FileStream fs = File.OpenRead($"face_eroded_{i}.bin"))
+                    using (BinaryReader br = new BinaryReader(fs))
+                        for (int j = 0; j < 2049 * 2049; j++)
+                            us_ptr[j] = br.ReadUInt16();
+                    us_ptr += 2049 * 2049;
+                }
+                planetBuffers.EndBufferUpdate();
+            }
+
+            planet = new Planet("terrain_", "planetBuffer", 6000, null);
 
             Engine.OnRebuildGraph += Engine_OnRebuildGraph;
             Engine.OnRender += Engine_OnRender;
@@ -85,13 +100,8 @@ namespace KokoroVR2.Test
 
         private static void Engine_OnUpdate(double time_ms, double delta_ms)
         {
-            //dictionary.Update();
-            //streamer.InitialUpdate(delta_ms);
-            //obj.Render(delta_ms);
-            //streamer.FinalUpdate(delta_ms);
-
-            for (int i = 0; i < 6; i++)
-                face[i].Update();
+            planetBuffers.Update();
+            planet.Update();
         }
 
         private static void Engine_OnRender(double time_ms, double delta_ms)
@@ -111,8 +121,7 @@ namespace KokoroVR2.Test
                 VertexCount = 3,
             });
 
-            for (int i = 0; i < 6; i++)
-                face[i].Render(GraphicsDevice.DefaultFramebuffer[GraphicsDevice.CurrentFrameID].ColorAttachments[0].Name, depthImageViews[GraphicsDevice.CurrentFrameID].Name);
+            planet.Render(GraphicsDevice.DefaultFramebuffer[GraphicsDevice.CurrentFrameID].ColorAttachments[0].Name, depthImageViews[GraphicsDevice.CurrentFrameID].Name);
 
             Engine.RenderGraph.Build();
 
@@ -133,6 +142,7 @@ namespace KokoroVR2.Test
             graph.RegisterShader(vertS);
             graph.RegisterShader(fragS);
 
+            planetBuffers.RebuildGraph();
 
             var gpass = new GraphicsPass("main_pass")
             {
@@ -144,6 +154,8 @@ namespace KokoroVR2.Test
                 DepthTest = DepthTest.Always,
                 CullMode = CullMode.None,
                 Fill = FillMode.Fill,
+                ViewportMinDepth = 0,
+                ViewportMaxDepth = 1,
                 RenderLayout = new RenderLayout()
                 {
                     Color = new RenderLayoutEntry[]
@@ -190,8 +202,7 @@ namespace KokoroVR2.Test
             };
             graph.RegisterGraphicsPass(gpass);
 
-            for (int i = 0; i < 6; i++)
-                face[i].RebuildGraph();
+            planet.RebuildGraph();
             graph.GatherDescriptors();
         }
     }

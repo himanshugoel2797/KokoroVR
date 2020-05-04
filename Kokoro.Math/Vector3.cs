@@ -301,7 +301,7 @@ namespace Kokoro.Math
         public static Vector3 ToSpherical(Vector3 cartesian)
         {
             double R = System.Math.Sqrt(cartesian.X * cartesian.X + cartesian.Y * cartesian.Y + cartesian.Z * cartesian.Z);
-            double Y = System.Math.Atan(cartesian.X / cartesian.Y);
+            double Y = System.Math.Atan2(cartesian.X, cartesian.Y);
             double Z = System.Math.Acos(cartesian.Z / R);
 
             return new Vector3((float)R, (float)Y, (float)Z);

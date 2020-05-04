@@ -93,6 +93,14 @@ namespace Kokoro.Graphics
 #version 450 core
 #extension GL_ARB_separate_shader_objects : enable
 #extension GL_ARB_shader_draw_parameters : enable
+#extension GL_EXT_shader_16bit_storage : enable
+#extension GL_EXT_shader_8bit_storage : enable
+#extension GL_EXT_shader_explicit_arithmetic_types         : enable
+#extension GL_EXT_shader_explicit_arithmetic_types_int8    : enable
+#extension GL_EXT_shader_explicit_arithmetic_types_int16   : enable
+#extension GL_EXT_shader_explicit_arithmetic_types_int32   : enable
+#extension GL_EXT_shader_explicit_arithmetic_types_float16 : enable
+#extension GL_EXT_shader_explicit_arithmetic_types_float32 : enable
 #define MAX_DRAWS_UBO {GraphicsDevice.MaxIndirectDrawsUBO}
 #define MAX_DRAWS_SSBO {GraphicsDevice.MaxIndirectDrawsSSBO}
 #define PI {System.Math.PI}

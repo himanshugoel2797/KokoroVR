@@ -1,96 +1,130 @@
 using System;
 using System.Collections.Generic;
+using System.Runtime.CompilerServices;
 using System.Runtime.Intrinsics.X86;
+using Bmi = System.Runtime.Intrinsics.X86.Bmi1.X64;
 
 namespace KokoroVR2.Graphics.Voxel
 {
     public class VoxelMesher
     {
-        public static uint[] MeshChunk(VoxelData vox)
+        [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
+        private static unsafe uint buildFace(ref VoxelData vox, ulong xy, ulong z, uint face)
         {
-            uint buildFace(int x, int y, int z, int face)
-            {
-                var mat = vox.GetMaterialData(vox, x, y, z);
-                return (uint)((face & 0x7) << 24 | (mat & 0xff) << 16 | (z & 0x1f) << 10 | (y & 0x1f) << 5 | (x & 0x1f));
-            }
+            var idx = xy | z;
+            //var idx = (z) << 10 | (y) << 5 | (x);
+            var mat = (ulong)vox.MaterialData[idx];//vox.GetMaterialData(vox, x, y, z);
+            return (uint)(face | (mat << 16) | idx);
+        }
 
-            var inds = new List<uint>();
+        const uint backFace = 0;
+        const uint frontFace = 1 << 24;
+        const uint topFace = 2 << 24;
+        const uint btmFace = 3 << 24;
+        const uint leftFace = 4 << 24;
+        const uint rightFace = 5 << 24;
 
-            for (int y = 1; y < VoxelConstants.ChunkSideWithNeighbors - 1; y++)
+        [MethodImpl(MethodImplOptions.AggressiveOptimization)]
+        public static void MeshChunk(ref VoxelData vox, out int inds_pos)
+        {
+            unsafe
             {
-                var left_col = vox.VisibilityMasks[VoxelData.GetVisibilityIndex(0, y, 0)];
-                var cur_col = vox.VisibilityMasks[VoxelData.GetVisibilityIndex(1, y, 0)];
-                for (int x = 1; x < VoxelConstants.ChunkSideWithNeighbors - 1; x++)
+                inds_pos = 0;
+                uint* inds_p_base = vox.IndexCache;
+                ulong* visMask = vox.VisibilityMasks;
                 {
-                    var top_col = vox.VisibilityMasks[VoxelData.GetVisibilityIndex(x, y - 1, 0)];
-                    var right_col = vox.VisibilityMasks[VoxelData.GetVisibilityIndex(x + 1, y, 0)];
-                    var btm_col = vox.VisibilityMasks[VoxelData.GetVisibilityIndex(x, y + 1, 0)];
+                    uint* inds_p = inds_p_base;
 
-                    if (cur_col != 0)
+                    var left_col_p = visMask + VoxelConstants.ChunkSideWithNeighbors;
+                    var cur_col_p = left_col_p + 1;
+                    var top_col_p = visMask;
+                    var right_col_p = cur_col_p;
+                    var btm_col_p = visMask + VoxelConstants.ChunkSideWithNeighbors * 2;
+
+                    ulong xy = 1 << 11;
+
+                    for (ulong y = 1; y < VoxelConstants.ChunkSideWithNeighbors - 1; y++)
                     {
-                        var left_vis = (left_col ^ cur_col) & cur_col;
-                        var top_vis = (top_col ^ cur_col) & cur_col;
-                        var right_vis = (right_col ^ cur_col) & cur_col;
-                        var btm_vis = (btm_col ^ cur_col) & cur_col;
+                        var left_col = *left_col_p;//vox.VisibilityMasks[VoxelData.GetVisibilityIndex(0, y, 0)];
+                        var cur_col = *cur_col_p;// vox.VisibilityMasks[VoxelData.GetVisibilityIndex(1, y, 0)];
+                        var cur_col_orig = cur_col;
 
-                        bool isNZ = true;
-                        while (cur_col != 0)
+                        xy+= 1 << 6;
+                        for (ulong x = 1; x < VoxelConstants.ChunkSideWithNeighbors - 1; x++)
                         {
-                            var fidx = Lzcnt.LeadingZeroCount(cur_col);
-                            if (fidx != 0 && fidx != 31)
-                            {
-                                inds.Add(buildFace(x, y, (int)fidx, isNZ ? 1 : 0));    //TODO: Append face
-                            }
-                            isNZ = !isNZ;
-                            cur_col = ~cur_col & ~((1u << (int)fidx) - 1);
-                        }
+                            var top_col = top_col_p[x];//vox.VisibilityMasks[VoxelData.GetVisibilityIndex(x, y - 1, 0)];
+                            var right_col = right_col_p[x];//vox.VisibilityMasks[VoxelData.GetVisibilityIndex(x + 1, y, 0)];
+                            var btm_col = btm_col_p[x];//vox.VisibilityMasks[VoxelData.GetVisibilityIndex(x, y + 1, 0)];
+                            xy += 1 << 6;
 
-                        while (top_vis != 0)
-                        {
-                            var fidx = Lzcnt.LeadingZeroCount(top_vis);
-                            if (fidx != 0 && fidx != 31)
+                            if (cur_col != 0)
                             {
-                                inds.Add(buildFace(x, y, (int)fidx, 2));    //TODO: append face
-                            }
-                            top_vis &= ~(1u << (int)fidx);
-                        }
+                                //var xy = (y << 11) | (x << 6);
+                                var left_vis = Bmi.AndNot(left_col, cur_col); //(left_col ^ cur_col) & cur_col;
+                                var top_vis = Bmi.AndNot(top_col, cur_col);//(top_col ^ cur_col) & cur_col;
+                                var right_vis = Bmi.AndNot(right_col, cur_col);//(right_col ^ cur_col) & cur_col;
+                                var btm_vis = Bmi.AndNot(btm_col, cur_col);//(btm_col ^ cur_col) & cur_col;
+                                var cur_col2 = Bmi.AndNot(cur_col >> 1, cur_col);
 
-                        while (btm_vis != 0)
-                        {
-                            var fidx = Lzcnt.LeadingZeroCount(btm_vis);
-                            if (fidx != 0 && fidx != 31)
-                            {
-                                inds.Add(buildFace(x, y, (int)fidx, 3));    //TODO: append face
-                            }
-                            btm_vis &= ~(1u << (int)fidx);
-                        }
+                                while (cur_col != 0)
+                                {
+                                    var fidx = Bmi.TrailingZeroCount(cur_col);
+                                    *inds_p++ = buildFace(ref vox, xy, fidx, backFace);
+                                    cur_col = Bmi.ResetLowestSetBit(cur_col);
+                                }
 
-                        while (left_vis != 0)
-                        {
-                            var fidx = Lzcnt.LeadingZeroCount(left_vis);
-                            if (fidx != 0 && fidx != 31)
-                            {
-                                inds.Add(buildFace(x, y, (int)fidx, 4));    //TODO: append face
-                            }
-                            left_vis &= ~(1u << (int)fidx);
-                        }
+                                while (cur_col2 != 0)
+                                {
+                                    var fidx = Bmi.TrailingZeroCount(cur_col2);
+                                    *inds_p++ = buildFace(ref vox, xy, fidx, frontFace);
+                                    cur_col2 = Bmi.ResetLowestSetBit(cur_col2);
+                                }
 
-                        while (right_vis != 0)
-                        {
-                            var fidx = Lzcnt.LeadingZeroCount(right_vis);
-                            if (fidx != 0 && fidx != 31)
-                            {
-                                inds.Add(buildFace(x, y, (int)fidx, 5));    //TODO: append face
+                                while (top_vis != 0)
+                                {
+                                    var fidx = Bmi.TrailingZeroCount(top_vis);
+                                    *inds_p++ = buildFace(ref vox, xy, fidx, topFace);    //append face
+                                    top_vis = Bmi.ResetLowestSetBit(top_vis);
+                                }
+
+                                while (btm_vis != 0)
+                                {
+                                    var fidx = Bmi.TrailingZeroCount(btm_vis);
+                                    *inds_p++ = buildFace(ref vox, xy, fidx, btmFace);    //append face
+                                    btm_vis = Bmi.ResetLowestSetBit(btm_vis);
+                                }
+
+                                while (left_vis != 0)
+                                {
+                                    var fidx = Bmi.TrailingZeroCount(left_vis);
+                                    *inds_p++ = buildFace(ref vox, xy, fidx, leftFace);    //append face
+                                    left_vis = Bmi.ResetLowestSetBit(left_vis);
+                                }
+
+                                while (right_vis != 0)
+                                {
+                                    var fidx = Bmi.TrailingZeroCount(right_vis);
+                                    *inds_p++ = buildFace(ref vox, xy, fidx, rightFace);    //append face
+                                    right_vis = Bmi.ResetLowestSetBit(right_vis);
+                                }
                             }
-                            right_vis &= ~(1u << (int)fidx);
+
+                            left_col = cur_col_orig;
+                            cur_col = right_col;
+                            cur_col_orig = right_col;
                         }
+                        xy += 1 << 6;
+
+                        left_col_p += VoxelConstants.ChunkSideWithNeighbors;
+                        cur_col_p += VoxelConstants.ChunkSideWithNeighbors;
+                        top_col_p += VoxelConstants.ChunkSideWithNeighbors;
+                        right_col_p += VoxelConstants.ChunkSideWithNeighbors;
+                        btm_col_p += VoxelConstants.ChunkSideWithNeighbors;
                     }
-
-                    left_col = cur_col;
-                    cur_col = right_col;
+                    inds_pos = (int)(inds_p - inds_p_base);
                 }
             }
-            return inds.ToArray();
+            //return vox.IndexCache;
         }
     }
 }

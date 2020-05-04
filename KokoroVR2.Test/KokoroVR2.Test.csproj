@@ -6,6 +6,88 @@
     <Platforms>AnyCPU;x64</Platforms>
   </PropertyGroup>
 
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Content Include="..\KokoroVR2.PlanetGen\bin\Release\netcoreapp3.1\face_0.png" Link="face_0.png" />
+    <Content Include="..\KokoroVR2.PlanetGen\bin\Release\netcoreapp3.1\face_1.png" Link="face_1.png" />
+    <Content Include="..\KokoroVR2.PlanetGen\bin\Release\netcoreapp3.1\face_2.png" Link="face_2.png" />
+    <Content Include="..\KokoroVR2.PlanetGen\bin\Release\netcoreapp3.1\face_3.png" Link="face_3.png" />
+    <Content Include="..\KokoroVR2.PlanetGen\bin\Release\netcoreapp3.1\face_4.png" Link="face_4.png" />
+    <Content Include="..\KokoroVR2.PlanetGen\bin\Release\netcoreapp3.1\face_5.png" Link="face_5.png" />
+    <Content Include="..\KokoroVR2.PlanetGen\bin\Release\netcoreapp3.1\face_eroded_0.png" Link="face_eroded_0.png">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="..\KokoroVR2.PlanetGen\bin\Release\netcoreapp3.1\face_eroded_1.png" Link="face_eroded_1.png">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="..\KokoroVR2.PlanetGen\bin\Release\netcoreapp3.1\face_eroded_2.png" Link="face_eroded_2.png">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="..\KokoroVR2.PlanetGen\bin\Release\netcoreapp3.1\face_eroded_3.png" Link="face_eroded_3.png">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="..\KokoroVR2.PlanetGen\bin\Release\netcoreapp3.1\face_eroded_4.png" Link="face_eroded_4.png">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="..\KokoroVR2.PlanetGen\bin\Release\netcoreapp3.1\face_eroded_5.png" Link="face_eroded_5.png">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="..\KokoroVR2.PlanetGen\bin\Release\netcoreapp3.1\face_0.bin" Link="face_0.bin">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Include="..\KokoroVR2.PlanetGen\bin\Release\netcoreapp3.1\face_1.bin" Link="face_1.bin">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Include="..\KokoroVR2.PlanetGen\bin\Release\netcoreapp3.1\face_2.bin" Link="face_2.bin">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Include="..\KokoroVR2.PlanetGen\bin\Release\netcoreapp3.1\face_3.bin" Link="face_3.bin">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Include="..\KokoroVR2.PlanetGen\bin\Release\netcoreapp3.1\face_4.bin" Link="face_4.bin">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Include="..\KokoroVR2.PlanetGen\bin\Release\netcoreapp3.1\face_5.bin" Link="face_5.bin">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Include="..\KokoroVR2.PlanetGen\bin\Release\netcoreapp3.1\face_eroded_0.bin" Link="face_eroded_0.bin">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Include="..\KokoroVR2.PlanetGen\bin\Release\netcoreapp3.1\face_eroded_1.bin" Link="face_eroded_1.bin">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Include="..\KokoroVR2.PlanetGen\bin\Release\netcoreapp3.1\face_eroded_2.bin" Link="face_eroded_2.bin">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Include="..\KokoroVR2.PlanetGen\bin\Release\netcoreapp3.1\face_eroded_3.bin" Link="face_eroded_3.bin">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Include="..\KokoroVR2.PlanetGen\bin\Release\netcoreapp3.1\face_eroded_4.bin" Link="face_eroded_4.bin">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Include="..\KokoroVR2.PlanetGen\bin\Release\netcoreapp3.1\face_eroded_5.bin" Link="face_eroded_5.bin">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+
   <ItemGroup>
     <ProjectReference Include="..\Kokoro.Common\Kokoro.Common.csproj" />
     <ProjectReference Include="..\Kokoro.Graphics\Kokoro.Graphics.csproj" />

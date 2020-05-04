@@ -478,6 +478,7 @@ namespace Kokoro.Graphics
                         shaderDrawParameters = true,
                         storageBuffer16BitAccess = true,
                         uniformAndStorageBuffer16BitAccess = true,
+                        storagePushConstant16 = true,
                     };
                     var devFeats11_ptr = devFeats11.Pointer();
 
