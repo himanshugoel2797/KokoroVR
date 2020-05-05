@@ -28,7 +28,7 @@ namespace SpaceGamePrototype
                 {
                     for (int i = 0; i < 32; i++)
                         for (int y = 0; y < 32; y++)
-                            vox.VisibilityMasks[y * 32 + i] = (uint)rng.Next(); //(ulong)(0x5555555555555555 << ((i + y % 2) % 2));
+                            vox.VisibilityMasks[y * 32 + i] = (uint)(0x55555555 << ((i + y % 2) % 2)); //(uint)rng.Next(); //(uint)(0x55555555 << ((i + y % 2) % 2));
                     Stopwatch stopwatch = Stopwatch.StartNew();
                     VoxelMesher.MeshChunk(ref vox, out var inds_pos);
                     stopwatch.Stop();
