@@ -8,7 +8,7 @@ using System.Text;
 namespace KokoroVR2.Graphics
 {
     [ProtoContract]
-    public class MeshNode
+    public struct MeshNode
     {
         [ProtoMember(1)]
         public Vector3 Offset;
@@ -20,20 +20,47 @@ namespace KokoroVR2.Graphics
         public Vector3 Scale;
 
         [ProtoMember(4)]
-        public MeshData[] Mesh;
+        public int Parent;
 
         [ProtoMember(5)]
-        public MeshNode[] Children;
+        public uint BaseIndex;
+
+        [ProtoMember(6)]
+        public uint BaseVertex;
+
+        [ProtoMember(7)]
+        public uint IndexCount;
+
+        [ProtoMember(8)]
+        public ushort MaterialID;
+
+        [ProtoMember(9)]
+        public ushort BoundsID;
     }
 
     [ProtoContract]
-    public class CompositeMesh
+    public class MeshComponent
     {
         [ProtoMember(1)]
-        public MeshNode Root;
+        public MeshNode[] Nodes;
 
         [ProtoMember(2)]
         public PBRMaterial[] Materials;
+
+        [ProtoMember(3)]
+        public byte[] VertexData;
+
+        [ProtoMember(4)]
+        public byte[] UVData;
+        
+        [ProtoMember(5)]
+        public byte[] IndexData;
+
+        [ProtoMember(6)]
+        public byte[] NormalData;
+
+        [ProtoMember(7)]
+        public Vector3[] Bounds;
 
         public void Save(string file)
         {
@@ -43,11 +70,11 @@ namespace KokoroVR2.Graphics
             }
         }
 
-        public static CompositeMesh Load(string file)
+        public static MeshComponent Load(string file)
         {
             using (var f = File.Open(file, FileMode.Open, FileAccess.Read))
             {
-                return Serializer.Deserialize<CompositeMesh>(f);
+                return Serializer.Deserialize<MeshComponent>(f);
             }
         }
     }

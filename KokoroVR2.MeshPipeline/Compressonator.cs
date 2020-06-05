@@ -23,18 +23,27 @@ namespace KokoroVR2.MeshPipeline
 
         public string Exec(string inputFile, int lod_lv)
         {
-            var outputFile = GetOutputPath(tid, lod_lv);
-            Process p = new Process()
+            if (lod_lv == 0)
             {
-                StartInfo = new ProcessStartInfo()
+                var o_file = GetOutputPath(tid, lod_lv);
+                File.Copy(inputFile, o_file, true);
+                return o_file;
+            }
+            else
+            {
+                var outputFile = GetOutputPath(tid, lod_lv);
+                Process p = new Process()
                 {
-                    FileName = execPath,
-                    Arguments = $"-log -meshopt -simplifyMeshLOD {lod_lv + 1} -optVFetch 1 -optOverdrawACMRThres 1.03 -optVCacheSize 32 \"{inputFile}\" \"{outputFile}\""
-                }
-            };
-            p.Start();
-            p.WaitForExit();
-            return outputFile;
+                    StartInfo = new ProcessStartInfo()
+                    {
+                        FileName = execPath,
+                        Arguments = $"-log -meshopt -simplifyMeshLOD {lod_lv} -optVFetch 1 -optOverdrawACMRThres 1.03 -optVCacheSize 32 \"{inputFile}\" \"{outputFile}\""
+                    }
+                };
+                p.Start();
+                p.WaitForExit();
+                return outputFile;
+            }
         }
     }
 }

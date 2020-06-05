@@ -18,6 +18,14 @@ namespace KokoroVR2.MeshPipeline
         private string bdir;
         private int tid;
 
+        private List<byte> vertices;
+        private List<byte> normals;
+        private List<byte> texcoords;
+        private List<byte> indices;
+
+        private List<MeshNode> nodes;
+        private List<Vector3> bounds;
+
         public ModelLoader(int tid)
         {
             this.tid = tid;
@@ -48,8 +56,13 @@ namespace KokoroVR2.MeshPipeline
             model = glTFLoader.Interface.LoadModel(n_file);
             bdir = dir_path;
 
-            CompositeMesh mesh = new CompositeMesh();
+            MeshComponent mesh = new MeshComponent();
             mesh.Materials = new PBRMaterial[model.Materials.Length];
+
+            int node_cnt = 0;
+            for (int i = 0; i < model.Meshes.Length; i++)
+                for (int j = 0; j < model.Meshes[i].Primitives.Length; j++)
+                    node_cnt++;
 
             for (int i = 0; i < model.Materials.Length; i++)
             {
@@ -67,55 +80,104 @@ namespace KokoroVR2.MeshPipeline
 
             for (int i = 0; i < model.Scenes[model.Scene.Value].Nodes.Length; i++)
             {
-                mesh.Root = new MeshNode();
-                BuildNode(mesh.Root, model.Scenes[model.Scene.Value].Nodes[i]);
+                int id = 0;
+                nodes = new List<MeshNode>();
+                vertices = new List<byte>();
+                normals = new List<byte>();
+                texcoords = new List<byte>();
+                indices = new List<byte>();
+                bounds = new List<Vector3>();
+                
+                BuildNode(model.Scenes[model.Scene.Value].Nodes[i], ref id, -1);
+                
+                mesh.VertexData = vertices.ToArray();
+                mesh.NormalData = normals.ToArray();
+                mesh.UVData = texcoords.ToArray();
+                mesh.IndexData = indices.ToArray();
+                mesh.Nodes = nodes.ToArray();
+                mesh.Bounds = bounds.ToArray();
+
                 var output_file_tmp = $"{Path.GetFileNameWithoutExtension(output_file)}_n{i}_lv{lod_lv}{Path.GetExtension(output_file)}";
                 mesh.Save(output_file_tmp);
             }
         }
 
-        private void BuildNode(MeshNode node, int idx)
+        private void BuildNode(int idx, ref int id, int parent)
         {
+            var cur_id = id;
+            var node = new MeshNode();
             if (model.Nodes[idx].Mesh.HasValue)
             {
                 var mesh_idx = model.Nodes[idx].Mesh.Value;
 
-                node.Mesh = new MeshData[model.Meshes[mesh_idx].Primitives.Length];
                 for (int j = 0; j < model.Meshes[mesh_idx].Primitives.Length; j++)
                 {
+                    node.Offset = new Vector3(model.Nodes[idx].Translation);
+                    node.Rotation = new Quaternion(model.Nodes[idx].Rotation);
+                    node.Scale = new Vector3(model.Nodes[idx].Scale);
+                    node.Parent = parent;
+
                     var idxBuf_b = GetBuffer(model.Meshes[mesh_idx].Primitives[j].Indices.Value);
                     var posBuf_b = GetBuffer(mesh_idx, j, POSITION);
                     var normBuf_b = GetBuffer(mesh_idx, j, NORMAL);
                     var texCo_b = GetBuffer(mesh_idx, j, TEXCOORD);
                     var matID = model.Meshes[mesh_idx].Primitives[j].Material.GetValueOrDefault();
 
-                    //compress and pack data into a custom format that can be loaded straight to memory
-                    node.Mesh[j] = new MeshData()
+                    Vector3 min = Vector3.One * float.MaxValue;
+                    Vector3 max = Vector3.One * float.MinValue;
+
+                    unsafe
                     {
-                        IndexCount = (uint)idxBuf_b.Length / sizeof(uint),
-                        IndexData = idxBuf_b,
-                        Name = $"{model.Meshes[mesh_idx].Name}_{j}",
-                        MaterialID = (uint)matID,
-                        NormalData = normBuf_b,
-                        UVData = texCo_b,
-                        VertexData = posBuf_b,
-                        VertexCount = (uint)posBuf_b.Length / (3u * sizeof(float)),
-                    };
+                        fixed(byte* bp = posBuf_b)
+                        {
+                            float* fp = (float*)bp;
+
+                            for(int i = 0; i < posBuf_b.Length / (3 * sizeof(float)); i++)
+                            {
+                                var vec = new Vector3(fp[0], fp[1], fp[2]);
+                                min = Vector3.ComponentMin(min, vec);
+                                max = Vector3.ComponentMax(max, vec);
+                                fp += 3;
+                            }
+                        }
+                    }
+
+                    //compress and pack data into a custom format that can be loaded straight to memory
+                    node.BaseIndex = (uint)indices.Count / sizeof(uint);
+                    node.BaseVertex = (uint)vertices.Count / (3 * sizeof(float));
+                    node.IndexCount = (uint)idxBuf_b.Length / sizeof(uint);
+                    node.MaterialID = (ushort)matID;
+                    node.BoundsID = (ushort)(bounds.Count / 2);
+
+                    indices.AddRange(idxBuf_b);
+                    vertices.AddRange(posBuf_b);
+                    normals.AddRange(normBuf_b);
+                    texcoords.AddRange(texCo_b);
+
+                    bounds.Add(min);
+                    bounds.Add(max);
+
+                    nodes.Add(node);
+                    id++;
+                    node = new MeshNode();
                 }
             }
-
-            node.Offset = new Vector3(model.Nodes[idx].Translation);
-            node.Rotation = new Quaternion(model.Nodes[idx].Rotation);
-            node.Scale = new Vector3(model.Nodes[idx].Scale);
+            else
+            {
+                node.Offset = new Vector3(model.Nodes[idx].Translation);
+                node.Rotation = new Quaternion(model.Nodes[idx].Rotation);
+                node.Scale = new Vector3(model.Nodes[idx].Scale);
+                node.Parent = parent;
+                id++;
+                nodes.Add(node);
+            }
 
             var children = model.Nodes[idx].Children;
             if (children != null)
             {
-                node.Children = new MeshNode[children.Length];
                 for (int i = 0; i < children.Length; i++)
                 {
-                    node.Children[i] = new MeshNode();
-                    BuildNode(node.Children[i], children[i]);
+                    BuildNode(children[i], ref id, cur_id);
                 }
             }
         }

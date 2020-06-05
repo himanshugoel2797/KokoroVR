@@ -8,7 +8,7 @@ using System.Text;
 namespace KokoroVR2.Graphics
 {
     [ProtoContract]
-    public class PBRMaterial
+    public struct PBRMaterial
     {
         //Serialize/Deserialize
         [ProtoMember(1)]

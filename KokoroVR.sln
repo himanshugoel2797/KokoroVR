@@ -40,7 +40,9 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "KokoroVR2.RaytracingProto",
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Kokoro.PlanetGen.Gpu", "Kokoro.PlanetGen.Gpu\Kokoro.PlanetGen.Gpu.csproj", "{0A6CD67D-E7AE-4628-864A-9187ECAC7A17}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "KokoroVR2.MeshPipeline", "KokoroVR2.MeshPipeline\KokoroVR2.MeshPipeline.csproj", "{FDA4AE57-102A-4989-9307-895891F8E90D}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "KokoroVR2.MeshPipeline", "KokoroVR2.MeshPipeline\KokoroVR2.MeshPipeline.csproj", "{FDA4AE57-102A-4989-9307-895891F8E90D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "RacingGamePrototype", "RacingGamePrototype\RacingGamePrototype.csproj", "{905D919E-6DD1-4E2F-B6C2-C47BC019B5EE}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -220,6 +222,18 @@ Global
 		{FDA4AE57-102A-4989-9307-895891F8E90D}.Release|x64.Build.0 = Release|x64
 		{FDA4AE57-102A-4989-9307-895891F8E90D}.Release|x86.ActiveCfg = Release|Any CPU
 		{FDA4AE57-102A-4989-9307-895891F8E90D}.Release|x86.Build.0 = Release|Any CPU
+		{905D919E-6DD1-4E2F-B6C2-C47BC019B5EE}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{905D919E-6DD1-4E2F-B6C2-C47BC019B5EE}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{905D919E-6DD1-4E2F-B6C2-C47BC019B5EE}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{905D919E-6DD1-4E2F-B6C2-C47BC019B5EE}.Debug|x64.Build.0 = Debug|Any CPU
+		{905D919E-6DD1-4E2F-B6C2-C47BC019B5EE}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{905D919E-6DD1-4E2F-B6C2-C47BC019B5EE}.Debug|x86.Build.0 = Debug|Any CPU
+		{905D919E-6DD1-4E2F-B6C2-C47BC019B5EE}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{905D919E-6DD1-4E2F-B6C2-C47BC019B5EE}.Release|Any CPU.Build.0 = Release|Any CPU
+		{905D919E-6DD1-4E2F-B6C2-C47BC019B5EE}.Release|x64.ActiveCfg = Release|Any CPU
+		{905D919E-6DD1-4E2F-B6C2-C47BC019B5EE}.Release|x64.Build.0 = Release|Any CPU
+		{905D919E-6DD1-4E2F-B6C2-C47BC019B5EE}.Release|x86.ActiveCfg = Release|Any CPU
+		{905D919E-6DD1-4E2F-B6C2-C47BC019B5EE}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

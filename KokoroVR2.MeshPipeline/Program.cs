@@ -7,7 +7,7 @@ namespace KokoroVR2.MeshPipeline
     {
         static void Main(string[] args)
         {
-            ProcessMesh(@"I:\Blender\New Folder\0_2.glb", "0_2.kvm", 3);
+            ProcessMesh(/*args[0], args[1], 2);*/@"I:\Blender\level_test_1\track.glb", "0_2.kvm", 2);
         }
 
         static void ProcessMesh(string file, string dest, int lod_cnt)
