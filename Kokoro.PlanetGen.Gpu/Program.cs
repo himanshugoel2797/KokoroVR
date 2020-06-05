@@ -2,30 +2,48 @@
 using Kokoro.Math;
 using KokoroVR2.Graphics;
 using Kokoro.Graphics.Framegraph;
-//using KokoroVR2.Graphics.Voxel;
 using System;
 using KokoroVR2.Graphics.Planet;
 using System.IO;
+using KokoroVR2;
 
-namespace KokoroVR2.Test
+namespace Kokoro.PlanetGen.Gpu
 {
     class Program
     {
         static SpecializedShader vertS, fragS;
-        static Planet planet;
-        static TerrainFace[] face;
         static Image[] depthImages;
         static ImageView[] depthImageViews;
-        static StreamableBuffer planetBuffers;
+
+        static GpuBuffer dropletCache;
+        static HeightMapGen heightMap;
+
+        const uint dropletCount = 1024;
+        const uint terrainSide = 4096;
 
         static void Main(string[] args)
         {
-            Engine.AppName = "Test";
+            Engine.AppName = "Kokoro.PlanetGen.Gpu";
             Engine.EnableValidation = true;
+            Engine.RebuildShaders = true;
             Engine.Initialize();
 
             var graph = new FrameGraph(0);
             Engine.RenderGraph = graph;
+
+            dropletCache = new GpuBuffer("dropletCache")
+            {
+                Usage = BufferUsage.Storage | BufferUsage.TransferSrc,
+                MemoryUsage = MemoryUsage.GpuOnly,
+                Mapped = false,
+            };
+            dropletCache.Build(0);
+
+            //Generate a heightmap
+            heightMap = new HeightMapGen("heightMap", terrainSide);
+
+            //Populate particle buffer
+            //Iterate particle simulation
 
             vertS = new SpecializedShader()
             {
@@ -73,23 +91,6 @@ namespace KokoroVR2.Test
                 depthImageViews[i].Build(depthImages[i]);
             }
 
-            planetBuffers = new StreamableBuffer("planetBuffer", 2049 * 2049 * 2 * 6, BufferUsage.Storage);
-            unsafe
-            {
-                var us_ptr = (ushort*)planetBuffers.BeginBufferUpdate();
-                for (int i = 0; i < 6; i++)
-                {
-                    using (FileStream fs = File.OpenRead($"face_eroded_{i}.bin"))
-                    using (BinaryReader br = new BinaryReader(fs))
-                        for (int j = 0; j < 2049 * 2049; j++)
-                            us_ptr[j] = br.ReadUInt16();
-                    us_ptr += 2049 * 2049;
-                }
-                planetBuffers.EndBufferUpdate();
-            }
-
-            planet = new Planet("terrain_", "planetBuffer", 6000, null);
-
             Engine.OnRebuildGraph += Engine_OnRebuildGraph;
             Engine.OnRender += Engine_OnRender;
             Engine.OnUpdate += Engine_OnUpdate;
@@ -98,8 +99,7 @@ namespace KokoroVR2.Test
 
         private static void Engine_OnUpdate(double time_ms, double delta_ms)
         {
-            planetBuffers.Update();
-            planet.Update();
+
         }
 
         private static void Engine_OnRender(double time_ms, double delta_ms)
@@ -107,20 +107,18 @@ namespace KokoroVR2.Test
             //Acquire the frame
             GraphicsDevice.AcquireFrame();
 
+            heightMap.Generate();
             Engine.RenderGraph.QueueOp(new GpuOp()
             {
                 ColorAttachments = new string[] { GraphicsDevice.DefaultFramebuffer[GraphicsDevice.CurrentFrameID].ColorAttachments[0].Name },
                 DepthAttachment = depthImageViews[GraphicsDevice.CurrentFrameID].Name,
                 PassName = "main_pass",
                 Resources = new string[]{
-                        Engine.GlobalParameters.Name
+                        Engine.GlobalParameters.Name,
                     },
                 Cmd = GpuCmd.Draw,
                 VertexCount = 3,
             });
-
-            planet.Render(GraphicsDevice.DefaultFramebuffer[GraphicsDevice.CurrentFrameID].ColorAttachments[0].Name, depthImageViews[GraphicsDevice.CurrentFrameID].Name);
-
             Engine.RenderGraph.Build();
 
             GraphicsDevice.PresentFrame();
@@ -137,10 +135,10 @@ namespace KokoroVR2.Test
                 graph.RegisterResource(depthImageViews[i]);
             }
 
+            heightMap.RebuildGraph();
+
             graph.RegisterShader(vertS);
             graph.RegisterShader(fragS);
-
-            planetBuffers.RebuildGraph();
 
             var gpass = new GraphicsPass("main_pass")
             {
@@ -185,7 +183,7 @@ namespace KokoroVR2.Test
                             Count = 1,
                             Index = 0,
                             DescriptorType = DescriptorType.UniformBuffer,
-                        }
+                        },
                     },
                     PushConstants = null,
                 },
@@ -195,12 +193,11 @@ namespace KokoroVR2.Test
                         StartAccesses = AccessFlags.ShaderRead,
                         FinalStage = PipelineStage.VertShader,
                         FinalAccesses = AccessFlags.None
-                    }
+                    },
                 }
             };
             graph.RegisterGraphicsPass(gpass);
 
-            planet.RebuildGraph();
             graph.GatherDescriptors();
         }
     }

@@ -94,7 +94,7 @@ namespace Kokoro.Graphics
                     {
                         sType = VkStructureType.StructureTypePipelineInputAssemblyStateCreateInfo,
                         topology = (VkPrimitiveTopology)Topology,
-                        primitiveRestartEnable = false
+                        primitiveRestartEnable = false,
                     };
                     var inputAssembly_ptr = inputAssembly.Pointer();
 

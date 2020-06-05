@@ -23,6 +23,7 @@ SOFTWARE.
  */
 #endregion
 
+using ProtoBuf;
 using System;
 using System.Runtime.InteropServices;
 using System.Xml.Serialization;
@@ -35,6 +36,7 @@ namespace Kokoro.Math
     /// The Vector3 structure is suitable for interoperation with unmanaged code requiring three consecutive floats.
     /// </remarks>
     [Serializable]
+    [ProtoContract]
     [StructLayout(LayoutKind.Sequential)]
     public struct Vector3 : IEquatable<Vector3>
     {
@@ -45,6 +47,7 @@ namespace Kokoro.Math
         /// <summary>
         /// The X component of the Vector3.
         /// </summary>
+        [ProtoMember(1)]
         public float X
         {
             get { return SIMD_vec.X; }
@@ -54,6 +57,7 @@ namespace Kokoro.Math
         /// <summary>
         /// The Y component of the Vector3.
         /// </summary>
+        [ProtoMember(2)]
         public float Y
         {
             get { return SIMD_vec.Y; }
@@ -63,6 +67,7 @@ namespace Kokoro.Math
         /// <summary>
         /// The Z component of the Vector3.
         /// </summary>
+        [ProtoMember(3)]
         public float Z
         {
             get { return SIMD_vec.Z; }

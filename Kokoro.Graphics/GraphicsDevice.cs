@@ -6,6 +6,7 @@ using VulkanSharp.Raw;
 using static VulkanSharp.Raw.Vk;
 using static VulkanSharp.Raw.Vma;
 using static VulkanSharp.Raw.Glfw;
+using static RadeonRaysSharp.Raw.RadeonRays;
 using System.Runtime.InteropServices;
 using System.Linq;
 using Kokoro.Graphics.Framegraph;
@@ -16,6 +17,7 @@ namespace Kokoro.Graphics
     {
         public IntPtr Device { get; internal set; }
         public IntPtr PhysicalDevice { get; internal set; }
+        public IntPtr RaysContext { get; internal set; }
         public uint GraphicsFamily { get; internal set; }
         public uint ComputeFamily { get; internal set; }
         public uint TransferFamily { get; internal set; }
@@ -32,6 +34,8 @@ namespace Kokoro.Graphics
 
     public static unsafe class GraphicsDevice
     {
+        private static IntPtr rrContextHndl;
+
         private static IntPtr instanceHndl;
         private static IntPtr surfaceHndl;
         private static IntPtr swapChainHndl;
@@ -48,11 +52,16 @@ namespace Kokoro.Graphics
                 VkKhrCreateRenderpass2ExtensionName,
                 VkKhrSeparateDepthStencilLayoutsExtensionName,
                 VkKhrDrawIndirectCountExtensionName,
-                VkKhrShaderDrawParametersExtensionName
+                VkKhrShaderDrawParametersExtensionName,
+
+                VkExtShaderSubgroupBallotExtensionName,
+                VkKhrMaintenance3ExtensionName,
             };
         private static readonly string[] optionalDeviceExtns = new string[]
         {
-            VkAmdRasterizationOrderExtensionName
+            VkAmdRasterizationOrderExtensionName,
+            VkNvShaderSubgroupPartitionedExtensionName,
+            VkAmdShaderBallotExtensionName,
         };
 
         private static bool[] optionalExtn_avail;
@@ -272,6 +281,9 @@ namespace Kokoro.Graphics
                 var glfwExtns = glfwGetRequiredInstanceExtensions(&glfwExtnCnt);
                 for (int i = 0; i < glfwExtnCnt; i++)
                     instExtns.Add(Marshal.PtrToStringAnsi(glfwExtns[i]));
+
+                instExtns.Add(VkKhrGetPhysicalDeviceProperties2ExtensionName);
+
                 if (EnableValidation)
                 {
                     instLayers.Add("VK_LAYER_KHRONOS_validation");
@@ -470,15 +482,16 @@ namespace Kokoro.Graphics
                         shaderInt16 = true,
                         samplerAnisotropy = true,
                         fillModeNonSolid = true,
+                        largePoints = true,
                     };
 
                     var devFeats11 = new VkPhysicalDeviceVulkan11Features()
                     {
                         sType = VkStructureType.StructureTypePhysicalDeviceVulkan11Features,
                         shaderDrawParameters = true,
-                        storageBuffer16BitAccess = true,
-                        uniformAndStorageBuffer16BitAccess = true,
-                        storagePushConstant16 = true,
+                        //storageBuffer16BitAccess = true,
+                        //uniformAndStorageBuffer16BitAccess = true,
+                        //storagePushConstant16 = true,
                     };
                     var devFeats11_ptr = devFeats11.Pointer();
 
@@ -563,6 +576,11 @@ namespace Kokoro.Graphics
                         descriptorBindingUpdateUnusedWhilePending = true,
                         descriptorBindingPartiallyBound = true,
                         shaderStorageTexelBufferArrayDynamicIndexing = true,
+
+                        shaderStorageBufferArrayNonUniformIndexing = true,
+                        runtimeDescriptorArray = true,
+                        descriptorBindingVariableDescriptorCount = true,
+
                         pNext = devFeats11_ptr
                     };
                     var devFeats12_ptr = devFeats12.Pointer();
@@ -686,7 +704,7 @@ namespace Kokoro.Graphics
                         swapchainImages = new Image[swapchain_img_cnt];
                         for (int i = 0; i < swapchainImages.Length; i++)
                         {
-                            swapchainImages[i] = new Image()
+                            swapchainImages[i] = new Image($"Swapchain_{i}")
                             {
                                 Dimensions = 2,
                                 Width = cur_extent.width,
@@ -699,7 +717,6 @@ namespace Kokoro.Graphics
                                 Usage = ImageUsage.Sampled,
                                 InitialLayout = ImageLayout.Undefined,
                                 Cubemappable = false,
-                                Name = $"Swapchain_{i}",
                             };
                             swapchainImages[i].Build(0, swapchainImages_l[i]);
                         }
@@ -710,7 +727,7 @@ namespace Kokoro.Graphics
                         DefaultFramebuffer = new Framebuffer[swapchain_img_cnt];
                         for (int i = 0; i < swapchainImages.Length; i++)
                         {
-                            swapchainViews[i] = new ImageView()
+                            swapchainViews[i] = new ImageView($"Swapchain_{i}")
                             {
                                 BaseLayer = 0,
                                 BaseLevel = 0,
@@ -718,7 +735,6 @@ namespace Kokoro.Graphics
                                 LayerCount = 1,
                                 LevelCount = 1,
                                 ViewType = ImageViewType.View2D,
-                                Name = $"Swapchain_{i}",
                             };
                             swapchainViews[i].Build(swapchainImages[i]);
 
@@ -737,6 +753,18 @@ namespace Kokoro.Graphics
                         Marshal.FreeHGlobal(devExtns_ptr[i]);
 
                     //TODO allocate compute and trasnfer queues for all secondary devices
+                }
+
+                for (int i = 0; i < 1/*DeviceInformation.Length*/; i++)
+                {
+                    var devInfo = DeviceInformation[i];
+                    IntPtr rrCtxtHndl = IntPtr.Zero;
+
+                    if (rrCreateContextVk(RrApiVersion, devInfo.Device, devInfo.PhysicalDevice, devInfo.ComputeQueue.Handle, devInfo.ComputeFamily, &rrCtxtHndl) != RRError.RrSuccess)
+                    {
+                        Console.WriteLine($"Failed to initialize RadeonRays for device #{i}.");
+                    }
+                    DeviceInformation[i].RaysContext = rrCtxtHndl;
                 }
 
                 FrameFinishedSemaphore = new GpuSemaphore[MaxFramesInFlight];

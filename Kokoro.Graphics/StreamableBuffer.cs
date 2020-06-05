@@ -8,12 +8,6 @@ namespace Kokoro.Graphics
 {
     public class StreamableBuffer : UniquelyNamedObject
     {
-        struct StageOffsets
-        {
-            public ulong Offset;
-            public ulong Size;
-        }
-
         private bool isDirty;
         public GpuBuffer LocalBuffer { get; private set; }
         public GpuBuffer HostBuffer { get; private set; }
@@ -79,6 +73,7 @@ namespace Kokoro.Graphics
                 GraphicsContext.RenderGraph.QueueOp(new Framegraph.GpuOp()
                 {
                     PassName = Name + "_transferOp",
+                    Cmd = Framegraph.GpuCmd.Stage
                 });
                 isDirty = false;
             }

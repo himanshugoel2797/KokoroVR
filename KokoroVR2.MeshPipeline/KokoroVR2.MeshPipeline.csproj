@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>netcoreapp3.1</TargetFramework>
+    <Platforms>AnyCPU;x64</Platforms>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="glTF2Loader" Version="1.1.3-alpha" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Kokoro.Math\Kokoro.Math.csproj" />
+    <ProjectReference Include="..\KokoroVR2\KokoroVR2.csproj" />
+  </ItemGroup>
+
+</Project>

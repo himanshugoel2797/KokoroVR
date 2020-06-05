@@ -1,6 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
+    <OutputType>Exe</OutputType>
     <TargetFramework>netcoreapp3.1</TargetFramework>
     <Platforms>AnyCPU;x64</Platforms>
   </PropertyGroup>
@@ -11,8 +12,10 @@
 
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
-    <DebugType>full</DebugType>
-    <DebugSymbols>true</DebugSymbols>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
@@ -23,23 +26,19 @@
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
 
-  <ItemGroup>
-    <None Include="..\glfw3.dll" Link="glfw3.dll">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </None>
-  </ItemGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+  </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="protobuf-net" Version="3.0.0-alpha.173.g87fa6ea775" />
+    <PackageReference Include="CjClutter.ObjLoader" Version="1.0.0" />
   </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\Kokoro.Common\Kokoro.Common.csproj" />
     <ProjectReference Include="..\Kokoro.Graphics\Kokoro.Graphics.csproj" />
     <ProjectReference Include="..\Kokoro.Math\Kokoro.Math.csproj" />
-    <ProjectReference Include="..\Kokoro.Network.Client\Kokoro.Network.Client.csproj" />
-    <ProjectReference Include="..\Kokoro.Network.Server\Kokoro.Network.Server.csproj" />
     <ProjectReference Include="..\Kokoro.Physics\Kokoro.Physics.csproj" />
+    <ProjectReference Include="..\KokoroVR2\KokoroVR2.csproj" />
   </ItemGroup>
-
 </Project>

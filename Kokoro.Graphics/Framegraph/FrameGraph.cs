@@ -3,6 +3,8 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
+using RadeonRaysSharp.Raw;
+using static RadeonRaysSharp.Raw.RadeonRays;
 
 namespace Kokoro.Graphics.Framegraph
 {
@@ -11,6 +13,14 @@ namespace Kokoro.Graphics.Framegraph
         None,
         Draw,
         DrawIndexed,
+
+        Build,
+        Intersect,
+
+        Stage,
+        Download,
+
+        Compute,
     }
 
     public class GpuOp
@@ -37,6 +47,10 @@ namespace Kokoro.Graphics.Framegraph
         public IntPtr PushConstants { get; set; }
         public uint PushConstantsLen { get; set; }
 
+        //Radeon Rays
+        public RayGeometry RRGeometry;
+        public RayIntersections RRIntersections;
+
         internal CommandQueueKind QueueKind;
 
         public GpuOp() { }
@@ -48,6 +62,9 @@ namespace Kokoro.Graphics.Framegraph
             ColorAttachments = src.ColorAttachments;
             DepthAttachment = src.DepthAttachment;
             QueueKind = src.QueueKind;
+
+            RRGeometry = src.RRGeometry;
+            RRIntersections = src.RRIntersections;
         }
     }
 
@@ -469,21 +486,25 @@ namespace Kokoro.Graphics.Framegraph
                 if (ComputePasses.ContainsKey(op.PassName))
                 {
                     var computePass = ComputePasses[op.PassName];
-                    var descriptorSetup = computePass.DescriptorSetup;
-                    if (!ComputePipelines.ContainsKey(computePass.Name))
-                    {
-                        //build the pipeline layout using the descriptors
-                        var pipelineLayout = CreatePipelineLayout(descriptorSetup, computePass.Name);
 
-                        //allocate the pipeline object
-                        var compPipeline = new ComputePipeline()
+                    if (!(computePass is RayPass))
+                    {
+                        var descriptorSetup = computePass.DescriptorSetup;
+                        if (!ComputePipelines.ContainsKey(computePass.Name))
                         {
-                            Name = computePass.Name,
-                            Shader = Shaders[computePass.Shader].Shader,
-                            SpecializationData = Shaders[computePass.Shader].SpecializationData,
-                            PipelineLayout = pipelineLayout,
-                        };
-                        ComputePipelines[compPipeline.Name] = compPipeline;
+                            //build the pipeline layout using the descriptors
+                            var pipelineLayout = CreatePipelineLayout(descriptorSetup, computePass.Name);
+
+                            //allocate the pipeline object
+                            var compPipeline = new ComputePipeline()
+                            {
+                                Name = computePass.Name,
+                                Shader = Shaders[computePass.Shader].Shader,
+                                SpecializationData = Shaders[computePass.Shader].SpecializationData,
+                                PipelineLayout = pipelineLayout,
+                            };
+                            ComputePipelines[compPipeline.Name] = compPipeline;
+                        }
                     }
                 }
                 if (GraphicsPasses.ContainsKey(op.PassName))
@@ -1551,6 +1572,19 @@ namespace Kokoro.Graphics.Framegraph
                         }
 
                     //Process the command
+                    switch (op.Cmd)
+                    {
+                        case GpuCmd.Build:
+                            {
+                                tgt_cmdbuf.BuildGeometry(op.RRGeometry);
+                            }
+                            break;
+                        case GpuCmd.Intersect:
+                            {
+                                tgt_cmdbuf.IntersectRays(op.RRIntersections, op.RRGeometry);
+                            }
+                            break;
+                    }
                 }
                 else if (BufferTransferPasses.ContainsKey(op.PassName))
                 {
@@ -1769,7 +1803,17 @@ namespace Kokoro.Graphics.Framegraph
                         resc.OwningQueue = op.QueueKind;
                     }
 
-                    tgt_cmdbuf.Stage(GpuBuffers[pass.Source], pass.SourceOffset, GpuBuffers[pass.Destination], pass.DestinationOffset, pass.Size);
+                    switch (op.Cmd)
+                    {
+                        case GpuCmd.Stage:
+                            tgt_cmdbuf.Stage(GpuBuffers[pass.Source], pass.SourceOffset, GpuBuffers[pass.Destination], pass.DestinationOffset, pass.Size);
+                            break;
+                        case GpuCmd.Download:
+                            tgt_cmdbuf.Stage(GpuBuffers[pass.Destination], pass.DestinationOffset, GpuBuffers[pass.Source], pass.SourceOffset, pass.Size);
+                            break;
+                        default:
+                            throw new ArgumentException("Transfer operation not specified!");
+                    }
                 }
                 else if (ImageTransferPasses.ContainsKey(op.PassName))
                 {
@@ -1875,6 +1919,7 @@ namespace Kokoro.Graphics.Framegraph
                                     break;
                             }
                         }
+
                         tgt_cmdbuf.Barrier(resc.CurrentUsageStage, PipelineStage.Transfer, new BufferMemoryBarrier[] { bar }, null);
                         resc.CurrentUsageStage = PipelineStage.Transfer;
                         resc.CurrentAccesses = AccessFlags.TransferWrite;
@@ -1993,18 +2038,39 @@ namespace Kokoro.Graphics.Framegraph
                         resc.OwningQueue = op.QueueKind;
                     }
 
-                    tgt_cmdbuf.Stage(GpuBuffers[pass.Source],
-                                     pass.SourceOffset,
-                                     ImageViews[pass.Destination].parent,
-                                     pass.BaseMipLevel,
-                                     pass.BaseArrayLayer,
-                                     pass.LayerCount,
-                                     pass.X,
-                                     pass.Y,
-                                     pass.Z,
-                                     pass.Width,
-                                     pass.Height,
-                                     pass.Depth);
+                    switch (op.Cmd)
+                    {
+                        case GpuCmd.Stage:
+                            tgt_cmdbuf.Stage(GpuBuffers[pass.Source],
+                                             pass.SourceOffset,
+                                             ImageViews[pass.Destination].parent,
+                                             pass.BaseMipLevel,
+                                             pass.BaseArrayLayer,
+                                             pass.LayerCount,
+                                             pass.X,
+                                             pass.Y,
+                                             pass.Z,
+                                             pass.Width,
+                                             pass.Height,
+                                             pass.Depth);
+                            break;
+                        case GpuCmd.Download:
+                            tgt_cmdbuf.Download(ImageViews[pass.Destination].parent,
+                                                pass.BaseMipLevel,
+                                                pass.BaseArrayLayer,
+                                                pass.LayerCount,
+                                                pass.X,
+                                                pass.Y,
+                                                pass.Z,
+                                                pass.Width,
+                                                pass.Height,
+                                                pass.Depth,
+                                                GpuBuffers[pass.Source],
+                                                pass.SourceOffset);
+                            break;
+                        default:
+                            throw new ArgumentException("Transfer operation not specified!");
+                    }
                 }
 
                 node = node.Next;
@@ -2111,7 +2177,7 @@ namespace Kokoro.Graphics.Framegraph
             do
             {
                 bool processed = false;
-                if (g_i < activ_graphCmds.Count && cur_submission_cmd.Value == activ_graphCmds[g_i])
+                if (!processed && g_i < activ_graphCmds.Count && cur_submission_cmd.Value == activ_graphCmds[g_i])
                 {
                     if (g_i < activ_graphCmds.Count - 1)
                         GraphicsDevice.SubmitCommandBuffer(activ_graphCmds[g_i].CmdBuffer, activ_graphCmds[g_i].waiting, activ_graphCmds[g_i].signalling, null);
@@ -2119,7 +2185,7 @@ namespace Kokoro.Graphics.Framegraph
                     processed = true;
                 }
 
-                if (c_i < activ_acompCmds.Count && cur_submission_cmd.Value == activ_acompCmds[c_i])
+                if (!processed && c_i < activ_acompCmds.Count && cur_submission_cmd.Value == activ_acompCmds[c_i])
                 {
                     if (c_i < activ_acompCmds.Count - 1)
                         GraphicsDevice.SubmitCommandBuffer(activ_acompCmds[c_i].CmdBuffer, activ_acompCmds[c_i].waiting, activ_acompCmds[c_i].signalling, null);
@@ -2127,7 +2193,7 @@ namespace Kokoro.Graphics.Framegraph
                     processed = true;
                 }
 
-                if (t_i < activ_transCmds.Count && cur_submission_cmd.Value == activ_transCmds[t_i])
+                if (!processed && t_i < activ_transCmds.Count && cur_submission_cmd.Value == activ_transCmds[t_i])
                 {
                     if (t_i < activ_transCmds.Count - 1)
                         GraphicsDevice.SubmitCommandBuffer(activ_transCmds[t_i].CmdBuffer, activ_transCmds[t_i].waiting, activ_transCmds[t_i].signalling, null);
@@ -2208,6 +2274,7 @@ namespace Kokoro.Graphics.Framegraph
             //Submit the last graphics command with an additional sync + fence for the frame
             GraphicsDevice.SubmitCommandBuffer(transitionBuffer[GraphicsDevice.CurrentFrameID], new GpuSemaphore[] { finalGfxSem }, new GpuSemaphore[] { GraphicsDevice.FrameFinishedSemaphore[GraphicsDevice.CurrentFrameID] }, GraphicsDevice.InflightFences[GraphicsDevice.CurrentFrameID]);
 
+            Console.WriteLine("NEXT FRAME");
             buildLock.Release();
         }
     }

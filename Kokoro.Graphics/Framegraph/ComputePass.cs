@@ -1,12 +1,15 @@
-﻿using System;
+﻿using Kokoro.Common;
+using System;
 using System.Collections.Generic;
 using System.Text;
 
 namespace Kokoro.Graphics.Framegraph
 {
-    public abstract class ComputePass
+    public class ComputePass : UniquelyNamedObject
     {
-        public string Name { get; set; }
+        public ComputePass(string name) : base(name)
+        {
+        }
 
         public bool IsAsync { get; set; }
         public string Shader { get; set; }

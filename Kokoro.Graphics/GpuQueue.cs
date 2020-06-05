@@ -2,6 +2,7 @@ using System.Reflection.Metadata;
 using System;
 using System.Collections.Generic;
 using static VulkanSharp.Raw.Vk;
+using static RadeonRaysSharp.Raw.RadeonRays;
 
 namespace Kokoro.Graphics
 {
@@ -43,62 +44,86 @@ namespace Kokoro.Graphics
 
             unsafe
             {
-                var waitSemaphores = stackalloc IntPtr[waitSems == null ? 0 : waitSems.Length];
-                var signalSemaphores = stackalloc IntPtr[signalSems == null ? 0 : signalSems.Length];
-                var waitSemaphoreVals = stackalloc ulong[waitSems == null ? 0 : waitSems.Length];
-                var signalSemaphoreVals = stackalloc ulong[signalSems == null ? 0 : signalSems.Length];
-
-                bool hasTimeline = false;
-
-                for (int i = 0; i < (waitSems == null ? 0 : waitSems.Length); i++)
+                /*if (buffer.IsRadRayStream)
                 {
-                    waitSemaphoreVals[i] = waitSems[i].timeline ? GraphicsDevice.CurrentFrameCount : 1;
-                    waitSemaphores[i] = waitSems[i].hndl;
+                    if (waitSems != null && waitSems.Length > 0)
+                        throw new Exception();
+                    if (signalSems != null && signalSems.Length > 0)
+                        throw new Exception();
+                    if (fence != null)
+                        throw new Exception();
 
-                    if (waitSems[i].timeline)
-                        hasTimeline = true;
+                    IntPtr wait_event = IntPtr.Zero;
+                    rrSumbitCommandStream(GraphicsDevice.DeviceInformation[DeviceIndex].RaysContext, buffer.radRayStream, IntPtr.Zero, &wait_event);
+                    rrWaitEvent(GraphicsDevice.DeviceInformation[DeviceIndex].RaysContext, wait_event);
+                    rrReleaseEvent(GraphicsDevice.DeviceInformation[DeviceIndex].RaysContext, wait_event);
                 }
-
-                for (int i = 0; i < (signalSems == null ? 0 : signalSems.Length); i++)
+                else*/
                 {
-                    signalSemaphoreVals[i] = signalSems[i].timeline ? GraphicsDevice.CurrentFrameCount + 1 : 0;
-                    signalSemaphores[i] = signalSems[i].hndl;
+                    var waitSemaphores = stackalloc IntPtr[waitSems == null ? 0 : waitSems.Length];
+                    var signalSemaphores = stackalloc IntPtr[signalSems == null ? 0 : signalSems.Length];
+                    var waitSemaphoreVals = stackalloc ulong[waitSems == null ? 0 : waitSems.Length];
+                    var signalSemaphoreVals = stackalloc ulong[signalSems == null ? 0 : signalSems.Length];
 
-                    if (signalSems[i].timeline)
-                        hasTimeline = true;
+                    bool hasTimeline = false;
+
+                    for (int i = 0; i < (waitSems == null ? 0 : waitSems.Length); i++)
+                    {
+                        waitSemaphoreVals[i] = waitSems[i].timeline ? GraphicsDevice.CurrentFrameCount : 1;
+                        waitSemaphores[i] = waitSems[i].hndl;
+
+                        if (waitSems[i].Name == "Semaphore_1_5")
+                            Console.WriteLine($"{buffer.Name}: WAIT SEM");
+
+                        if (waitSems[i].timeline)
+                            hasTimeline = true;
+                    }
+
+                    for (int i = 0; i < (signalSems == null ? 0 : signalSems.Length); i++)
+                    {
+                        signalSemaphoreVals[i] = signalSems[i].timeline ? GraphicsDevice.CurrentFrameCount + 1 : 0;
+                        signalSemaphores[i] = signalSems[i].hndl;
+
+                        if (signalSems[i].Name == "Semaphore_1_5")
+                            Console.WriteLine($"{buffer.Name}: SIGNAL SEM");
+
+                        if (signalSems[i].timeline)
+                            hasTimeline = true;
+                    }
+
+                    var waitStages = stackalloc VkPipelineStageFlags[waitSems == null ? 0 : waitSems.Length];
+                    var cmdBuffers = stackalloc IntPtr[] { buffer.hndl };
+
+                    for (int i = 0; i < (waitSems == null ? 0 : waitSems.Length); i++)
+                        waitStages[i] = VkPipelineStageFlags.PipelineStageColorAttachmentOutputBit;
+
+                    var timelineSems = new VkTimelineSemaphoreSubmitInfo()
+                    {
+                        sType = VkStructureType.StructureTypeTimelineSemaphoreSubmitInfo,
+                        signalSemaphoreValueCount = signalSems == null ? 0 : (uint)signalSems.Length,
+                        waitSemaphoreValueCount = waitSems == null ? 0 : (uint)waitSems.Length,
+                        pSignalSemaphoreValues = signalSemaphoreVals,
+                        pWaitSemaphoreValues = waitSemaphoreVals
+                    };
+                    var timelineSems_ptr = timelineSems.Pointer();
+
+                    var submitInfo = new VkSubmitInfo()
+                    {
+                        sType = VkStructureType.StructureTypeSubmitInfo,
+                        waitSemaphoreCount = waitSems == null ? 0 : (uint)waitSems.Length,
+                        pWaitSemaphores = waitSemaphores,
+                        pWaitDstStageMask = waitStages,
+                        commandBufferCount = 1,
+                        pCommandBuffers = cmdBuffers,
+                        signalSemaphoreCount = signalSems == null ? 0 : (uint)signalSems.Length,
+                        pSignalSemaphores = signalSemaphores,
+                        pNext = hasTimeline ? timelineSems_ptr : IntPtr.Zero
+                    };
+                    var ptr = submitInfo.Pointer();
+                    var res = vkQueueSubmit(Handle, 1, ptr, fence == null ? IntPtr.Zero : fence.hndl);
+                    if (res != VkResult.Success)
+                        throw new Exception("Failed to submit command buffer.");
                 }
-
-                var waitStages = stackalloc VkPipelineStageFlags[waitSems == null ? 0 : waitSems.Length];
-                var cmdBuffers = stackalloc IntPtr[] { buffer.hndl };
-
-                for (int i = 0; i < (waitSems == null ? 0 : waitSems.Length); i++)
-                    waitStages[i] = VkPipelineStageFlags.PipelineStageColorAttachmentOutputBit;
-
-                var timelineSems = new VkTimelineSemaphoreSubmitInfo()
-                {
-                    sType = VkStructureType.StructureTypeTimelineSemaphoreSubmitInfo,
-                    signalSemaphoreValueCount = signalSems == null ? 0 : (uint)signalSems.Length,
-                    waitSemaphoreValueCount = waitSems == null ? 0 : (uint)waitSems.Length,
-                    pSignalSemaphoreValues = signalSemaphoreVals,
-                    pWaitSemaphoreValues = waitSemaphoreVals
-                };
-                var timelineSems_ptr = timelineSems.Pointer();
-
-                var submitInfo = new VkSubmitInfo()
-                {
-                    sType = VkStructureType.StructureTypeSubmitInfo,
-                    waitSemaphoreCount = waitSems == null ? 0 : (uint)waitSems.Length,
-                    pWaitSemaphores = waitSemaphores,
-                    pWaitDstStageMask = waitStages,
-                    commandBufferCount = 1,
-                    pCommandBuffers = cmdBuffers,
-                    signalSemaphoreCount = signalSems == null ? 0 : (uint)signalSems.Length,
-                    pSignalSemaphores = signalSemaphores,
-                    pNext = hasTimeline ? timelineSems_ptr : IntPtr.Zero
-                };
-                var ptr = submitInfo.Pointer();
-                if (vkQueueSubmit(Handle, 1, ptr, fence == null ? IntPtr.Zero : fence.hndl) != VkResult.Success)
-                    throw new Exception("Failed to submit command buffer.");
             }
         }
         #endregion

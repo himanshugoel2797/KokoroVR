@@ -86,6 +86,16 @@ namespace Kokoro.Graphics
             }
         }
 
+        public IntPtr GetRayDevicePointer(ulong offset)
+        {
+            unsafe
+            {
+                IntPtr ptr = IntPtr.Zero;
+                RadeonRaysSharp.Raw.RadeonRays.rrGetDevicePtrFromVkBuffer(GraphicsDevice.DeviceInformation[devID].RaysContext, hndl, offset, &ptr);
+                return ptr;
+            }
+        }
+
         #region IDisposable Support
         private bool disposedValue = false; // To detect redundant calls
 

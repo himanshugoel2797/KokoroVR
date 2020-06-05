@@ -1,14 +1,14 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Text;
+using Kokoro.Common;
 using VulkanSharp.Raw;
 using static VulkanSharp.Raw.Vk;
 
 namespace Kokoro.Graphics
 {
-    public class ImageView : IDisposable
+    public class ImageView : UniquelyNamedObject, IDisposable
     {
-        public string Name { get; set; }
         public ImageFormat Format { get; set; }
         public ImageLayout CurrentLayout { get => parent.CurrentLayout; set => parent.CurrentLayout = value; }
         public AccessFlags CurrentAccesses { get => parent.CurrentAccesses; set => parent.CurrentAccesses = value; }
@@ -28,7 +28,7 @@ namespace Kokoro.Graphics
         internal int devID;
         private bool locked;
 
-        public ImageView() { }
+        public ImageView(string name) : base(name) { }
 
         public void Build(Image img)
         {

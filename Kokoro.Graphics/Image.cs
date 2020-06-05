@@ -1,15 +1,15 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Text;
+using Kokoro.Common;
 using VulkanSharp.Raw;
 using static VulkanSharp.Raw.Vk;
 using static VulkanSharp.Raw.Vma;
 
 namespace Kokoro.Graphics
 {
-    public class Image : IDisposable
+    public class Image : UniquelyNamedObject, IDisposable
     {
-        public string Name { get; set; }
         public uint Width { get; set; }
         public uint Height { get; set; }
         public uint Depth { get; set; }
@@ -33,7 +33,7 @@ namespace Kokoro.Graphics
         private bool swapchainImg;
         private bool locked;
 
-        public Image() { }
+        public Image(string name) : base(name) { }
 
         internal void Build(int deviceIndex, IntPtr img)
         {

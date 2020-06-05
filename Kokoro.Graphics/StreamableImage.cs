@@ -6,12 +6,6 @@ namespace Kokoro.Graphics
 {
     public class StreamableImage : UniquelyNamedObject
     {
-        struct StageOffsets
-        {
-            public ulong Offset;
-            public ulong Size;
-        }
-
         private bool isDirty;
         public Image LocalImage { get; private set; }
         public ImageView LocalImageView { get; private set; }
@@ -23,9 +17,8 @@ namespace Kokoro.Graphics
         {
             this.Size = buf_sz;
             this.Streamable = true;
-            LocalImage = new Image()
+            LocalImage = new Image(Name + "_upload_img")
             {
-                Name = Name + "_upload_img",
                 Cubemappable = false,
                 Width = w,
                 Height = h,
@@ -40,9 +33,8 @@ namespace Kokoro.Graphics
             };
             LocalImage.Build(0);
 
-            LocalImageView = new ImageView()
+            LocalImageView = new ImageView(Name)
             {
-                Name = Name,
                 BaseLayer = 0,
                 BaseLevel = 0,
                 Format = format,
@@ -107,6 +99,7 @@ namespace Kokoro.Graphics
                 GraphicsContext.RenderGraph.QueueOp(new Framegraph.GpuOp()
                 {
                     PassName = Name + "_transferOp",
+                    Cmd = GpuCmd.Stage
                 });
                 isDirty = false;
             }

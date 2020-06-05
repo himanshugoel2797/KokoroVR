@@ -27,6 +27,7 @@ using System;
 using System.Runtime.InteropServices;
 using System.ComponentModel;
 using System.Xml.Serialization;
+using ProtoBuf;
 
 namespace Kokoro.Math
 {
@@ -34,12 +35,16 @@ namespace Kokoro.Math
     /// Represents a Quaternion.
     /// </summary>
     [Serializable]
+    [ProtoContract]
     [StructLayout(LayoutKind.Sequential)]
     public struct Quaternion : IEquatable<Quaternion>
     {
         #region Fields
 
+        [ProtoMember(1)]
         Vector3 xyz;
+
+        [ProtoMember(2)]
         float w;
 
         #endregion
@@ -67,6 +72,8 @@ namespace Kokoro.Math
         public Quaternion(float x, float y, float z, float w)
             : this(new Vector3(x, y, z), w)
         { }
+
+        public Quaternion(float[] d) : this(d[0], d[1], d[2], d[3]) { }
 
         public Quaternion(Matrix3 matrix)
         {

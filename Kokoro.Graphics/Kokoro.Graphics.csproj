@@ -17,6 +17,17 @@
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
   <ItemGroup>
+    <None Include="..\..\RadeonRays_SDK\radeonrays\bin\fmt.dll" Link="fmt.dll">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Include="..\..\RadeonRays_SDK\radeonrays\bin\radeonrays.dll" Link="radeonrays.dll">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Include="..\..\RadeonRays_SDK\radeonrays\bin\WinPixEventRuntime.dll" Link="WinPixEventRuntime.dll">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
     <PackageReference Include="GlfwSharp.NET" Version="0.1.1" />
     <PackageReference Include="Microsoft.CSharp" Version="4.7.0" />
     <PackageReference Include="System.Data.DataSetExtensions" Version="4.6.0-preview3.19128.7" />
@@ -25,5 +36,15 @@
   <ItemGroup>
     <ProjectReference Include="..\Kokoro.Math\Kokoro.Math.csproj" />
     <ProjectReference Include="..\Kokoro.Common\Kokoro.Common.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <Reference Include="RadeonRaysSharp.NET">
+      <HintPath>RadeonRaysSharp.NET.dll</HintPath>
+    </Reference>
+  </ItemGroup>
+  <ItemGroup>
+    <None Update="RadeonRaysSharp.NET.dll">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
   </ItemGroup>
 </Project>

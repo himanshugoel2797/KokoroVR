@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using static VulkanSharp.Raw.Vk;
+using static RadeonRaysSharp.Raw.RadeonRays;
 
 namespace Kokoro.Graphics
 {
@@ -12,8 +13,10 @@ namespace Kokoro.Graphics
         public bool IsRecording { get; private set; }
         public bool IsEmpty { get; private set; } = true;
         public bool OneTimeSubmit { get; set; }
+        public bool IsRadRayStream { get; set; } = false;
 
         internal IntPtr hndl;
+        internal IntPtr radRayStream;
         internal CommandPool cmdPool;
         private int devID;
         private bool locked;
@@ -34,13 +37,25 @@ namespace Kokoro.Graphics
                         level = VkCommandBufferLevel.CommandBufferLevelPrimary,
                     };
 
+
                     devID = pool.devID;
+                    if (pool.queueFamily == GraphicsDevice.DeviceInformation[devID].ComputeFamily)
+                        IsRadRayStream = true;
+
                     IntPtr cmdBufferPtr_l = IntPtr.Zero;
                     if (vkAllocateCommandBuffers(GraphicsDevice.GetDeviceInfo(devID).Device, allocInfo.Pointer(), &cmdBufferPtr_l) != VkResult.Success)
                         throw new Exception("Failed to allocate command buffer.");
                     cmdPool = pool;
                     hndl = cmdBufferPtr_l;
                     IsEmpty = true;
+
+                    if (IsRadRayStream)
+                    {
+                        IntPtr radRayStrmPtr_l = IntPtr.Zero;
+                        if (rrGetCommandStreamFromVkCommandBuffer(GraphicsDevice.DeviceInformation[devID].RaysContext, cmdBufferPtr_l, &radRayStrmPtr_l) != RRError.RrSuccess)
+                            throw new Exception("Failed to create RadeonRays stream.");
+                        radRayStream = radRayStrmPtr_l;
+                    }
 
                     if (GraphicsDevice.EnableValidation)
                     {
@@ -251,17 +266,6 @@ namespace Kokoro.Graphics
                 };
                 vkCmdCopyBuffer(hndl, src.hndl, dst.hndl, 1, bufCopy.Pointer());
                 IsEmpty = false;
-                /*vkCmdPipelineBarrier(hndl, VkPipelineStageFlags.PipelineStageTransferBit, VkPipelineStageFlags.PipelineStageAllCommandsBit, 0, 0, null, 1, new VkBufferMemoryBarrier()
-                {
-                    sType = VkStructureType.StructureTypeBufferMemoryBarrier,
-                    buffer = dst.hndl,
-                    offset = dst_off,
-                    srcAccessMask = VkAccessFlags.AccessTransferWriteBit,
-                    dstAccessMask = 0,
-                    srcQueueFamilyIndex = cmdPool.queueFamily,
-                    dstQueueFamilyIndex = VkQueueFamilyIgnored,
-                    size = len,
-                }.Pointer(), 0, null);*/
             }
             else
                 throw new Exception("Command buffer not built.");
@@ -361,6 +365,47 @@ namespace Kokoro.Graphics
         }
         #endregion
 
+        #region Download
+        public void Download(Image src, uint mipLevel, uint baseArrayLayer, uint layerCount, int x, int y, int z, uint w, uint h, uint d, GpuBuffer dst, ulong dst_off)
+        {
+            if (locked)
+            {
+                unsafe
+                {
+                    var bufCopy = new VkBufferImageCopy()
+                    {
+                        bufferOffset = dst_off,
+                        bufferRowLength = 0,
+                        bufferImageHeight = 0,
+                        imageSubresource = new VkImageSubresourceLayers()
+                        {
+                            aspectMask = VkImageAspectFlags.ImageAspectColorBit,
+                            mipLevel = mipLevel,
+                            baseArrayLayer = baseArrayLayer,
+                            layerCount = layerCount
+                        },
+                        imageOffset = new VkOffset3D()
+                        {
+                            x = x,
+                            y = y,
+                            z = z
+                        },
+                        imageExtent = new VkExtent3D()
+                        {
+                            width = w,
+                            height = h,
+                            depth = d
+                        }
+                    };
+                    vkCmdCopyImageToBuffer(hndl, src.hndl, (VkImageLayout)src.CurrentLayout, dst.hndl, 1, bufCopy.Pointer());
+                    IsEmpty = false;
+                }
+            }
+            else
+                throw new Exception("Command buffer not built.");
+        }
+        #endregion
+
         #region Draw
         public void Draw(uint vertexCnt, uint instanceCnt, uint firstVertex, uint baseInstance)
         {
@@ -433,6 +478,43 @@ namespace Kokoro.Graphics
         }
         #endregion
 
+        #region Radeon Rays
+        public void BuildGeometry(RayGeometry geom)
+        {
+            if (locked)
+            {
+                if (!IsRadRayStream)
+                    throw new Exception("Not a raytracing enabled command buffer.");
+
+                var geom_build_input = geom.GeometryBuildInput_ptr;
+                var build_options = new RRBuildOptions()
+                {
+                    build_flags = 0,
+                };
+                var build_options_ptr = build_options.Pointer();
+
+                rrCmdBuildGeometry(GraphicsDevice.DeviceInformation[devID].RaysContext, RRBuildOperation.RrBuildOperationBuild, geom_build_input, build_options_ptr, geom.scratchBufferPtr, geom.geomBufferPtr, radRayStream);
+                IsEmpty = false;
+            }
+            else
+                throw new Exception("Command buffer not built.");
+        }
+
+        public void IntersectRays(RayIntersections rays, RayGeometry geom)
+        {
+            if (locked)
+            {
+                if (!IsRadRayStream)
+                    throw new Exception("Not a raytracing enabled command buffer.");
+
+                rrCmdIntersect(GraphicsDevice.DeviceInformation[devID].RaysContext, geom.geomBufferPtr, RRIntersectQuery.RrIntersectQueryClosest, rays.rayBufferPtr, rays.MaxRayCount, rays.indirectRayCountPtr, RRIntersectQueryOutput.RrIntersectQueryOutputFullHit, rays.resultBufferPtr, rays.scratchBufferPtr, radRayStream);
+                IsEmpty = false;
+            }
+            else
+                throw new Exception("Command buffer not built.");
+        }
+        #endregion
+
         #region IDisposable Support
         private bool disposedValue = false; // To detect redundant calls
 
@@ -451,6 +533,10 @@ namespace Kokoro.Graphics
                 {
                     unsafe
                     {
+                        if (radRayStream != IntPtr.Zero)
+                        {
+                            rrReleaseExternalCommandStream(GraphicsDevice.DeviceInformation[devID].RaysContext, radRayStream);
+                        }
                         IntPtr buf_hndl = hndl;
                         vkFreeCommandBuffers(GraphicsDevice.GetDeviceInfo(devID).Device, cmdPool.hndl, 1, &buf_hndl);
                     }
